@@ -1,0 +1,56 @@
+name: seachat
+description: SeaChat - Modern Arabic Chat App
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: ">=3.24.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+  
+  # Supabase
+  supabase_flutter: ^2.5.0
+  
+  # Google Sign In
+  google_sign_in: ^6.2.1
+  
+  # Image Picker لرفع الصور
+  image_picker: ^1.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  
+  # توليد الأيقونات
+  flutter_launcher_icons: ^0.13.1
+
+flutter:
+  uses-material-design: true
+  
+  # مجلد الأصول
+  assets:
+    - assets/icons/
+    - assets/images/
+
+  # الخطوط لو تبي تضيف Cairo
+  fonts:
+    - family: Cairo
+      fonts:
+        - asset: fonts/Cairo-Regular.ttf
+        - asset: fonts/Cairo-Bold.ttf
+          weight: 700
+
+# إعدادات الأيقونة للأندرويد و iOS
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icons/app_icon.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#CAD5D4"
+  adaptive_icon_foreground: "assets/icons/app_icon.png"
+  remove_alpha_ios: true
