@@ -1,0 +1,437 @@
+import 'package:flutter/material.dart';
+import 'dart:ui';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'data/supabase_repository.dart';
+
+// ===== إعدادات =====
+class AppConfig {
+  static const String appName = 'SeaChat';
+  static const String copyrightName = 'Joud Oday';
+  static const int copyrightYear = 2026;
+  static const String supabaseUrl = 'https://jmsmrojtlstppnpwmkkk.supabase.co';
+  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos';
+}
+
+class AppColors {
+  static const Color backgroundStart = Color(0xFFCAD5D4);
+  static const Color backgroundEnd = Color(0xFFE8EFEE);
+  static const Color button = Color(0xFF482855);
+  static const Color icon = Color(0xFF898199);
+  static const Color cardGlass = Color(0xB3FFFFFF);
+  static const Color textDark = Color(0xFF2D2D2D);
+  static const Color textLight = Color(0xFF6B6B6B);
+}
+
+// ===== الموديلات =====
+class UserModel {
+  final String id, name, username, email;
+  UserModel({required this.id, required this.name, required this.username, required this.email});
+}
+
+class RoomModel {
+  final String id, roomName, roomBio, roomImage, roomStatus;
+  final int membersCount;
+  final bool allowMessages, allowMedia;
+  RoomModel({required this.id, required this.roomName, required this.roomBio, required this.roomImage, required this.membersCount, required this.allowMessages, required this.allowMedia, required this.roomStatus});
+}
+
+class MessageModel {
+  final String id, text, senderName, time;
+  final bool isMe;
+  MessageModel({required this.id, required this.text, required this.senderName, required this.isMe, required this.time});
+}
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Supabase.initialize(url: AppConfig.supabaseUrl, anonKey: AppConfig.supabaseAnonKey);
+  runApp(const SeaChatApp());
+}
+
+class SeaChatApp extends StatelessWidget {
+  const SeaChatApp({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: AppConfig.appName,
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(fontFamily: 'Cairo', useMaterial3: true, colorScheme: ColorScheme.fromSeed(seedColor: AppColors.button)),
+      home: Supabase.instance.client.auth.currentUser == null? const LoginScreen() : const MainScreen(),
+    );
+  }
+}
+
+class AppBackground extends StatelessWidget {
+  final Widget child;
+  const AppBackground({super.key, required this.child});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [AppColors.backgroundStart, AppColors.backgroundEnd])),
+      child: child,
+    );
+  }
+}
+
+class GlassCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsets padding;
+  final double borderRadius;
+  final VoidCallback? onTap;
+  const GlassCard({super.key, required this.child, this.padding = const EdgeInsets.all(16), this.borderRadius = 24, this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(borderRadius),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            child: Container(
+              padding: padding,
+              decoration: BoxDecoration(color: AppColors.cardGlass, borderRadius: BorderRadius.circular(borderRadius), border: Border.all(color: Colors.white.withOpacity(0.4), width: 1.5)),
+              child: child,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ===== 1. تسجيل الدخول مع زر جوجل =====
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final emailController = TextEditingController();
+  final passController = TextEditingController();
+  final repo = SupabaseRepository();
+  bool isLoading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: AppBackground(
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: GlassCard(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.waves_rounded, size: 60, color: AppColors.button),
+                    const SizedBox(height: 12),
+                    Text(AppConfig.appName, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.button)),
+                    const SizedBox(height: 32),
+                    TextField(controller: emailController, decoration: _inputDecoration('البريد الإلكتروني', Icons.email_outlined)),
+                    const SizedBox(height: 16),
+                    TextField(controller: passController, obscureText: true, decoration: _inputDecoration('كلمة المرور', Icons.lock_outline)),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity, height: 50,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.button, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                        onPressed: isLoading? null : () async {
+                          setState(() => isLoading = true);
+                          final success = await repo.signInWithEmail(email: emailController.text, password: passController.text);
+                          if (success && mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainScreen()));
+                          setState(() => isLoading = false);
+                        },
+                        child: isLoading? CircularProgressIndicator(color: Colors.white) : const Text('تسجيل الدخول', style: TextStyle(fontSize: 18, color: Colors.white)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // زر جوجل - جدول: auth.users
+                    SizedBox(
+                      width: double.infinity, height: 50,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(side: BorderSide(color: AppColors.button), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                        onPressed: () async {
+                          await repo.signInWithGoogle();
+                          // Supabase يفتح المتصفح ويرجع للتطبيق تلقائي
+                        },
+                        icon: Icon(Icons.g_mobiledata_rounded, color: AppColors.button, size: 28),
+                        label: Text('المتابعة عبر Google', style: TextStyle(color: AppColors.button)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration(String hint, IconData icon) {
+    return InputDecoration(
+      hintText: hint, prefixIcon: Icon(icon, color: AppColors.icon),
+      filled: true, fillColor: Colors.white.withOpacity(0.5),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+    );
+  }
+}
+
+// ===== 2. الرئيسية مربوطة بجدول rooms =====
+class MainScreen extends StatefulWidget {
+  const MainScreen({super.key});
+  @override
+  State<MainScreen> createState() => _MainScreenState();
+}
+
+class _MainScreenState extends State<MainScreen> {
+  int currentIndex = 0;
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      extendBody: true,
+      drawer: const AppDrawer(),
+      body: AppBackground(child: [const HomeScreen(), const ProfileScreen()][currentIndex]),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(16),
+        child: GlassCard(
+          padding: const EdgeInsets.symmetric(vertical: 8), borderRadius: 20,
+          child: BottomNavigationBar(
+            currentIndex: currentIndex, onTap: (i) => setState(() => currentIndex = i),
+            backgroundColor: Colors.transparent, elevation: 0,
+            selectedItemColor: AppColors.button, unselectedItemColor: AppColors.icon,
+            items: const [
+              BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'الرئيسية'),
+              BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'الملف الشخصي'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    final repo = SupabaseRepository();
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent, title: const Text('الغرف النشطة'),
+        leading: Builder(builder: (context) => IconButton(icon: const Icon(Icons.menu), onPressed: () => Scaffold.of(context).openDrawer())),
+      ),
+      body: FutureBuilder<List<RoomModel>>(
+        future: repo.getAllActiveRooms(), // جدول: rooms
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) return Center(child: CircularProgressIndicator(color: AppColors.button));
+          if (snapshot.hasError) return Center(child: Text('خطأ: ${snapshot.error}'));
+          final rooms = snapshot.data!;
+          if (rooms.isEmpty) return Center(child: Text('لا توجد غرف حالياً'));
+          return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+            itemCount: rooms.length,
+            itemBuilder: (context, i) {
+              final room = rooms[i];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: GlassCard(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(room: room))),
+                  child: ListTile(
+                    leading: CircleAvatar(backgroundColor: AppColors.button.withOpacity(0.2), child: Icon(Icons.group, color: AppColors.button)),
+                    title: Text(room.roomName, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: Text('${room.membersCount} عضو'),
+                    trailing: Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.icon),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ===== 3. شاشة الشات مربوطة بجدول messages + Storage =====
+class ChatScreen extends StatefulWidget {
+  final RoomModel room;
+  const ChatScreen({super.key, required this.room});
+  @override
+  State<ChatScreen> createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends State<ChatScreen> {
+  final repo = SupabaseRepository();
+  final msgController = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(backgroundColor: Colors.transparent, title: Text(widget.room.roomName)),
+      body: AppBackground(
+        child: Column(
+          children: [
+            Expanded(
+              child: StreamBuilder<List<MessageModel>>(
+                stream: repo.getRoomMessagesStream(roomId: widget.room.id), // جدول: messages
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
+                  final messages = snapshot.data!;
+                  return ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 100, 16, 16),
+                    reverse: true,
+                    itemCount: messages.length,
+                    itemBuilder: (context, i) {
+                      final msg = messages[messages.length - 1 - i];
+                      return Align(
+                        alignment: msg.isMe? Alignment.centerLeft : Alignment.centerRight,
+                        child: GlassCard(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          child: msg.text.startsWith('http') // صورة
+                             ? Image.network(msg.text, width: 200)
+                              : Text(msg.text, style: TextStyle(color: msg.isMe? Colors.white : AppColors.textDark)),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: GlassCard(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () async {
+                        final picker = ImagePicker();
+                        final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+                        if (image!= null) {
+                          await repo.sendImageMessage(roomId: widget.room.id, imageFile: File(image.path)); // جدول: messages + bucket: chat_images
+                        }
+                      },
+                      icon: Icon(Icons.attach_file_rounded, color: AppColors.icon),
+                    ),
+                    Expanded(child: TextField(controller: msgController, decoration: InputDecoration(hintText: 'اكتب رسالة...', border: InputBorder.none))),
+                    IconButton(
+                      onPressed: () async {
+                        if (msgController.text.trim().isEmpty) return;
+                        await repo.sendMessage(roomId: widget.room.id, message: msgController.text); // جدول: messages
+                        msgController.clear();
+                      },
+                      icon: Icon(Icons.send_rounded, color: AppColors.button),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ===== 4. الملف الشخصي جدول users =====
+class ProfileScreen extends StatelessWidget {
+  const ProfileScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    final repo = SupabaseRepository();
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(backgroundColor: Colors.transparent, title: const Text('الملف الشخصي')),
+      body: FutureBuilder<UserModel?>(
+        future: repo.getCurrentUser(), // جدول: users
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
+          final user = snapshot.data!;
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              GlassCard(
+                child: Column(
+                  children: [
+                    CircleAvatar(radius: 50, backgroundColor: AppColors.button, child: Text(user.name.isNotEmpty? user.name[0] : 'U', style: const TextStyle(fontSize: 40, color: Colors.white))),
+                    const SizedBox(height: 16),
+                    Text(user.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                    Text(user.email, style: TextStyle(color: AppColors.textLight)),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ===== 5. المنيو + سياسة الخصوصية جدول app_settings =====
+class AppDrawer extends StatelessWidget {
+  const AppDrawer({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Drawer(
+      backgroundColor: Colors.transparent,
+      child: AppBackground(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(child: GlassCard(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.waves_rounded, size: 40, color: AppColors.button), Text(AppConfig.appName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold))]))),
+            ListTile(leading: Icon(Icons.privacy_tip_outlined, color: AppColors.icon), title: const Text('سياسة الخصوصية'), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()))),
+            ListTile(leading: Icon(Icons.mail_outline_rounded, color: AppColors.icon), title: const Text('تواصل معنا'), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactUsScreen()))),
+            const Divider(),
+            Padding(padding: const EdgeInsets.all(16), child: Text('© ${AppConfig.copyrightYear} ${AppConfig.copyrightName}. All rights reserved.', style: TextStyle(color: AppColors.textLight, fontSize: 12), textAlign: TextAlign.center)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class PrivacyPolicyScreen extends StatelessWidget {
+  const PrivacyPolicyScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('سياسة الخصوصية')),
+      body: AppBackground(
+        child: FutureBuilder<String>(
+          future: SupabaseRepository().getPrivacyPolicy(), // جدول: app_settings
+          builder: (context, snapshot) {
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                GlassCard(
+                  child: Text(snapshot.data?? 'جاري التحميل...', style: TextStyle(color: AppColors.textLight, height: 1.6)),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class ContactUsScreen extends StatelessWidget {
+  const ContactUsScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('تواصل معنا')),
+      body: AppBackground(child: Center(child: Text('شاشة التواصل'))),
+    );
+  }
+}
