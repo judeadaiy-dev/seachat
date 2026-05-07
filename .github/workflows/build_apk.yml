@@ -5,7 +5,7 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-  workflow_dispatch: # يسمح لك تشغله يدوي من GitHub
+  workflow_dispatch:
 
 jobs:
   build:
@@ -34,6 +34,9 @@ jobs:
 
       - name: Get dependencies
         run: flutter pub get
+
+      - name: Generate App Icons  # ← هذا السطر الجديد المهم
+        run: flutter pub run flutter_launcher_icons
 
       - name: Verify Gradle Wrapper
         run: |
