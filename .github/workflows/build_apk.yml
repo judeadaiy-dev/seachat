@@ -1,10 +1,8 @@
-name: Build Flutter APK
+name: Build Android APK
 
 on:
   push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -12,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup Java 17
@@ -20,49 +18,75 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-          cache: 'gradle'
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.3'
+          flutter-version: '3.24.0'
           channel: 'stable'
-          cache: true
 
-      - name: Check Flutter version
-        run: flutter --version
+      - name: Create Android Project Files
+        run: |
+          flutter create --platforms=android --org com.seachat --project-name seachat .
+          
+      - name: Overwrite AndroidManifest.xml
+        run: |
+          mkdir -p android/app/src/main
+          cat > android/app/src/main/AndroidManifest.xml << 'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+              <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+              <uses-permission android:name="android.permission.CAMERA" />
+              <application
+                  android:label="SeaChat"
+                  android:name="${applicationName}"
+                  android:icon="@mipmap/launcher_icon"
+                  android:usesCleartextTraffic="true">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:launchMode="singleTop"
+                      android:theme="@style/LaunchTheme"
+                      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+                      android:hardwareAccelerated="true"
+                      android:windowSoftInputMode="adjustResize">
+                      <intent-filter android:autoVerify="true">
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+                  <meta-data
+                      android:name="flutterEmbedding"
+                      android:value="2" />
+              </application>
+          </manifest>
+          EOF
+
+      - name: Update pubspec for Android only icons
+        run: |
+          cat >> pubspec.yaml << 'EOF'
+          
+          flutter_launcher_icons:
+            android: true
+            ios: false
+            image_path: "assets/icons/app_icon.png"
+            min_sdk_android: 21
+            adaptive_icon_background: "#CAD5D4"
+            adaptive_icon_foreground: "assets/icons/app_icon.png"
+          EOF
 
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Generate App Icons  # ← هذا السطر الجديد المهم
+      - name: Generate App Icons
         run: flutter pub run flutter_launcher_icons
-
-      - name: Verify Gradle Wrapper
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew --version
 
       - name: Build APK Release
         run: flutter build apk --release --no-shrink
 
-      - name: Upload APK Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: seachat-release-apk
+          name: SeaChat-APK
           path: build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 30
-
-      - name: Create Release
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-        uses: softprops/action-gh-release@v2
-        with:
-          files: build/app/outputs/flutter-apk/app-release.apk
-          tag_name: v${{ github.run_number }}
-          name: SeaChat Release v${{ github.run_number }}
-          body: |
-            Build تلقائي من GitHub Actions
-            Commit: ${{ github.sha }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
