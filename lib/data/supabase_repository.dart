@@ -1,60 +1,49 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:io';
 
-// ===== إعدادات Supabase =====
-class SupabaseConfig {
-  static const String url = 'https://jmsmrojtlstppnpwmkkk.supabase.co';
-  static const String anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'; // حطه في .env أفضل
-}
-
-// ===== تهيئة Supabase - استدعيها في main() =====
-Future<void> initSupabase() async {
-  await Supabase.initialize(
-    url: SupabaseConfig.url,
-    anonKey: SupabaseConfig.anonKey,
-  );
-}
-
-// ===== الجسر الرئيسي: كل دالة = زر بالواجهة = جدول =====
 class SupabaseRepository {
   final _client = Supabase.instance.client;
 
-  // ===== جدول: users =====
-  
-  // LoginScreen - زر تسجيل الدخول
-  Future<UserModel?> loginUser({required String email, required String password}) async {
-    final res = await _client.auth.signInWithPassword(email: email, password: password);
-    if (res.user == null) return null;
-    return await getCurrentUser(userId: res.user!.id);
-  }
-  
-  // ProfileScreen - تعديل البيانات
-  Future<bool> updateUser({required String userId, required String name, required String email}) async {
-    await _client.from('users').update({'full_name': name, 'email': email}).eq('id', userId);
-    return true;
-  }
-  
-  // ProfileScreen - جلب بياناتي
-  Future<UserModel?> getCurrentUser({required String userId}) async {
-    final data = await _client.from('users').select().eq('id', userId).single();
-    return UserModel(id: data['id'], name: data['full_name'], username: data['username'], email: data['email']);
+  // تسجيل جوجل - جدول: auth.users + users
+  Future<bool> signInWithGoogle() async {
+    try {
+      await _client.auth.signInWithOAuth(OAuthProvider.google);
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
-  // ===== جدول: rooms =====
-  
-  // HomeScreen - عرض الغرف
+  // إيميل - جدول: auth.users
+  Future<bool> signInWithEmail({required String email, required String password}) async {
+    try {
+      await _client.auth.signInWithPassword(email: email, password: password);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // جدول: users
+  Future<UserModel?> getCurrentUser() async {
+    final user = _client.auth.currentUser;
+    if (user == null) return null;
+    final data = await _client.from('users').select().eq('id', user.id).single();
+    return UserModel(id: data['id'], name: data['full_name'] ?? '', username: data['username'] ?? '', email: data['email'] ?? '');
+  }
+
+  // جدول: rooms
   Future<List<RoomModel>> getAllActiveRooms() async {
-    final data = await _client.from('rooms').select().eq('room_status', 'active');
+    final data = await _client.from('rooms').select().eq('room_status', 'active').order('created_at');
     return data.map((e) => RoomModel(
-      id: e['id'], roomName: e['room_name'], roomBio: e['room_bio'],
-      roomImage: e['room_image'] ?? '', membersCount: e['members_count'],
-      allowMessages: e['allow_messages'], allowMedia: e['allow_media'], roomStatus: e['room_status'],
+      id: e['id'], roomName: e['room_name'], roomBio: e['room_bio'] ?? '',
+      roomImage: e['room_image'] ?? '', membersCount: e['members_count'] ?? 0,
+      allowMessages: e['allow_messages'] ?? true, allowMedia: e['allow_media'] ?? true, roomStatus: e['room_status'],
     )).toList();
   }
 
-  // ===== جدول: messages =====
-  
-  // ChatScreen - تحميل الرسائل
+  // جدول: messages - Real-time
   Stream<List<MessageModel>> getRoomMessagesStream({required String roomId}) {
     return _client.from('messages').stream(primaryKey: ['id'])
       .eq('room_id', roomId)
@@ -62,11 +51,11 @@ class SupabaseRepository {
       .map((maps) => maps.map((e) => MessageModel(
         id: e['id'], text: e['message'], senderName: e['sender_id'],
         isMe: e['sender_id'] == _client.auth.currentUser?.id,
-        time: e['created_at'],
+        time: DateTime.parse(e['created_at']).toLocal().toString().substring(11, 16),
       )).toList());
   }
-  
-  // ChatScreen - زر إرسال نص
+
+  // جدول: messages
   Future<bool> sendMessage({required String roomId, required String message}) async {
     await _client.from('messages').insert({
       'room_id': roomId,
@@ -77,17 +66,12 @@ class SupabaseRepository {
     return true;
   }
 
-  // ChatScreen - زر إرسال صورة
-  // جدول: messages + Storage Bucket: chat_images
+  // جدول: messages + Storage: chat_images
   Future<bool> sendImageMessage({required String roomId, required File imageFile}) async {
     final userId = _client.auth.currentUser!.id;
-    final fileName = '${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-    
-    // 1. ارفع الصورة لـ Storage
+    final fileName = 'rooms/$roomId/${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
     await _client.storage.from('chat_images').upload(fileName, imageFile);
     final imageUrl = _client.storage.from('chat_images').getPublicUrl(fileName);
-    
-    // 2. احفظ الرابط في جدول messages
     await _client.from('messages').insert({
       'room_id': roomId,
       'sender_id': userId,
@@ -97,34 +81,14 @@ class SupabaseRepository {
     return true;
   }
 
-  // ===== جدول: room_members =====
-  
-  // ChatScreen - دخول الغرفة
-  Future<bool> joinRoom({required String roomId}) async {
-    await _client.from('room_members').insert({
-      'room_id': roomId,
-      'user_id': _client.auth.currentUser!.id,
-    });
-    return true;
-  }
-
-  // ===== جدول: support_messages =====
-  
-  // ContactUsScreen - زر إرسال
-  Future<bool> sendSupportMessage({required String subject, required String message}) async {
-    await _client.from('support_messages').insert({
-      'user_id': _client.auth.currentUser!.id,
-      'subject': subject,
-      'message': message,
-    });
-    return true;
-  }
-
-  // ===== جدول: app_settings =====
-  
-  // PrivacyPolicyScreen
+  // جدول: app_settings
   Future<String> getPrivacyPolicy() async {
     final data = await _client.from('app_settings').select('privacy_policy').limit(1).single();
-    return data['privacy_policy'];
+    return data['privacy_policy'] ?? '';
+  }
+  
+  Future<String> getSupportEmail() async {
+    final data = await _client.from('app_settings').select('support_email').limit(1).single();
+    return data['support_email'] ?? 'support@seachat.app';
   }
 }
