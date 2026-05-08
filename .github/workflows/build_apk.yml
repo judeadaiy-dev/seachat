@@ -3,6 +3,7 @@ name: Mobile Dev Force Build
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -24,7 +25,7 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Generate Android folder if missing
+      - name: Create Android folder if missing
         run: |
           if [ ! -d android ]; then
             flutter create . --platforms=android --org com.judeadaiy
@@ -33,7 +34,7 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Generate launcher icons
+      - name: Generate Android icons
         run: dart run flutter_launcher_icons
 
       - name: Build APK
