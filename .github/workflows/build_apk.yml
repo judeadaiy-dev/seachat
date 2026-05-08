@@ -32,7 +32,7 @@ jobs:
           cp -r lib /tmp/backup/
           cp -r assets /tmp/backup/ 2>/dev/null || true
           cp pubspec.yaml /tmp/backup/
-          
+
       - name: Delete all platform folders
         run: rm -rf android ios linux macos windows web
 
