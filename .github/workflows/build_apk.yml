@@ -46,6 +46,16 @@ jobs:
           cp -r /tmp/backup/assets ./ 2>/dev/null || true
           cp /tmp/backup/pubspec.yaml ./
 
+      - name: Fix Kotlin Version to 1.9.22
+        run: |
+          # هذا أهم سطر يحل خطأ shared_preferences_android
+          sed -i 's/id "org.jetbrains.kotlin.android" version ".*" apply false/id "org.jetbrains.kotlin.android" version "1.9.22" apply false/' android/settings.gradle
+          
+          # نثبت compileSdkVersion عشان app_links
+          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 34/g' android/app/build.gradle
+          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle
+          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 34/g' android/app/build.gradle
+
       - name: Fix pubspec.yaml - Downgrade app_links
         run: |
           sed -i '/^flutter_launcher_icons:/,$d' pubspec.yaml
@@ -62,12 +72,6 @@ jobs:
           dependency_overrides:
             app_links: 6.3.2
           EOF
-
-      - name: Hardcode compileSdkVersion in build.gradle
-        run: |
-          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 34/g' android/app/build.gradle
-          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle
-          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 34/g' android/app/build.gradle
 
       - name: Overwrite AndroidManifest.xml
         run: |
