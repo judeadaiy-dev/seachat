@@ -1,9 +1,7 @@
-name: Force Build Flutter APK
+name: Ultimate Fix Build APK
 
 on:
   push:
-    branches: [ "main" ] # أو اسم الفرع الخاص بك
-  pull_request:
     branches: [ "main" ]
 
 jobs:
@@ -11,37 +9,38 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. جلب الكود من المستودع
       - uses: actions/checkout@v4
 
-      # 2. إعداد لغة Java (ضرورية للأندرويد)
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      # 3. إعداد Flutter
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0' # النسخة التي ظهرت في صورتك
+          flutter-version: '3.24.0'
           channel: 'stable'
 
-      # 4. تحميل المكتبات
-      - name: Install dependencies
-        run: flutter pub get
+      - name: Clean and Recreate
+        run: |
+          flutter clean
+          rm -rf android
+          flutter create . --platforms android
+          flutter pub get
 
-      # 5. الخطوة السحرية: إعادة بناء ملفات الأندرويد المفقودة أو التالفة
-      # هذا الأمر سيقوم بإنشاء مجلد android وملفات Gradle المتوافقة تلقائياً
-      - name: Force Create Android Files
-        run: flutter create . --platforms android
+      # الخطوة الحاسمة: رفع نسخة الـ SDK لتتوافق مع مكتبة app_links
+      - name: Patch Android Build Files
+        run: |
+          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 34/g' android/app/build.gradle
+          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 34/g' android/app/build.gradle
+          # إضافة دعم لخاصية flutter في المكتبات التي تشتكي
+          echo "flutter.sdk=$(which flutter)" > android/local.properties
 
-      # 6. بناء الـ APK مباشرة (بدون فحص الأخطاء المنطقية أو الاختبارات)
       - name: Build APK
         run: flutter build apk --release
 
-      # 7. رفع الملف الناتج لكي تتمكن من تحميله
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
