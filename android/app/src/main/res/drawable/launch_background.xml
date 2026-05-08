@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- خلفية Splash بنفس لون التطبيق #CAD5D4 -->
-    <item android:drawable="@color/splash_bg" />
-</layer-list>
