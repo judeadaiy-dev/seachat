@@ -1,6 +1,8 @@
 android {
     namespace "com.seachat.app"
-    compileSdkVersion 35
+    // 1. استخدمنا التنسيق القياسي لـ Flutter 3.24
+    compileSdk 35
+
     ndkVersion flutter.ndkVersion
 
     compileOptions {
@@ -15,13 +17,16 @@ android {
     defaultConfig {
         applicationId "com.seachat.app"
         minSdkVersion 21
-        targetSdkVersion 34
+        // 2. تحديث الـ target ليتطابق مع الـ compile ويحل مشكلة تضارب المكتبات
+        targetSdkVersion 35 
+        
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
     }
 
     buildTypes {
         release {
+            // ملاحظة: تأكد لاحقاً من إضافة مفتاح توقيع (Release Key) بدلاً من توقيع الـ debug
             signingConfig signingConfigs.debug
             minifyEnabled false
             shrinkResources false
