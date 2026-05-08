@@ -1,51 +1,32 @@
-def localProperties = new Properties()
-def localPropertiesFile = rootProject.file('local.properties')
-if (localPropertiesFile.exists()) {
-    localPropertiesFile.withReader('UTF-8') { reader ->
-        localProperties.load(reader)
-    }
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
 }
-
-def flutterRoot = localProperties.getProperty('flutter.sdk')
-if (flutterRoot == null) {
-    // هذا السطر مهم للسيرفرات لكي تجد مسار فلاتر تلقائياً
-}
-
-apply plugin: 'com.android.application'
-apply plugin: 'kotlin-android'
-apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
 
 android {
-    namespace "com.judeadaiy.seachat" // اسم الحزمة الخاص بك
-    compileSdkVersion 34 // أحدث إصدار مستقر لعام 2026
-
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = '17'
-    }
+    namespace "com.example.sea_chat"
+    compileSdk 34
 
     defaultConfig {
-        applicationId "com.judeadaiy.seachat"
-        minSdkVersion 21 // لضمان عمله على الهواتف القديمة والجديدة
-        targetSdkVersion 34
+        applicationId "com.example.sea_chat"
+        minSdk 21
+        targetSdk 34
         versionCode 1
-        versionName "1.0.0"
+        versionName "1.0"
+
+        multiDexEnabled true
     }
 
     buildTypes {
         release {
-            signingConfig signingConfigs.debug // حالياً نستخدم إعدادات الديباج لتسهيل البناء الأول
-            shrinkResources false
+            signingConfig signingConfigs.debug
             minifyEnabled false
+            shrinkResources false
         }
     }
 }
 
-dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+flutter {
+    source "../.."
 }
-
