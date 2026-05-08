@@ -1,59 +1,49 @@
-name: SeaChat Optimized Build
+name: Force Build Flutter APK
 
 on:
   push:
-    branches: [ main ]
-  workflow_dispatch:
+    branches: [ "main" ] # أو اسم الفرع الخاص بك
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
 
-      - name: Setup Java 17
+    steps:
+      # 1. جلب الكود من المستودع
+      - uses: actions/checkout@v4
+
+      # 2. إعداد لغة Java (ضرورية للأندرويد)
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
           java-version: '17'
+          distribution: 'temurin'
 
-      - name: Setup Flutter 3.24.0
+      # 3. إعداد Flutter
+      - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
-          cache: true
+          flutter-version: '3.24.0' # النسخة التي ظهرت في صورتك
+          channel: 'stable'
 
-      # 1. توليد الأيقونات لنظام أندرويد فقط (تم إيقاف iOS لمنع الخطأ)
-      - name: Generate App Icons
-        run: |
-          flutter pub add --dev flutter_launcher_icons
-          cat > flutter_launcher_icons.yaml << 'EOF'
-          flutter_launcher_icons:
-            android: true
-            ios: false
-            image_path: "assets/icons/app_icon.png" 
-          EOF
-          flutter pub get
-          dart run flutter_launcher_icons
+      # 4. تحميل المكتبات
+      - name: Install dependencies
+        run: flutter pub get
 
-      # 2. ضمان وجود مكتبات حفظ الجلسة (Session)
-      - name: Session Persistence Setup
-        run: |
-          flutter pub add shared_preferences
-          flutter pub get
+      # 5. الخطوة السحرية: إعادة بناء ملفات الأندرويد المفقودة أو التالفة
+      # هذا الأمر سيقوم بإنشاء مجلد android وملفات Gradle المتوافقة تلقائياً
+      - name: Force Create Android Files
+        run: flutter create . --platforms android
 
-      # 3. بناء الـ APK بالاعتماد على تعديلاتك اليدوية (SDK 35 & Kotlin 1.9.24)
-      - name: Build Release APK
-        run: |
-          # بناء ملف APK واحد شامل ومستقر
-          flutter build apk --release --no-tree-shake-icons
+      # 6. بناء الـ APK مباشرة (بدون فحص الأخطاء المنطقية أو الاختبارات)
+      - name: Build APK
+        run: flutter build apk --release
 
-      # 4. رفع الملف الناتج بصيغة APK مباشرة
-      - name: Upload Installable APK
+      # 7. رفع الملف الناتج لكي تتمكن من تحميله
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-App-Release
+          name: release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 7
