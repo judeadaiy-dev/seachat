@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout code
+      - name: Checkout source code
         uses: actions/checkout@v4
 
       - name: Setup Java 17
@@ -19,21 +19,38 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Flutter
+      - name: Setup Flutter 3.24.0
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.0'
           channel: 'stable'
+          cache: true
 
-      - name: Create Android Project Files
-        run: flutter create --platforms=android --org com.seachat --project-name seachat .
-
-      - name: Fix pubspec.yaml - Remove duplicates
+      - name: Backup source code
         run: |
-          # احذف أي flutter_launcher_icons قديم عشان ما يتكرر
-          sed -i '/^flutter_launcher_icons:/,$d' pubspec.yaml
+          mkdir -p /tmp/backup
+          cp -r lib /tmp/backup/
+          cp -r assets /tmp/backup/ 2>/dev/null || true
+          cp pubspec.yaml /tmp/backup/
           
-          # ضيف النسخة الصح مرة وحدة بس
+      - name: Delete all platform folders
+        run: rm -rf android ios linux macos windows web
+
+      - name: Recreate Android project with supported Gradle
+        run: flutter create --org com.seachat --project-name seachat --platforms=android .
+
+      - name: Restore source code
+        run: |
+          rm -rf lib
+          cp -r /tmp/backup/lib ./
+          cp -r /tmp/backup/assets ./ 2>/dev/null || true
+          cp /tmp/backup/pubspec.yaml ./
+
+      - name: Add flutter_launcher_icons config
+        run: |
+          # احذف أي تعريف قديم
+          sed -i '/^flutter_launcher_icons:/,$d' pubspec.yaml
+          # ضيف التعريف الصحيح
           cat >> pubspec.yaml << 'EOF'
 
           flutter_launcher_icons:
@@ -47,7 +64,6 @@ jobs:
 
       - name: Overwrite AndroidManifest.xml
         run: |
-          mkdir -p android/app/src/main
           cat > android/app/src/main/AndroidManifest.xml << 'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET" />
@@ -79,17 +95,18 @@ jobs:
           </manifest>
           EOF
 
-      - name: Get dependencies
+      - name: Install dependencies
         run: flutter pub get
 
-      - name: Generate App Icons
-        run: flutter pub run flutter_launcher_icons
+      - name: Generate app icons
+        run: dart run flutter_launcher_icons
 
       - name: Build APK Release
-        run: flutter build apk --release --no-shrink
+        run: flutter build apk --release
 
-      - name: Upload APK
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: SeaChat-APK
           path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 7
