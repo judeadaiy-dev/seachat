@@ -1,20 +1,17 @@
 import 'dart:io';
 import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 import 'data/supabase_repository.dart';
+import 'models/models.dart';
 
-// ==================== Config ====================
 class AppConfig {
   static const String appName = 'SeaChat';
   static const String copyrightName = 'Joud Oday';
   static const int copyrightYear = 2026;
   static const String supabaseUrl = 'https://jmsmrojtlstppnpwmkkk.supabase.co';
-  static const String supabaseAnonKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos';
+  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos';
 }
 
 class AppColors {
@@ -27,35 +24,6 @@ class AppColors {
   static const Color textLight = Color(0xFF6B6B6B);
 }
 
-// ==================== Models ====================
-class UserModel {
-  final String id, name, username, email;
-  const UserModel({required this.id, required this.name, required this.username, required this.email});
-}
-
-class RoomModel {
-  final String id, roomName, roomBio, roomImage, roomStatus;
-  final int membersCount;
-  final bool allowMessages, allowMedia;
-  const RoomModel({
-    required this.id,
-    required this.roomName,
-    required this.roomBio,
-    required this.roomImage,
-    required this.membersCount,
-    required this.allowMessages,
-    required this.allowMedia,
-    required this.roomStatus,
-  });
-}
-
-class MessageModel {
-  final String id, text, senderName, time;
-  final bool isMe;
-  const MessageModel({required this.id, required this.text, required this.senderName, required this.isMe, required this.time});
-}
-
-// ==================== Main ====================
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Supabase.initialize(url: AppConfig.supabaseUrl, anonKey: AppConfig.supabaseAnonKey);
@@ -69,30 +37,19 @@ class SeaChatApp extends StatelessWidget {
     return MaterialApp(
       title: AppConfig.appName,
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        fontFamily: 'Cairo',
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: AppColors.button),
-      ),
+      theme: ThemeData(fontFamily: 'Cairo', useMaterial3: true, colorScheme: ColorScheme.fromSeed(seedColor: AppColors.button)),
       home: Supabase.instance.client.auth.currentUser == null? const LoginScreen() : const MainScreen(),
     );
   }
 }
 
-// ==================== Shared Widgets ====================
 class AppBackground extends StatelessWidget {
   final Widget child;
   const AppBackground({super.key, required this.child});
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [AppColors.backgroundStart, AppColors.backgroundEnd],
-        ),
-      ),
+      decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [AppColors.backgroundStart, AppColors.backgroundEnd])),
       child: child,
     );
   }
@@ -104,14 +61,7 @@ class GlassCard extends StatelessWidget {
   final double borderRadius;
   final EdgeInsets? margin;
   final VoidCallback? onTap;
-  const GlassCard({
-    super.key,
-    required this.child,
-    this.padding = const EdgeInsets.all(16),
-    this.borderRadius = 24,
-    this.onTap,
-    this.margin,
-  });
+  const GlassCard({super.key, required this.child, this.padding = const EdgeInsets.all(16), this.borderRadius = 24, this.onTap, this.margin});
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -127,11 +77,7 @@ class GlassCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(borderRadius),
               child: Container(
                 padding: padding,
-                decoration: BoxDecoration(
-                  color: AppColors.cardGlass,
-                  borderRadius: BorderRadius.circular(borderRadius),
-                  border: Border.all(color: Colors.white.withOpacity(0.4), width: 1.5),
-                ),
+                decoration: BoxDecoration(color: AppColors.cardGlass, borderRadius: BorderRadius.circular(borderRadius), border: Border.all(color: Colors.white.withOpacity(0.4), width: 1.5)),
                 child: child,
               ),
             ),
@@ -142,7 +88,6 @@ class GlassCard extends StatelessWidget {
   }
 }
 
-// ===== 1. تسجيل الدخول مع زر جوجل =====
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
   @override
@@ -160,6 +105,14 @@ class _LoginScreenState extends State<LoginScreen> {
     emailController.dispose();
     passController.dispose();
     super.dispose();
+  }
+
+  InputDecoration _inputDecoration(String hint, IconData icon) {
+    return InputDecoration(
+      hintText: hint, prefixIcon: Icon(icon, color: AppColors.icon),
+      filled: true, fillColor: Colors.white.withOpacity(0.5),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+    );
   }
 
   @override
@@ -201,9 +154,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       width: double.infinity, height: 50,
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.button), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-                        onPressed: () async {
-                          await repo.signInWithGoogle();
-                        },
+                        onPressed: () async => await repo.signInWithGoogle(),
                         icon: const Icon(Icons.g_mobiledata_rounded, color: AppColors.button, size: 28),
                         label: const Text('المتابعة عبر Google', style: TextStyle(color: AppColors.button)),
                       ),
@@ -217,17 +168,8 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-
-  InputDecoration _inputDecoration(String hint, IconData icon) {
-    return InputDecoration(
-      hintText: hint, prefixIcon: Icon(icon, color: AppColors.icon),
-      filled: true, fillColor: Colors.white.withOpacity(0.5),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-    );
-  }
 }
 
-// ===== 2. الرئيسية مربوطة بجدول rooms =====
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
   @override
@@ -304,7 +246,6 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// ===== 3. شاشة الشات مربوطة بجدول messages + Storage =====
 class ChatScreen extends StatefulWidget {
   final RoomModel room;
   const ChatScreen({super.key, required this.room});
@@ -348,7 +289,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           margin: const EdgeInsets.only(bottom: 8),
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                           child: msg.text.startsWith('http')
-                            ? Image.network(msg.text, width: 200)
+                             ? Image.network(msg.text, width: 200)
                               : Text(msg.text, style: TextStyle(color: msg.isMe? Colors.white : AppColors.textDark)),
                         ),
                       );
@@ -393,7 +334,6 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
-// ===== 4. الملف الشخصي جدول users =====
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
   @override
@@ -428,7 +368,6 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
-// ===== 5. المنيو + سياسة الخصوصية جدول app_settings =====
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
   @override
