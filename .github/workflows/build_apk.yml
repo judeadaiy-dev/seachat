@@ -1,4 +1,4 @@
-name: Ultimate Auto Build
+name: Ultimate Unified Build
 on: [push, pull_request]
 
 jobs:
@@ -18,50 +18,55 @@ jobs:
         with:
           channel: 'stable'
 
-      # الخطوة المفصلية: إنشاء المشروع من الصفر غصباً عن الظروف
-      - name: Force Initialize Android
+      # 1. تنظيف شامل وإنشاء بيئة الأندرويد من الصفر
+      - name: Clean and Create Android
         run: |
-          rm -rf android
-          flutter create . --platforms android --force
-          # التأكد من أن المجلد تم إنشاؤه فعلاً قبل الانتقال للخطوة التالية
-          if [ ! -d "android" ]; then echo "CRITICAL ERROR: Android folder NOT created"; exit 1; fi
+          [span_2](start_span)flutter clean[span_2](end_span)
+          [span_3](start_span)rm -rf android[span_3](end_span)
+          flutter create . -[span_4](start_span)-platforms android[span_4](end_span)
 
-      - name: Patch Gradle (Safe Mode)
+      # 2. حقن إعدادات SDK 35 والـ Namespace برمجياً
+      - name: Master Patch for SDK 35
         run: |
-          # إضافة Namespace وإعدادات الـ SDK فقط إذا وجد الملف
-          if [ -f "android/build.gradle" ]; then
-            echo "subprojects {
-                afterEvaluate { project ->
-                    if (project.hasProperty('android')) {
-                        project.android {
-                            if (namespace == null) { namespace 'com.judeadaiy.seachat' }
-                            compileSdkVersion 35
-                            defaultConfig {
-                                minSdkVersion 23
-                                targetSdkVersion 35
-                                multiDexEnabled true
-                            }
-                        }
-                    }
-                }
-            }" >> android/build.gradle
-          fi
+          echo "subprojects {
+              afterEvaluate { project ->
+                  if (project.hasProperty('android')) {
+                      project.android {
+                          [span_5](start_span)if (namespace == null) { namespace 'com.judeadaiy.seachat' }[span_5](end_span)
+                          [span_6](start_span)compileSdkVersion 35[span_6](end_span)
+                          defaultConfig {
+                              [span_7](start_span)minSdkVersion 23[span_7](end_span)
+                              [span_8](start_span)targetSdkVersion 35[span_8](end_span)
+                              multiDexEnabled true
+                          }
+                      }
+                  }
+              }
+          [span_9](start_span)}" >> android/build.gradle[span_9](end_span)
 
-      - name: Build APK (Ignoring Errors)
+      # 3. تثبيت المكتبات وبناء الـ APK النهائي
+      - name: Final Build APK
         run: |
-          flutter pub get
-          # استخدام flag إضافي لتجاوز تعارضات التراخيص و CMake
-          flutter build apk --release --suppress-analytics --no-pub --android-skip-build-dependency-validation || true
+          [span_10](start_span)flutter pub get[span_10](end_span)
+          [span_11](start_span)flutter build apk --release --suppress-analytics --android-skip-build-dependency-validation[span_11](end_span)
 
-      - name: Secure and Deliver APK
+      # 4. التحقق والبحث عن الملف لضمان الرفع
+      - name: Verify and Prepare Artifact
         if: always()
         run: |
           mkdir -p build/out
-          # بحث شامل في كل مكان (Recursive Find)
-          find . -name "*.apk" -exec cp {} build/out/seachat-app.apk \; || true
+          if [ -f build/app/outputs/flutter-apk/app-release.apk ]; then
+            [span_12](start_span)cp build/app/outputs/flutter-apk/app-release.apk build/out/seachat-app.apk[span_12](end_span)
+            echo "✅ APK Found in standard path."
+          else
+            echo "⚠️ APK not in standard path, searching everywhere..."
+            find build -name "*.apk" -exec cp {} build/out/seachat-app.apk \; [span_13](start_span)|| true[span_13](end_span)
+          fi
 
-      - name: Upload Artifact
+      # 5. الرفع النهائي (سيظهر باللون الأحمر إذا لم يجد الملف)
+      - name: Upload Verified APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Final-Package
-          path: build/out/seachat-app.apk
+          name: SeaChat-Final-Build
+          [span_14](start_span)path: build/out/seachat-app.apk[span_14](end_span)
+          [span_15](start_span)if-no-files-found: error[span_15](end_span)
