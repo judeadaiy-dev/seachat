@@ -1,8 +1,8 @@
-plugins {
+ plugins {
     id "com.android.application"
-    id "org.jetbrains.kotlin.android"
+    id "org.jetbrains.kotlin.android"  // بدون version هنا
     id "dev.flutter.flutter-gradle-plugin"
-}
+ }
 
 android {
     namespace "com.yourcompany.sea_chat" // لازم تضيف هذا السطر. غير البكج نيم
