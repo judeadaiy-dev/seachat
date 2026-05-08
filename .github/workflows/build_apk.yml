@@ -36,7 +36,7 @@ jobs:
       - name: Delete all platform folders
         run: rm -rf android ios linux macos windows web
 
-      - name: Recreate Android project with supported Gradle
+      - name: Recreate Android project
         run: flutter create --org com.seachat --project-name seachat --platforms=android .
 
       - name: Restore source code
@@ -46,11 +46,9 @@ jobs:
           cp -r /tmp/backup/assets ./ 2>/dev/null || true
           cp /tmp/backup/pubspec.yaml ./
 
-      - name: Add flutter_launcher_icons config
+      - name: Fix pubspec.yaml - Downgrade app_links
         run: |
-          # احذف أي تعريف قديم
           sed -i '/^flutter_launcher_icons:/,$d' pubspec.yaml
-          # ضيف التعريف الصحيح
           cat >> pubspec.yaml << 'EOF'
 
           flutter_launcher_icons:
@@ -60,7 +58,16 @@ jobs:
             min_sdk_android: 21
             adaptive_icon_background: "#CAD5D4"
             adaptive_icon_foreground: "assets/icons/app_icon.png"
+          
+          dependency_overrides:
+            app_links: 6.3.2
           EOF
+
+      - name: Hardcode compileSdkVersion in build.gradle
+        run: |
+          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 34/g' android/app/build.gradle
+          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle
+          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 34/g' android/app/build.gradle
 
       - name: Overwrite AndroidManifest.xml
         run: |
@@ -109,4 +116,3 @@ jobs:
         with:
           name: SeaChat-APK
           path: build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 7
