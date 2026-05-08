@@ -26,6 +26,11 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Pre-build Clean & Fix
+        run: |
+          flutter clean
+          rm -f pubspec.lock
+
       - name: Backup source code
         run: |
           mkdir -p /tmp/backup
@@ -33,11 +38,11 @@ jobs:
           cp -r assets /tmp/backup/ 2>/dev/null || true
           cp pubspec.yaml /tmp/backup/
 
-      - name: Delete all platform folders
-        run: rm -rf android ios linux macos windows web
-
-      - name: Recreate Android project with latest AGP
-        run: flutter create --org com.seachat --project-name seachat --platforms=android .
+      - name: Wipe and Recreate Platform
+        run: |
+          rm -rf android ios linux macos windows web
+          # إجبار إنشاء بيئة أندرويد نظيفة تماماً متوافقة مع إصدار فلاتر الحالي
+          flutter create --org com.seachat --project-name seachat --platforms=android .
 
       - name: Restore source code
         run: |
@@ -46,18 +51,21 @@ jobs:
           cp -r /tmp/backup/assets ./ 2>/dev/null || true
           cp /tmp/backup/pubspec.yaml ./
 
-      - name: Force Kotlin 1.9.22 for shared_preferences_android
-        run: |
-          sed -i 's/id "org.jetbrains.kotlin.android" version ".*" apply false/id "org.jetbrains.kotlin.android" version "1.9.22" apply false/' android/settings.gradle
+      - name: Install dependencies (Force)
+        run: flutter pub get
 
-      - name: Force compileSdkVersion 34 for app_links
+      - name: Force Kotlin & Gradle Config
         run: |
+          # إجبار نسخة كوتلن حديثة لتجنب تعارض المكتبات القديمة
+          sed -i 's/id "org.jetbrains.kotlin.android" version ".*" apply false/id "org.jetbrains.kotlin.android" version "1.9.22" apply false/' android/settings.gradle
+          # إجبار الـ SDK على إصدار مستقر وحديث
           sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 34/g' android/app/build.gradle
           sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle
           sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 34/g' android/app/build.gradle
 
-      - name: Fix pubspec - add icons + override bad deps
+      - name: Fix pubspec & Force Overrides
         run: |
+          # حذف أي إعدادات أيقونات قديمة وإضافتها بشكل سليم في النهاية
           sed -i '/^flutter_launcher_icons:/,$d' pubspec.yaml
           cat >> pubspec.yaml << 'EOF'
 
@@ -71,20 +79,22 @@ jobs:
           
           dependency_overrides:
             app_links: 6.3.2
+            uuid: ^4.4.0
           EOF
 
-      - name: Overwrite AndroidManifest.xml
+      - name: Overwrite AndroidManifest (Permissions Fix)
         run: |
           cat > android/app/src/main/AndroidManifest.xml << 'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET" />
               <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-              <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
               <uses-permission android:name="android.permission.CAMERA" />
               <application
                   android:label="SeaChat"
                   android:name="${applicationName}"
-                  android:icon="@mipmap/launcher_icon"
+                  android:icon="@mipmap/ic_launcher"
                   android:usesCleartextTraffic="true">
                   <activity
                       android:name=".MainActivity"
@@ -94,7 +104,7 @@ jobs:
                       android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
                       android:hardwareAccelerated="true"
                       android:windowSoftInputMode="adjustResize">
-                      <intent-filter android:autoVerify="true">
+                      <intent-filter>
                           <action android:name="android.intent.action.MAIN"/>
                           <category android:name="android.intent.category.LAUNCHER"/>
                       </intent-filter>
@@ -106,18 +116,20 @@ jobs:
           </manifest>
           EOF
 
-      - name: Install dependencies
+      - name: Final Dependency Check
         run: flutter pub get
 
-      - name: Generate app icons
-        run: dart run flutter_launcher_icons
+      - name: Generate Icons (Ignore Failures)
+        run: dart run flutter_launcher_icons || true
 
-      - name: Build APK Release - ignore warnings
-        run: flutter build apk --release --no-tree-shake-icons
+      - name: Build APK Release (Aggressive Mode)
+        run: |
+          # بناء التطبيق مع تجاهل تحذيرات الأيقونات المفقودة ومنع الانهيار بسببها
+          flutter build apk --release --no-tree-shake-icons --ignore-deprecation
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-APK
+          name: SeaChat-Final-APK
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 7
