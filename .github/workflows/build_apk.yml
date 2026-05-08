@@ -1,4 +1,4 @@
-name: Force Build APK
+name: Force Build Release APK
 
 on:
   push:
@@ -31,65 +31,56 @@ jobs:
           flutter clean
           rm -f pubspec.lock
 
-      - name: Backup source code
+      - name: Backup & Recreate Structure
         run: |
           mkdir -p /tmp/backup
           cp -r lib /tmp/backup/
           cp -r assets /tmp/backup/ 2>/dev/null || true
           cp pubspec.yaml /tmp/backup/
-
-      - name: Wipe and Recreate Platform
-        run: |
           rm -rf android ios linux macos windows web
           flutter create --org com.seachat --project-name seachat --platforms=android .
-
-      - name: Restore source code
-        run: |
           rm -rf lib
           cp -r /tmp/backup/lib ./
           cp -r /tmp/backup/assets ./ 2>/dev/null || true
           cp /tmp/backup/pubspec.yaml ./
 
-      - name: Force Kotlin 1.9.22 & SDK 35 Config
+      - name: Fix Dependencies & Session Persistence
         run: |
-          # إصلاح كوتلن
-          sed -i 's/id "org.jetbrains.kotlin.android" version ".*" apply false/id "org.jetbrains.kotlin.android" version "1.9.22" apply false/' android/settings.gradle
-          # إجبار SDK 35 لحل مشكلة التبعيات الحديثة
-          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/g' android/app/build.gradle
-          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 35/g' android/app/build.gradle
-          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle
-
-      - name: Fix pubspec & Force Overrides
-        run: |
-          sed -i '/^flutter_launcher_icons:/,$d' pubspec.yaml
+          # إضافة المكتبات الضرورية لحفظ الجلسة والتنقل
+          flutter pub add shared_preferences
+          
+          # تعديل pubspec لحل التعارضات
+          sed -i '/dependency_overrides:/d' pubspec.yaml
           cat >> pubspec.yaml << 'EOF'
 
-          flutter_launcher_icons:
-            android: true
-            ios: false
-            image_path: "assets/icons/app_icon.png"
-            min_sdk_android: 21
-            adaptive_icon_background: "#CAD5D4"
-            adaptive_icon_foreground: "assets/icons/app_icon.png"
-          
           dependency_overrides:
             app_links: 6.3.2
             uuid: ^4.4.0
+            shared_preferences: ^2.3.2
           EOF
 
-      - name: Overwrite AndroidManifest (Permissions Fix)
+      - name: Configure Android SDK & Gradle
+        run: |
+          # تحديث Kotlin وإصدارات الـ SDK لضمان التوافق مع الأندرويد الحديث
+          sed -i 's/id "org.jetbrains.kotlin.android" version ".*" apply false/id "org.jetbrains.kotlin.android" version "1.9.22" apply false/' android/settings.gradle
+          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/g' android/app/build.gradle
+          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 35/g' android/app/build.gradle
+          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle
+          # تفعيل دعم الـ MultiDex إذا كبر حجم التطبيق
+          sed -i 's/defaultConfig {/defaultConfig {\n        multiDexEnabled true/' android/app/build.gradle
+
+      - name: Fix Android Manifest (Session & Navigation)
         run: |
           cat > android/app/src/main/AndroidManifest.xml << 'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET" />
               <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-              <uses-permission android:name="android.permission.CAMERA" />
               <application
                   android:label="SeaChat"
                   android:name="${applicationName}"
                   android:icon="@mipmap/ic_launcher"
+                  android:allowBackup="true"
+                  android:fullBackupContent="true"
                   android:usesCleartextTraffic="true">
                   <activity
                       android:name=".MainActivity"
@@ -111,20 +102,17 @@ jobs:
           </manifest>
           EOF
 
-      - name: Final Dependency Check
+      - name: Final Pub Get
         run: flutter pub get
 
-      - name: Generate Icons (Ignore Failures)
-        run: dart run flutter_launcher_icons || true
-
-      - name: Build APK Release (Aggressive Mode)
+      - name: Build APK (Release Mode)
         run: |
-          # استخدام --no-tree-shake-icons لتجنب فشل بناء الأيقونات إذا كان هناك خطأ في الخطوط
-          flutter build apk --release --no-tree-shake-icons --ignore-deprecation
+          # بناء ملف APK حقيقي وليس ملف مضغوط
+          flutter build apk --release --no-tree-shake-icons
 
-      - name: Upload APK Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Final-APK
+          name: SeaChat-Installable-APK
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 7
