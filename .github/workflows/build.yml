@@ -3,7 +3,7 @@ name: Build Flutter APK Release
 on:
   push:
     branches: [ main, master ]
-  workflow_dispatch: # تقدر تشغله يدوي
+  workflow_dispatch:
 
 jobs:
   build:
@@ -22,24 +22,25 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.0' # غيره لإصدارك
+          flutter-version: '3.22.0'
           channel: 'stable'
           cache: true
+
+      - name: Regenerate Android folder
+        run: |
+          rm -rf android
+          flutter create --platforms=android --org com.judea --project-name sea_chat .
 
       - name: Get dependencies
         run: flutter pub get
 
       - name: Generate app icons
-        run: |
-          # هذا يولد كل الأيقونات تلقائي من صورة واحدة
-          # لازم تكون ضايف flutter_launcher_icons في pubspec.yaml
-          dart run flutter_launcher_icons
-        continue-on-error: true # يكمل حتى لو ماعندك البكج
+        run: dart run flutter_launcher_icons
+        continue-on-error: true
 
       - name: Generate splash screen
-        run: |
-          dart run flutter_native_splash:create
-        continue-on-error: true # يكمل حتى لو ماعندك البكج
+        run: dart run flutter_native_splash:create
+        continue-on-error: true
 
       - name: Build APK Release
         run: flutter build apk --release --split-per-abi
