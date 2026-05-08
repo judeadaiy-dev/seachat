@@ -63,22 +63,25 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Build APK & Smart Find
+      - name: Build APK & Super Find
         run: |
-          # بناء التطبيق مع تجاوز التحقق من التوافق
+          # 1. بناء التطبيق
           flutter build apk --release --suppress-analytics --android-skip-build-dependency-validation || true
           
-          # إنشاء مجلد خارجي للمخرجات
+          # 2. إنشاء مجلد المخرجات
           mkdir -p build/out
           
-          # البحث الشامل عن أي APK تم استخراجه في أي مسار ونقله
-          find build/app/outputs -name "*.apk" -exec cp {} build/out/seachat-app.apk \;
+          # 3. البحث الشامل في كل مجلد build (حل نهائي)
+          echo "Searching for APK files..."
+          find build -name "*.apk" -exec cp {} build/out/seachat-app.apk \;
           
-          # التحقق من وجود الملف قبل المتابعة
+          # 4. التأكد من النجاح قبل الرفع
           if [ -f build/out/seachat-app.apk ]; then
-            echo "SUCCESS: APK is ready in build/out/"
+            echo "SUCCESS: APK found and ready!"
           else
-            echo "ERROR: APK not found!" && exit 1
+            echo "ERROR: APK not found even in root build folder."
+            ls -R build
+            exit 1
           fi
 
       - name: Upload APK Artifact
