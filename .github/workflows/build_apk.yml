@@ -1,4 +1,4 @@
-name: Unstoppable Android Build
+name: Full Android Auto Build
 on: [push, pull_request]
 
 jobs:
@@ -41,50 +41,49 @@ jobs:
       - name: Create Android Folder
         run: flutter create . --platforms android || true
 
-      - name: Patch Gradle for All Versions
+      - name: Force SDK 36 Patch
         run: |
+          # هذا السطر هو مفتاح الحل: يجبر المشروع والمكتبات على SDK 36
           echo "subprojects {
               afterEvaluate { project ->
                   if (project.hasProperty('android')) {
                       project.android {
                           if (namespace == null) { namespace 'com.judeadaiy.seachat' }
-                          compileSdkVersion 34
+                          compileSdkVersion 36
+                          buildToolsVersion '36.0.0-rc1'
                           defaultConfig {
                               minSdkVersion 23
-                              targetSdkVersion 34
+                              targetSdkVersion 36
                           }
                       }
                   }
               }
-          }" >> android/build.gradle || true
+          }" >> android/build.gradle
 
-      - name: Install Dependencies & Icons
+      - name: Install Dependencies
+        run: flutter pub get || true
+
+      - name: Build APK (Hard Mode)
         run: |
-          flutter pub get || true
-          flutter pub run flutter_launcher_icons:main || true
+          # التنظيف ضروري قبل البناء بـ SDK جديد
+          flutter clean || true
+          flutter build apk --release --suppress-analytics --android-skip-build-dependency-validation || true
 
-      - name: Forced Build APK
-        run: |
-          # بناء التطبيق مع تجاهل أخطاء التوثيق والتحقق
-          flutter build apk --release --suppress-analytics --no-pub --android-skip-build-dependency-validation || true
-
-      - name: Super Find and Deliver
+      - name: Final Search and Deliver
         run: |
           mkdir -p build/out
-          echo "Scanning system for any generated APK..."
-          # هذا السطر سيبحث في كل المجلدات وينسخ أول APK يجده مهما كان اسمه
-          find build/app/outputs/flutter-apk -name "*.apk" -exec cp {} build/out/seachat-app.apk \; || \
-          find build -name "*.apk" -exec cp {} build/out/seachat-app.apk \; || true
+          # البحث في كل مكان ممكن حتى لو المسار غير قياسي
+          find . -name "*.apk" -exec cp {} build/out/seachat-app.apk \; || true
           
           if [ -f build/out/seachat-app.apk ]; then
-            echo "SUCCESS: APK Secured."
+            echo "SUCCESS: APK is Ready!"
           else
-            echo "WARNING: Building might have failed, but I will not stop."
+            echo "CRITICAL: APK still not found."
+            exit 1
           fi
 
-      - name: Upload Final Artifact
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Final-Build
+          name: SeaChat-Package
           path: build/out/seachat-app.apk
-          if-no-files-found: warn
