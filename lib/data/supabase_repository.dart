@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
-import '../models/models.dart';
+import '../models.dart';
 
 class SupabaseRepository {
   final SupabaseClient _client = Supabase.instance.client;
