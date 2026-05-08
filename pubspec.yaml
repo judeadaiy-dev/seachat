@@ -37,3 +37,6 @@ flutter_launcher_icons:
 
 dependency_overrides:
   app_links: ^6.4.2
+
+dependency_overrides:
+  app_links: ^6.3.0 # سيقوم النظام بالبحث عن أحدث إصدار مستقر يتجاوز النسخة المكسورة
