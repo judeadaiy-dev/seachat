@@ -1,4 +1,4 @@
-name: Fixed Force Build APK
+name: Mobile Dev Force Build
 
 on:
   push:
@@ -22,35 +22,26 @@ jobs:
         with:
           flutter-version: '3.24.0'
           channel: 'stable'
+          cache: true
 
-      - name: Preparation
+      - name: Generate Android folder if missing
         run: |
-          flutter clean
-          rm -rf android
-          # إعادة إنشاء المشروع بضبط إعدادات الأندرويد لنسخة 34 فوراً
-          flutter create . --platforms android --org com.your.package
-          
-          # تحديث المكتبات لضمان توافقها مع Flutter 3.24
-          flutter pub upgrade
-          flutter pub get
+          if [ ! -d android ]; then
+            flutter create . --platforms=android --org com.judeadaiy
+          fi
 
-      - name: Inject Android Settings
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Generate launcher icons
         run: |
-          # هذه الأوامر تقوم بحقن إعدادات الـ SDK داخل ملف build.gradle يدوياً
-          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 34/g' android/app/build.gradle
-          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle
-          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 34/g' android/app/build.gradle
-          
-          # معالجة مشكلة مكتبة app_links تحديداً عبر إنشاء ملف local.properties بشكل صحيح
-          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
-          echo "flutter.sdk=/opt/hostedtoolcache/flutter/stable-3.24.0-x64" >> android/local.properties
+          dart run flutter_launcher_icons
 
-      - name: Build APK
-        # استخدام --no-pub لضمان استخدام ما تم تحميله وتحديثه في الخطوات السابقة
+      - name: Build APK only
         run: flutter build apk --release --no-pub
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: release-apk
+          name: Mobile-Build-APK
           path: build/app/outputs/flutter-apk/app-release.apk
