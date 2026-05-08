@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Force Build APK
 
 on:
   push:
@@ -36,20 +36,8 @@ jobs:
       - name: Delete all platform folders
         run: rm -rf android ios linux macos windows web
 
-      - name: Recreate Android project
-        run: |
-          # إنشاء مشروع أندرويد باستخدام Kotlin
-          flutter create --org com.seachat --project-name seachat --platforms=android -a kotlin .
-
-      - name: Update Kotlin and Gradle Version
-        run: |
-          # تحديث إصدار Kotlin في ملف settings.gradle (للمشاريع الحديثة)
-          if [ -f android/settings.gradle ]; then
-            sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "1.9.0"/g' android/settings.gradle
-          fi
-          
-          # تحديث إصدار Kotlin في ملف build.gradle (للمشاريع الأقدم)
-          sed -i 's/ext.kotlin_version = [^ ]*/ext.kotlin_version = "1.9.0"/g' android/build.gradle 2>/dev/null || true
+      - name: Recreate Android project with latest AGP
+        run: flutter create --org com.seachat --project-name seachat --platforms=android .
 
       - name: Restore source code
         run: |
@@ -58,7 +46,17 @@ jobs:
           cp -r /tmp/backup/assets ./ 2>/dev/null || true
           cp /tmp/backup/pubspec.yaml ./
 
-      - name: Fix pubspec.yaml - Downgrade app_links
+      - name: Force Kotlin 1.9.22 for shared_preferences_android
+        run: |
+          sed -i 's/id "org.jetbrains.kotlin.android" version ".*" apply false/id "org.jetbrains.kotlin.android" version "1.9.22" apply false/' android/settings.gradle
+
+      - name: Force compileSdkVersion 34 for app_links
+        run: |
+          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 34/g' android/app/build.gradle
+          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle
+          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 34/g' android/app/build.gradle
+
+      - name: Fix pubspec - add icons + override bad deps
         run: |
           sed -i '/^flutter_launcher_icons:/,$d' pubspec.yaml
           cat >> pubspec.yaml << 'EOF'
@@ -74,13 +72,6 @@ jobs:
           dependency_overrides:
             app_links: 6.3.2
           EOF
-
-      - name: Hardcode SDK versions in build.gradle
-        run: |
-          # ضبط إصدارات الـ SDK لضمان التوافق مع المتطلبات الحديثة
-          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 34/g' android/app/build.gradle
-          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle
-          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 34/g' android/app/build.gradle
 
       - name: Overwrite AndroidManifest.xml
         run: |
@@ -119,14 +110,14 @@ jobs:
         run: flutter pub get
 
       - name: Generate app icons
-        run: dart run flutter_launcher_icons || true
+        run: dart run flutter_launcher_icons
 
-      - name: Build APK Release
-        run: flutter build apk --release
+      - name: Build APK Release - ignore warnings
+        run: flutter build apk --release --no-tree-shake-icons
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: SeaChat-APK
           path: build/app/outputs/flutter-apk/app-release.apk
-
+          retention-days: 7
