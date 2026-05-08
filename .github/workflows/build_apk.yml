@@ -25,21 +25,20 @@ jobs:
           flutter-version: '3.24.0'
           cache: true
 
-      # 1. توليد الأيقونات لجميع مقاسات أندرويد (تلقائياً)
+      # 1. توليد الأيقونات لنظام أندرويد فقط (تم إيقاف iOS لمنع الخطأ)
       - name: Generate App Icons
         run: |
           flutter pub add --dev flutter_launcher_icons
           cat > flutter_launcher_icons.yaml << 'EOF'
           flutter_launcher_icons:
             android: true
-            ios: true
+            ios: false
             image_path: "assets/icons/app_icon.png" 
-            remove_alpha_channel_ios: true
           EOF
           flutter pub get
           dart run flutter_launcher_icons
 
-      # 2. ضمان وجود مكتبات حفظ الجلسة (Session) لمنع العودة لصفحة التسجيل
+      # 2. ضمان وجود مكتبات حفظ الجلسة (Session)
       - name: Session Persistence Setup
         run: |
           flutter pub add shared_preferences
@@ -48,10 +47,10 @@ jobs:
       # 3. بناء الـ APK بالاعتماد على تعديلاتك اليدوية (SDK 35 & Kotlin 1.9.24)
       - name: Build Release APK
         run: |
-          # سيقوم ببناء ملف APK واحد شامل (Fat APK) لسهولة التثبيت
+          # بناء ملف APK واحد شامل ومستقر
           flutter build apk --release --no-tree-shake-icons
 
-      # 4. رفع الملف الناتج بصيغة APK مباشرة (جاهز للتثبيت)
+      # 4. رفع الملف الناتج بصيغة APK مباشرة
       - name: Upload Installable APK
         uses: actions/upload-artifact@v4
         with:
