@@ -15,7 +15,6 @@ dependencies:
   supabase_flutter: ^2.6.0
   google_sign_in: ^6.2.1
   image_picker: ^1.1.2
-  flutter_plugin_android_lifecycle: ^2.0.22
 
 dev_dependencies:
   flutter_test:
