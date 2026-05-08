@@ -10,12 +10,12 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  uuid: ^4.4.0 
+  uuid: ^4.4.0
   cupertino_icons: ^1.0.6
   supabase_flutter: ^2.6.0
   google_sign_in: ^6.2.1
   image_picker: ^1.1.2
-  flutter_plugin_android_lifecycle: ^2.0.22 
+  flutter_plugin_android_lifecycle: ^2.0.22
 
 dev_dependencies:
   flutter_test:
@@ -31,7 +31,6 @@ flutter:
   assets:
     - assets/icons/
 
-# إعدادات الأيقونات توضع مرة واحدة فقط في نهاية الملف
 flutter_launcher_icons:
   android: true
   ios: false
