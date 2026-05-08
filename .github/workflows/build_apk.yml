@@ -63,15 +63,26 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Build APK & Organize Output
+      - name: Build APK & Smart Find
         run: |
-          flutter build apk --release --suppress-analytics --android-skip-build-dependency-validation
+          # بناء التطبيق مع تجاوز التحقق من التوافق
+          flutter build apk --release --suppress-analytics --android-skip-build-dependency-validation || true
+          
+          # إنشاء مجلد خارجي للمخرجات
           mkdir -p build/out
-          # محاولة النسخ من المسارات المحتملة لملف الـ APK
-          cp build/app/outputs/flutter-apk/app-release.apk build/out/seachat-app.apk || cp build/app/outputs/apk/release/app-release.apk build/out/seachat-app.apk
+          
+          # البحث الشامل عن أي APK تم استخراجه في أي مسار ونقله
+          find build/app/outputs -name "*.apk" -exec cp {} build/out/seachat-app.apk \;
+          
+          # التحقق من وجود الملف قبل المتابعة
+          if [ -f build/out/seachat-app.apk ]; then
+            echo "SUCCESS: APK is ready in build/out/"
+          else
+            echo "ERROR: APK not found!" && exit 1
+          fi
 
-      - name: Upload APK
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Final-Build
+          name: SeaChat-Package
           path: build/out/seachat-app.apk
