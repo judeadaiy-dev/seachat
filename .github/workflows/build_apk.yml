@@ -1,4 +1,4 @@
-name: Ultimate Android Build
+name: Full Android Auto Build
 on: [push, pull_request]
 
 jobs:
@@ -7,13 +7,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 1. إعداد لغة Dart و Flutter
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
 
-      # 2. إنشاء ملف pubspec.yaml برمجياً (لضمان خلوه من الأخطاء)
+      # بناء ملف pubspec شامل لكل احتياجات كودك
       - name: Rebuild pubspec.yaml
         run: |
           cat <<EOF > pubspec.yaml
@@ -27,25 +26,23 @@ jobs:
               sdk: flutter
             cupertino_icons: ^1.0.6
             supabase_flutter: ^2.0.0
+            image_picker: ^1.1.2
+            uuid: ^4.4.0
             app_links: ^6.0.0
+            provider: ^6.1.2
+            shared_preferences: ^2.2.3
           dev_dependencies:
             flutter_test:
               sdk: flutter
             flutter_launcher_icons: ^0.13.1
           flutter:
             uses-material-design: true
-          flutter_icons:
-            android: true
-            ios: false
-            image_path: "assets/icon.png" # تأكد من وجود هذه الصورة في مشروعك
           EOF
 
-      # 3. إنشاء مجلد الأندرويد من الصفر (لضمان التوافق)
       - name: Create Android Folder
         run: flutter create . --platforms android
 
-      # 4. إصلاح توافق Gradle مع الحزم (حل مشكلة app_links التي ظهرت سابقاً)
-      - name: Patch Gradle for Packages
+      - name: Patch Gradle for Compatibility
         run: |
           echo "subprojects {
               afterEvaluate { project ->
@@ -55,25 +52,23 @@ jobs:
                               namespace project.group
                           }
                           compileSdkVersion 34
+                          defaultConfig {
+                              minSdkVersion 21
+                              targetSdkVersion 34
+                          }
                       }
                   }
               }
           }" >> android/build.gradle
 
-      # 5. تحميل المكتبات وتوليد الأيقونات
-      - name: Get Dependencies & Generate Icons
-        run: |
-          flutter pub get
-          # إذا لم تكن صورة الأيقونة موجودة، سيتجاوز هذه الخطوة ولن يتوقف البناء
-          flutter pub run flutter_launcher_icons || true
+      - name: Install Dependencies
+        run: flutter pub get
 
-      # 6. بناء ملف APK (مع تجاوز التحذيرات)
       - name: Build APK
-        run: flutter build apk --release --no-pub --suppress-analytics
+        run: flutter build apk --release --suppress-analytics
 
-      # 7. رفع الملف المستخرج (النتيجة النهائية)
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: release-apk
+          name: SeaChat-Release
           path: build/app/outputs/flutter-apk/app-release.apk
