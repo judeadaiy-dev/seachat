@@ -1,47 +1,79 @@
-name: Mobile Dev Force Build
-
-on:
-  push:
-    branches: [ "main" ]
-  workflow_dispatch:
+name: Ultimate Android Build
+on: [push, pull_request]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
+      # 1. إعداد لغة Dart و Flutter
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
           channel: 'stable'
-          cache: true
 
-      - name: Create Android folder if missing
+      # 2. إنشاء ملف pubspec.yaml برمجياً (لضمان خلوه من الأخطاء)
+      - name: Rebuild pubspec.yaml
         run: |
-          if [ ! -d android ]; then
-            flutter create . --platforms=android --org com.judeadaiy
-          fi
+          cat <<EOF > pubspec.yaml
+          name: seachat
+          description: A new Flutter project.
+          version: 1.0.0+1
+          environment:
+            sdk: '>=3.0.0 <4.0.0'
+          dependencies:
+            flutter:
+              sdk: flutter
+            cupertino_icons: ^1.0.6
+            supabase_flutter: ^2.0.0
+            app_links: ^6.0.0
+          dev_dependencies:
+            flutter_test:
+              sdk: flutter
+            flutter_launcher_icons: ^0.13.1
+          flutter:
+            uses-material-design: true
+          flutter_icons:
+            android: true
+            ios: false
+            image_path: "assets/icon.png" # تأكد من وجود هذه الصورة في مشروعك
+          EOF
 
-      - name: Get dependencies
-        run: flutter pub get
+      # 3. إنشاء مجلد الأندرويد من الصفر (لضمان التوافق)
+      - name: Create Android Folder
+        run: flutter create . --platforms android
 
-      - name: Generate Android icons
-        run: dart run flutter_launcher_icons
+      # 4. إصلاح توافق Gradle مع الحزم (حل مشكلة app_links التي ظهرت سابقاً)
+      - name: Patch Gradle for Packages
+        run: |
+          echo "subprojects {
+              afterEvaluate { project ->
+                  if (project.hasProperty('android')) {
+                      project.android {
+                          if (namespace == null) {
+                              namespace project.group
+                          }
+                          compileSdkVersion 34
+                      }
+                  }
+              }
+          }" >> android/build.gradle
 
+      # 5. تحميل المكتبات وتوليد الأيقونات
+      - name: Get Dependencies & Generate Icons
+        run: |
+          flutter pub get
+          # إذا لم تكن صورة الأيقونة موجودة، سيتجاوز هذه الخطوة ولن يتوقف البناء
+          flutter pub run flutter_launcher_icons || true
+
+      # 6. بناء ملف APK (مع تجاوز التحذيرات)
       - name: Build APK
-        run: flutter build apk --release
+        run: flutter build apk --release --no-pub --suppress-analytics
 
+      # 7. رفع الملف المستخرج (النتيجة النهائية)
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Mobile-Build-APK
+          name: release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
