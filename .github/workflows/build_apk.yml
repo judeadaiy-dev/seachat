@@ -12,6 +12,7 @@ jobs:
         with:
           channel: 'stable'
 
+      # 1. بناء ملف pubspec.yaml بالمكتبات المطلوبة
       - name: Rebuild pubspec.yaml
         run: |
           cat <<EOF > pubspec.yaml
@@ -38,52 +39,48 @@ jobs:
             uses-material-design: true
           EOF
 
+      # 2. توليد مجلد الأندرويد وملفات الإعداد
       - name: Create Android Folder
         run: flutter create . --platforms android
 
-      - name: Patch Gradle for SDK 36
+      # 3. تثبيت المكتبات وتوليد الأيقونات (إذا كان الملف مهيأ لها)
+      - name: Install Dependencies
+        run: |
+          flutter pub get
+          # تفعيل توليد الأيقونات إذا كانت الإعدادات موجودة
+          flutter pub run flutter_launcher_icons:main || echo "No icons config found, skipping..."
+
+      # 4. إصلاح إعدادات Gradle ليتوافق مع النسخ الحديثة
+      - name: Patch Gradle Config
         run: |
           echo "subprojects {
               afterEvaluate { project ->
                   if (project.hasProperty('android')) {
                       project.android {
                           if (namespace == null) {
-                              namespace project.group
+                              namespace 'com.example.seachat'
                           }
-                          compileSdkVersion 36
+                          compileSdkVersion 34
                           defaultConfig {
                               minSdkVersion 23
-                              targetSdkVersion 36
+                              targetSdkVersion 34
                           }
                       }
                   }
               }
           }" >> android/build.gradle
 
-      - name: Install Dependencies
-        run: flutter pub get
+      # 5. بناء الـ APK الرسمي (بدون تخطي الأخطاء)
+      - name: Build APK
+        run: flutter build apk --release --suppress-analytics
 
-      - name: Build APK & Super Find
+      # 6. نقل الملف لمكان محدد لضمان الرفع
+      - name: Prepare Artifact
         run: |
-          # 1. بناء التطبيق
-          flutter build apk --release --suppress-analytics --android-skip-build-dependency-validation || true
-          
-          # 2. إنشاء مجلد المخرجات
           mkdir -p build/out
-          
-          # 3. البحث الشامل في كل مجلد build (حل نهائي)
-          echo "Searching for APK files..."
-          find build -name "*.apk" -exec cp {} build/out/seachat-app.apk \;
-          
-          # 4. التأكد من النجاح قبل الرفع
-          if [ -f build/out/seachat-app.apk ]; then
-            echo "SUCCESS: APK found and ready!"
-          else
-            echo "ERROR: APK not found even in root build folder."
-            ls -R build
-            exit 1
-          fi
+          cp build/app/outputs/flutter-apk/app-release.apk build/out/seachat-app.apk
 
+      # 7. رفع الملف النهائي
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
