@@ -1,1 +1,41 @@
 
+name: sea_chat
+description: "A modern glassmorphism chat application powered by Supabase."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # التعامل مع الأيقونات (مهم جداً للواجهة)
+  cupertino_icons: ^1.0.8
+
+  # المكاتب الأساسية التي استخدمتها في الكود
+  supabase_flutter: ^2.6.0
+  uuid: ^4.4.0
+  image_picker: ^1.1.2
+  
+  # لدعم الخطوط والتصميم الذي اخترته (Cairo Font)
+  google_fonts: ^6.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  
+  # مكاتب مساعدة في التطوير
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+
+  # تأكد من إضافة الخطوط إذا كانت ملفات محليا، 
+  # أو استخدم google_fonts كما هو موضح أعلاه في الكود.
+  
+  # إذا كان لديك صور في مجلد assets، قم بإلغاء التعليق عن الأسطر التالية:
+  # assets:
+  #   - assets/images/
