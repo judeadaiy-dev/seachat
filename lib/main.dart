@@ -1,17 +1,20 @@
-import 'package:flutter/material.dart';
-import 'dart:ui';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'dart:ui';
+
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'data/supabase_repository.dart';
 
-// ===== إعدادات =====
+// ==================== Config ====================
 class AppConfig {
   static const String appName = 'SeaChat';
   static const String copyrightName = 'Joud Oday';
   static const int copyrightYear = 2026;
   static const String supabaseUrl = 'https://jmsmrojtlstppnpwmkkk.supabase.co';
-  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos';
+  static const String supabaseAnonKey =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos';
 }
 
 class AppColors {
@@ -24,25 +27,35 @@ class AppColors {
   static const Color textLight = Color(0xFF6B6B6B);
 }
 
-// ===== الموديلات =====
+// ==================== Models ====================
 class UserModel {
   final String id, name, username, email;
-  UserModel({required this.id, required this.name, required this.username, required this.email});
+  const UserModel({required this.id, required this.name, required this.username, required this.email});
 }
 
 class RoomModel {
   final String id, roomName, roomBio, roomImage, roomStatus;
   final int membersCount;
   final bool allowMessages, allowMedia;
-  RoomModel({required this.id, required this.roomName, required this.roomBio, required this.roomImage, required this.membersCount, required this.allowMessages, required this.allowMedia, required this.roomStatus});
+  const RoomModel({
+    required this.id,
+    required this.roomName,
+    required this.roomBio,
+    required this.roomImage,
+    required this.membersCount,
+    required this.allowMessages,
+    required this.allowMedia,
+    required this.roomStatus,
+  });
 }
 
 class MessageModel {
   final String id, text, senderName, time;
   final bool isMe;
-  MessageModel({required this.id, required this.text, required this.senderName, required this.isMe, required this.time});
+  const MessageModel({required this.id, required this.text, required this.senderName, required this.isMe, required this.time});
 }
 
+// ==================== Main ====================
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Supabase.initialize(url: AppConfig.supabaseUrl, anonKey: AppConfig.supabaseAnonKey);
@@ -56,19 +69,30 @@ class SeaChatApp extends StatelessWidget {
     return MaterialApp(
       title: AppConfig.appName,
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(fontFamily: 'Cairo', useMaterial3: true, colorScheme: ColorScheme.fromSeed(seedColor: AppColors.button)),
+      theme: ThemeData(
+        fontFamily: 'Cairo',
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(seedColor: AppColors.button),
+      ),
       home: Supabase.instance.client.auth.currentUser == null? const LoginScreen() : const MainScreen(),
     );
   }
 }
 
+// ==================== Shared Widgets ====================
 class AppBackground extends StatelessWidget {
   final Widget child;
   const AppBackground({super.key, required this.child});
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [AppColors.backgroundStart, AppColors.backgroundEnd])),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [AppColors.backgroundStart, AppColors.backgroundEnd],
+        ),
+      ),
       child: child,
     );
   }
@@ -78,22 +102,38 @@ class GlassCard extends StatelessWidget {
   final Widget child;
   final EdgeInsets padding;
   final double borderRadius;
+  final EdgeInsets? margin;
   final VoidCallback? onTap;
-  const GlassCard({super.key, required this.child, this.padding = const EdgeInsets.all(16), this.borderRadius = 24, this.onTap});
+  const GlassCard({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(16),
+    this.borderRadius = 24,
+    this.onTap,
+    this.margin,
+  });
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(borderRadius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            child: Container(
-              padding: padding,
-              decoration: BoxDecoration(color: AppColors.cardGlass, borderRadius: BorderRadius.circular(borderRadius), border: Border.all(color: Colors.white.withOpacity(0.4), width: 1.5)),
-              child: child,
+    return Container(
+      margin: margin,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(borderRadius),
+              child: Container(
+                padding: padding,
+                decoration: BoxDecoration(
+                  color: AppColors.cardGlass,
+                  borderRadius: BorderRadius.circular(borderRadius),
+                  border: Border.all(color: Colors.white.withOpacity(0.4), width: 1.5),
+                ),
+                child: child,
+              ),
             ),
           ),
         ),
@@ -116,6 +156,13 @@ class _LoginScreenState extends State<LoginScreen> {
   bool isLoading = false;
 
   @override
+  void dispose() {
+    emailController.dispose();
+    passController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: AppBackground(
@@ -128,9 +175,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.waves_rounded, size: 60, color: AppColors.button),
+                    const Icon(Icons.waves_rounded, size: 60, color: AppColors.button),
                     const SizedBox(height: 12),
-                    Text(AppConfig.appName, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.button)),
+                    const Text(AppConfig.appName, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.button)),
                     const SizedBox(height: 32),
                     TextField(controller: emailController, decoration: _inputDecoration('البريد الإلكتروني', Icons.email_outlined)),
                     const SizedBox(height: 16),
@@ -144,23 +191,21 @@ class _LoginScreenState extends State<LoginScreen> {
                           setState(() => isLoading = true);
                           final success = await repo.signInWithEmail(email: emailController.text, password: passController.text);
                           if (success && mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainScreen()));
-                          setState(() => isLoading = false);
+                          if (mounted) setState(() => isLoading = false);
                         },
-                        child: isLoading? CircularProgressIndicator(color: Colors.white) : const Text('تسجيل الدخول', style: TextStyle(fontSize: 18, color: Colors.white)),
+                        child: isLoading? const CircularProgressIndicator(color: Colors.white) : const Text('تسجيل الدخول', style: TextStyle(fontSize: 18, color: Colors.white)),
                       ),
                     ),
                     const SizedBox(height: 12),
-                    // زر جوجل - جدول: auth.users
                     SizedBox(
                       width: double.infinity, height: 50,
                       child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(side: BorderSide(color: AppColors.button), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                        style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.button), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
                         onPressed: () async {
                           await repo.signInWithGoogle();
-                          // Supabase يفتح المتصفح ويرجع للتطبيق تلقائي
                         },
-                        icon: Icon(Icons.g_mobiledata_rounded, color: AppColors.button, size: 28),
-                        label: Text('المتابعة عبر Google', style: TextStyle(color: AppColors.button)),
+                        icon: const Icon(Icons.g_mobiledata_rounded, color: AppColors.button, size: 28),
+                        label: const Text('المتابعة عبر Google', style: TextStyle(color: AppColors.button)),
                       ),
                     ),
                   ],
@@ -228,12 +273,12 @@ class HomeScreen extends StatelessWidget {
         leading: Builder(builder: (context) => IconButton(icon: const Icon(Icons.menu), onPressed: () => Scaffold.of(context).openDrawer())),
       ),
       body: FutureBuilder<List<RoomModel>>(
-        future: repo.getAllActiveRooms(), // جدول: rooms
+        future: repo.getAllActiveRooms(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) return Center(child: CircularProgressIndicator(color: AppColors.button));
+          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: AppColors.button));
           if (snapshot.hasError) return Center(child: Text('خطأ: ${snapshot.error}'));
-          final rooms = snapshot.data!;
-          if (rooms.isEmpty) return Center(child: Text('لا توجد غرف حالياً'));
+          final rooms = snapshot.data?? [];
+          if (rooms.isEmpty) return const Center(child: Text('لا توجد غرف حالياً'));
           return ListView.builder(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
             itemCount: rooms.length,
@@ -244,10 +289,10 @@ class HomeScreen extends StatelessWidget {
                 child: GlassCard(
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(room: room))),
                   child: ListTile(
-                    leading: CircleAvatar(backgroundColor: AppColors.button.withOpacity(0.2), child: Icon(Icons.group, color: AppColors.button)),
+                    leading: CircleAvatar(backgroundColor: AppColors.button.withOpacity(0.2), child: const Icon(Icons.group, color: AppColors.button)),
                     title: Text(room.roomName, style: const TextStyle(fontWeight: FontWeight.w600)),
                     subtitle: Text('${room.membersCount} عضو'),
-                    trailing: Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.icon),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.icon),
                   ),
                 ),
               );
@@ -272,6 +317,12 @@ class _ChatScreenState extends State<ChatScreen> {
   final msgController = TextEditingController();
 
   @override
+  void dispose() {
+    msgController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -281,9 +332,9 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             Expanded(
               child: StreamBuilder<List<MessageModel>>(
-                stream: repo.getRoomMessagesStream(roomId: widget.room.id), // جدول: messages
+                stream: repo.getRoomMessagesStream(roomId: widget.room.id),
                 builder: (context, snapshot) {
-                  if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
+                  if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
                   final messages = snapshot.data!;
                   return ListView.builder(
                     padding: const EdgeInsets.fromLTRB(16, 100, 16, 16),
@@ -296,8 +347,8 @@ class _ChatScreenState extends State<ChatScreen> {
                         child: GlassCard(
                           margin: const EdgeInsets.only(bottom: 8),
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                          child: msg.text.startsWith('http') // صورة
-                             ? Image.network(msg.text, width: 200)
+                          child: msg.text.startsWith('http')
+                            ? Image.network(msg.text, width: 200)
                               : Text(msg.text, style: TextStyle(color: msg.isMe? Colors.white : AppColors.textDark)),
                         ),
                       );
@@ -317,19 +368,19 @@ class _ChatScreenState extends State<ChatScreen> {
                         final picker = ImagePicker();
                         final XFile? image = await picker.pickImage(source: ImageSource.gallery);
                         if (image!= null) {
-                          await repo.sendImageMessage(roomId: widget.room.id, imageFile: File(image.path)); // جدول: messages + bucket: chat_images
+                          await repo.sendImageMessage(roomId: widget.room.id, imageFile: File(image.path));
                         }
                       },
-                      icon: Icon(Icons.attach_file_rounded, color: AppColors.icon),
+                      icon: const Icon(Icons.attach_file_rounded, color: AppColors.icon),
                     ),
-                    Expanded(child: TextField(controller: msgController, decoration: InputDecoration(hintText: 'اكتب رسالة...', border: InputBorder.none))),
+                    Expanded(child: TextField(controller: msgController, decoration: const InputDecoration(hintText: 'اكتب رسالة...', border: InputBorder.none))),
                     IconButton(
                       onPressed: () async {
                         if (msgController.text.trim().isEmpty) return;
-                        await repo.sendMessage(roomId: widget.room.id, message: msgController.text); // جدول: messages
+                        await repo.sendMessage(roomId: widget.room.id, message: msgController.text);
                         msgController.clear();
                       },
-                      icon: Icon(Icons.send_rounded, color: AppColors.button),
+                      icon: const Icon(Icons.send_rounded, color: AppColors.button),
                     ),
                   ],
                 ),
@@ -352,9 +403,9 @@ class ProfileScreen extends StatelessWidget {
       backgroundColor: Colors.transparent,
       appBar: AppBar(backgroundColor: Colors.transparent, title: const Text('الملف الشخصي')),
       body: FutureBuilder<UserModel?>(
-        future: repo.getCurrentUser(), // جدول: users
+        future: repo.getCurrentUser(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
           final user = snapshot.data!;
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -365,7 +416,7 @@ class ProfileScreen extends StatelessWidget {
                     CircleAvatar(radius: 50, backgroundColor: AppColors.button, child: Text(user.name.isNotEmpty? user.name[0] : 'U', style: const TextStyle(fontSize: 40, color: Colors.white))),
                     const SizedBox(height: 16),
                     Text(user.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                    Text(user.email, style: TextStyle(color: AppColors.textLight)),
+                    Text(user.email, style: const TextStyle(color: AppColors.textLight)),
                   ],
                 ),
               ),
@@ -388,11 +439,11 @@ class AppDrawer extends StatelessWidget {
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            DrawerHeader(child: GlassCard(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.waves_rounded, size: 40, color: AppColors.button), Text(AppConfig.appName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold))]))),
-            ListTile(leading: Icon(Icons.privacy_tip_outlined, color: AppColors.icon), title: const Text('سياسة الخصوصية'), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()))),
-            ListTile(leading: Icon(Icons.mail_outline_rounded, color: AppColors.icon), title: const Text('تواصل معنا'), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactUsScreen()))),
+            DrawerHeader(child: GlassCard(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.waves_rounded, size: 40, color: AppColors.button), const Text(AppConfig.appName, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))]))),
+            ListTile(leading: const Icon(Icons.privacy_tip_outlined, color: AppColors.icon), title: const Text('سياسة الخصوصية'), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()))),
+            ListTile(leading: const Icon(Icons.mail_outline_rounded, color: AppColors.icon), title: const Text('تواصل معنا'), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactUsScreen()))),
             const Divider(),
-            Padding(padding: const EdgeInsets.all(16), child: Text('© ${AppConfig.copyrightYear} ${AppConfig.copyrightName}. All rights reserved.', style: TextStyle(color: AppColors.textLight, fontSize: 12), textAlign: TextAlign.center)),
+            Padding(padding: const EdgeInsets.all(16), child: Text('© ${AppConfig.copyrightYear} ${AppConfig.copyrightName}. All rights reserved.', style: const TextStyle(color: AppColors.textLight, fontSize: 12), textAlign: TextAlign.center)),
           ],
         ),
       ),
@@ -408,13 +459,13 @@ class PrivacyPolicyScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('سياسة الخصوصية')),
       body: AppBackground(
         child: FutureBuilder<String>(
-          future: SupabaseRepository().getPrivacyPolicy(), // جدول: app_settings
+          future: SupabaseRepository().getPrivacyPolicy(),
           builder: (context, snapshot) {
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
                 GlassCard(
-                  child: Text(snapshot.data?? 'جاري التحميل...', style: TextStyle(color: AppColors.textLight, height: 1.6)),
+                  child: Text(snapshot.data?? 'جاري التحميل...', style: const TextStyle(color: AppColors.textLight, height: 1.6)),
                 ),
               ],
             );
@@ -431,7 +482,7 @@ class ContactUsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('تواصل معنا')),
-      body: AppBackground(child: Center(child: Text('شاشة التواصل'))),
+      body: const AppBackground(child: Center(child: Text('شاشة التواصل'))),
     );
   }
 }
