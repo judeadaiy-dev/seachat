@@ -10,7 +10,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-    uuid: ^4.4.0
+  # تأكد أن المسافة هنا مطابقة تماماً لكلمة flutter أعلاه
+  uuid: ^4.4.0 
   cupertino_icons: ^1.0.6
   supabase_flutter: ^2.5.0
   google_sign_in: ^6.2.1
@@ -27,10 +28,9 @@ flutter:
   assets:
     - assets/icons/
 
-# إعدادات الأيقونة - أندرويد فقط
 flutter_launcher_icons:
-  android: true        # ← يبني أندرويد
-  ios: false           # ← لا تبني iOS، هذا اللي حل المشكلة
+  android: true
+  ios: false
   image_path: "assets/icons/app_icon.png"
   min_sdk_android: 21
   adaptive_icon_background: "#CAD5D4"
