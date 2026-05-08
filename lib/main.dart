@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'data/supabase_repository.dart';
-import 'models/models.dart';
-
+import 'models.dart';
 class AppConfig {
   static const String appName = 'SeaChat';
   static const String copyrightName = 'Joud Oday';
@@ -22,7 +21,7 @@ class AppColors {
   static const Color icon = Color(0xFF898199);
   static const Color cardGlass = Color(0xB3FFFFFF);
   static const Color textDark = Color(0xFF2D2D2D);
-  static const Color textLight = Color(0xFF6B6B);
+  static const Color textLight = Color(0xFF6B6B6B);
 }
 
 Future<void> main() async {
@@ -702,5 +701,46 @@ class ContactUsScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+class NotificationModel {
+  final String id;
+  final String userId;
+  final String title;
+  final String body;
+  final DateTime createdAt;
+  final bool isRead;
+
+  NotificationModel({
+    required this.id,
+    required this.userId,
+    required this.title,
+    required this.body,
+    required this.createdAt,
+    this.isRead = false,
+  });
+
+  factory NotificationModel.fromJson(Map<String, dynamic> json) {
+    return NotificationModel(
+      id: json['id'] ?? '',
+      userId: json['user_id'] ?? '',
+      title: json['title'] ?? '',
+      body: json['body'] ?? '',
+      createdAt:
+          DateTime.tryParse(json['created_at'] ?? '') ??
+          DateTime.now(),
+      isRead: json['is_read'] ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'user_id': userId,
+      'title': title,
+      'body': body,
+      'created_at': createdAt.toIso8601String(),
+      'is_read': isRead,
+    };
   }
 }
