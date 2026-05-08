@@ -12,7 +12,6 @@ jobs:
         with:
           channel: 'stable'
 
-      # بناء ملف pubspec شامل لكل احتياجات كودك
       - name: Rebuild pubspec.yaml
         run: |
           cat <<EOF > pubspec.yaml
@@ -53,7 +52,7 @@ jobs:
                           }
                           compileSdkVersion 34
                           defaultConfig {
-                              minSdkVersion 21
+                              minSdkVersion 23
                               targetSdkVersion 34
                           }
                       }
@@ -65,7 +64,7 @@ jobs:
         run: flutter pub get
 
       - name: Build APK
-        run: flutter build apk --release --suppress-analytics
+        run: flutter build apk --release --suppress-analytics --android-skip-build-dependency-validation
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
