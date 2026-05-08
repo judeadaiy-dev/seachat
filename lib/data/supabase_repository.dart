@@ -12,7 +12,7 @@ class SupabaseRepository {
   Future<bool> signInWithEmail({required String email, required String password}) async {
     try {
       final res = await _client.auth.signInWithPassword(email: email.trim(), password: password);
-      return res.user!= null;
+      return res.user != null;
     } catch (_) {
       return false;
     }
@@ -27,13 +27,13 @@ class SupabaseRepository {
     if (user == null) return null;
     try {
       final data = await _client.from('users').select().eq('id', user.id).maybeSingle();
-      if (data!= null) return UserModel.fromMap(data);
+      if (data != null) return UserModel.fromMap(data);
     } catch (_) {}
     return UserModel(
       id: user.id,
-      name: user.userMetadata?['full_name'] as String??? user.email?.split('@').first?? 'مستخدم',
-      username: user.email?.split('@').first?? 'user',
-      email: user.email?? '',
+      name: user.userMetadata?['full_name'] as String? ?? user.email?.split('@').first ?? 'مستخدم',
+      username: user.email?.split('@').first ?? 'user',
+      email: user.email ?? '',
       avatarUrl: user.userMetadata?['avatar_url'] as String?,
     );
   }
@@ -48,13 +48,13 @@ class SupabaseRepository {
   }
 
   Stream<List<MessageModel>> getRoomMessagesStream({required String roomId}) {
-    final userId = _currentUserId?? '';
+    final userId = _currentUserId ?? '';
     return _client
-       .from('messages')
-       .stream(primaryKey: ['id'])
-       .eq('room_id', roomId)
-       .order('created_at', ascending: false)
-       .map((data) => data.map((e) => MessageModel.fromMap(e, currentUserId: userId)).toList());
+        .from('messages')
+        .stream(primaryKey: ['id'])
+        .eq('room_id', roomId)
+        .order('created_at', ascending: false)
+        .map((data) => data.map((e) => MessageModel.fromMap(e, currentUserId: userId)).toList());
   }
 
   Future<void> sendMessage({required String roomId, required String message}) async {
@@ -92,7 +92,7 @@ class SupabaseRepository {
   Future<String> getPrivacyPolicy() async {
     try {
       final data = await _client.from('app_settings').select('value').eq('key', 'privacy_policy').maybeSingle();
-      return data?['value'] as String??? 'سياسة الخصوصية غير متوفرة حالياً';
+      return data?['value'] as String? ?? 'سياسة الخصوصية غير متوفرة حالياً';
     } catch (_) {
       return 'سياسة الخصوصية غير متوفرة حالياً';
     }
