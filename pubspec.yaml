@@ -35,8 +35,6 @@ flutter_launcher_icons:
   adaptive_icon_background: "#CAD5D4"
   adaptive_icon_foreground: "assets/icons/app_icon.png"
 
+# قسم التجاوز يكتب مرة واحدة فقط في نهاية الملف
 dependency_overrides:
-  app_links: ^6.4.2
-
-dependency_overrides:
-  app_links: ^6.3.0 # سيقوم النظام بالبحث عن أحدث إصدار مستقر يتجاوز النسخة المكسورة
+  app_links: ^6.3.0
