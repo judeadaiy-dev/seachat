@@ -26,7 +26,7 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Pre-build Clean & Fix
+      - name: Pre-build Clean
         run: |
           flutter clean
           rm -f pubspec.lock
@@ -41,7 +41,6 @@ jobs:
       - name: Wipe and Recreate Platform
         run: |
           rm -rf android ios linux macos windows web
-          # إجبار إنشاء بيئة أندرويد نظيفة تماماً متوافقة مع إصدار فلاتر الحالي
           flutter create --org com.seachat --project-name seachat --platforms=android .
 
       - name: Restore source code
@@ -51,21 +50,17 @@ jobs:
           cp -r /tmp/backup/assets ./ 2>/dev/null || true
           cp /tmp/backup/pubspec.yaml ./
 
-      - name: Install dependencies (Force)
-        run: flutter pub get
-
-      - name: Force Kotlin & Gradle Config
+      - name: Force Kotlin 1.9.22 & SDK 35 Config
         run: |
-          # إجبار نسخة كوتلن حديثة لتجنب تعارض المكتبات القديمة
+          # إصلاح كوتلن
           sed -i 's/id "org.jetbrains.kotlin.android" version ".*" apply false/id "org.jetbrains.kotlin.android" version "1.9.22" apply false/' android/settings.gradle
-          # إجبار الـ SDK على إصدار مستقر وحديث
-          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 34/g' android/app/build.gradle
+          # إجبار SDK 35 لحل مشكلة التبعيات الحديثة
+          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/g' android/app/build.gradle
+          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 35/g' android/app/build.gradle
           sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle
-          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 34/g' android/app/build.gradle
 
       - name: Fix pubspec & Force Overrides
         run: |
-          # حذف أي إعدادات أيقونات قديمة وإضافتها بشكل سليم في النهاية
           sed -i '/^flutter_launcher_icons:/,$d' pubspec.yaml
           cat >> pubspec.yaml << 'EOF'
 
@@ -124,7 +119,7 @@ jobs:
 
       - name: Build APK Release (Aggressive Mode)
         run: |
-          # بناء التطبيق مع تجاهل تحذيرات الأيقونات المفقودة ومنع الانهيار بسببها
+          # استخدام --no-tree-shake-icons لتجنب فشل بناء الأيقونات إذا كان هناك خطأ في الخطوط
           flutter build apk --release --no-tree-shake-icons --ignore-deprecation
 
       - name: Upload APK Artifact
