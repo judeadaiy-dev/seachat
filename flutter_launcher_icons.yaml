@@ -1,0 +1,7 @@
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icon.png" # المسار الذي تضع فيه صورتك حالياً
+  adaptive_icon_background: "#ffffff" # لون خلفية الأيقونة
+  adaptive_icon_foreground: "assets/icon.png"
+
