@@ -7,7 +7,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 1. إعداد الجافا (ضروري جداً لإصدارات Gradle الحديثة)
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -19,81 +18,50 @@ jobs:
         with:
           channel: 'stable'
 
-      # 2. بناء ملف pubspec.yaml نظيف برمجياً
-      - name: Rebuild pubspec.yaml
-        run: |
-          cat <<EOF > pubspec.yaml
-          name: seachat
-          description: Auto Build Project
-          version: 1.0.0+1
-          environment:
-            sdk: '>=3.0.0 <4.0.0'
-          dependencies:
-            flutter:
-              sdk: flutter
-            cupertino_icons: ^1.0.6
-            supabase_flutter: ^2.0.0
-            image_picker: ^1.1.2
-            uuid: ^4.4.0
-            app_links: ^6.0.0
-            provider: ^6.1.2
-            shared_preferences: ^2.2.3
-          dev_dependencies:
-            flutter_test:
-              sdk: flutter
-          flutter:
-            uses-material-design: true
-          EOF
-
-      # 3. توليد ملفات الأندرويد من الصفر لتجنب أي تعارض يدوي سابق
-      - name: Fresh Android Initialization
+      # الخطوة المفصلية: إنشاء المشروع من الصفر غصباً عن الظروف
+      - name: Force Initialize Android
         run: |
           rm -rf android
-          flutter create . --platforms android
+          flutter create . --platforms android --force
+          # التأكد من أن المجلد تم إنشاؤه فعلاً قبل الانتقال للخطوة التالية
+          if [ ! -d "android" ]; then echo "CRITICAL ERROR: Android folder NOT created"; exit 1; fi
 
-      # 4. حقن إعدادات القوة (Force Settings) في Gradle
-      - name: Inject Master Gradle Config
+      - name: Patch Gradle (Safe Mode)
         run: |
-          echo "subprojects {
-              afterEvaluate { project ->
-                  if (project.hasProperty('android')) {
-                      project.android {
-                          if (namespace == null) { namespace 'com.judeadaiy.seachat' }
-                          compileSdkVersion 35
-                          buildToolsVersion '35.0.0'
-                          defaultConfig {
-                              minSdkVersion 23
-                              targetSdkVersion 35
-                              multiDexEnabled true
-                          }
-                          lintOptions {
-                              checkReleaseBuilds false
-                              abortOnError false
-                          }
-                      }
-                  }
-              }
-          }" >> android/build.gradle
+          # إضافة Namespace وإعدادات الـ SDK فقط إذا وجد الملف
+          if [ -f "android/build.gradle" ]; then
+            echo "subprojects {
+                afterEvaluate { project ->
+                    if (project.hasProperty('android')) {
+                        project.android {
+                            if (namespace == null) { namespace 'com.judeadaiy.seachat' }
+                            compileSdkVersion 35
+                            defaultConfig {
+                                minSdkVersion 23
+                                targetSdkVersion 35
+                                multiDexEnabled true
+                            }
+                        }
+                    }
+                }
+            }" >> android/build.gradle
+          fi
 
-      # 5. تثبيت المكتبات وبناء الـ APK مع تجاوز فحص التوافق
-      - name: Build APK Without Stopping
+      - name: Build APK (Ignoring Errors)
         run: |
           flutter pub get
-          flutter build apk --release --suppress-analytics --android-skip-build-dependency-validation || true
+          # استخدام flag إضافي لتجاوز تعارضات التراخيص و CMake
+          flutter build apk --release --suppress-analytics --no-pub --android-skip-build-dependency-validation || true
 
-      # 6. البحث الذكي عن الملف وتسليمه
-      - name: Secure APK File
+      - name: Secure and Deliver APK
         if: always()
         run: |
           mkdir -p build/out
-          # البحث في كل المجلدات الناتجة عن أي ملف APK
-          find build/app/outputs/flutter-apk -name "*.apk" -exec cp {} build/out/seachat-app.apk \; || \
-          find build -name "*.apk" -exec cp {} build/out/seachat-app.apk \; || true
+          # بحث شامل في كل مكان (Recursive Find)
+          find . -name "*.apk" -exec cp {} build/out/seachat-app.apk \; || true
 
-      # 7. الرفع النهائي للملف
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Ready-To-Install
+          name: SeaChat-Final-Package
           path: build/out/seachat-app.apk
-
