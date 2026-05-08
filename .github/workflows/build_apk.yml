@@ -1,4 +1,4 @@
-name: Force Build Release APK
+name: SeaChat Optimized Build
 
 on:
   push:
@@ -23,96 +23,38 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.0'
-          channel: 'stable'
           cache: true
 
-      - name: Pre-build Clean
+      # 1. توليد الأيقونات لجميع مقاسات أندرويد (تلقائياً)
+      - name: Generate App Icons
         run: |
-          flutter clean
-          rm -f pubspec.lock
+          flutter pub add --dev flutter_launcher_icons
+          cat > flutter_launcher_icons.yaml << 'EOF'
+          flutter_launcher_icons:
+            android: true
+            ios: true
+            image_path: "assets/icons/app_icon.png" 
+            remove_alpha_channel_ios: true
+          EOF
+          flutter pub get
+          dart run flutter_launcher_icons
 
-      - name: Backup & Recreate Structure
+      # 2. ضمان وجود مكتبات حفظ الجلسة (Session) لمنع العودة لصفحة التسجيل
+      - name: Session Persistence Setup
         run: |
-          mkdir -p /tmp/backup
-          cp -r lib /tmp/backup/
-          cp -r assets /tmp/backup/ 2>/dev/null || true
-          cp pubspec.yaml /tmp/backup/
-          rm -rf android ios linux macos windows web
-          flutter create --org com.seachat --project-name seachat --platforms=android .
-          rm -rf lib
-          cp -r /tmp/backup/lib ./
-          cp -r /tmp/backup/assets ./ 2>/dev/null || true
-          cp /tmp/backup/pubspec.yaml ./
-
-      - name: Fix Dependencies & Session Persistence
-        run: |
-          # إضافة المكتبات الضرورية لحفظ الجلسة والتنقل
           flutter pub add shared_preferences
-          
-          # تعديل pubspec لحل التعارضات
-          sed -i '/dependency_overrides:/d' pubspec.yaml
-          cat >> pubspec.yaml << 'EOF'
+          flutter pub get
 
-          dependency_overrides:
-            app_links: 6.3.2
-            uuid: ^4.4.0
-            shared_preferences: ^2.3.2
-          EOF
-
-      - name: Configure Android SDK & Gradle
+      # 3. بناء الـ APK بالاعتماد على تعديلاتك اليدوية (SDK 35 & Kotlin 1.9.24)
+      - name: Build Release APK
         run: |
-          # تحديث Kotlin وإصدارات الـ SDK لضمان التوافق مع الأندرويد الحديث
-          sed -i 's/id "org.jetbrains.kotlin.android" version ".*" apply false/id "org.jetbrains.kotlin.android" version "1.9.22" apply false/' android/settings.gradle
-          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/g' android/app/build.gradle
-          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 35/g' android/app/build.gradle
-          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle
-          # تفعيل دعم الـ MultiDex إذا كبر حجم التطبيق
-          sed -i 's/defaultConfig {/defaultConfig {\n        multiDexEnabled true/' android/app/build.gradle
-
-      - name: Fix Android Manifest (Session & Navigation)
-        run: |
-          cat > android/app/src/main/AndroidManifest.xml << 'EOF'
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <uses-permission android:name="android.permission.INTERNET" />
-              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-              <application
-                  android:label="SeaChat"
-                  android:name="${applicationName}"
-                  android:icon="@mipmap/ic_launcher"
-                  android:allowBackup="true"
-                  android:fullBackupContent="true"
-                  android:usesCleartextTraffic="true">
-                  <activity
-                      android:name=".MainActivity"
-                      android:exported="true"
-                      android:launchMode="singleTop"
-                      android:theme="@style/LaunchTheme"
-                      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
-                      android:hardwareAccelerated="true"
-                      android:windowSoftInputMode="adjustResize">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN"/>
-                          <category android:name="android.intent.category.LAUNCHER"/>
-                      </intent-filter>
-                  </activity>
-                  <meta-data
-                      android:name="flutterEmbedding"
-                      android:value="2" />
-              </application>
-          </manifest>
-          EOF
-
-      - name: Final Pub Get
-        run: flutter pub get
-
-      - name: Build APK (Release Mode)
-        run: |
-          # بناء ملف APK حقيقي وليس ملف مضغوط
+          # سيقوم ببناء ملف APK واحد شامل (Fat APK) لسهولة التثبيت
           flutter build apk --release --no-tree-shake-icons
 
-      - name: Upload APK
+      # 4. رفع الملف الناتج بصيغة APK مباشرة (جاهز للتثبيت)
+      - name: Upload Installable APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Installable-APK
+          name: SeaChat-App-Release
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 7
