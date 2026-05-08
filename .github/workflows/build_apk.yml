@@ -63,11 +63,15 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Build APK
-        run: flutter build apk --release --suppress-analytics --android-skip-build-dependency-validation
+      - name: Build APK & Organize Output
+        run: |
+          flutter build apk --release --suppress-analytics --android-skip-build-dependency-validation
+          mkdir -p build/out
+          # محاولة النسخ من المسارات المحتملة لملف الـ APK
+          cp build/app/outputs/flutter-apk/app-release.apk build/out/seachat-app.apk || cp build/app/outputs/apk/release/app-release.apk build/out/seachat-app.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Release
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: SeaChat-Final-Build
+          path: build/out/seachat-app.apk
