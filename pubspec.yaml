@@ -12,10 +12,9 @@ dependencies:
     sdk: flutter
   uuid: ^4.4.0 
   cupertino_icons: ^1.0.6
-  supabase_flutter: ^2.6.0 # تم تحديثه لضمان توافق أفضل مع الإضافات
+  supabase_flutter: ^2.6.0
   google_sign_in: ^6.2.1
   image_picker: ^1.1.2
-  # إضافة مكتبة التوافق مع دورة حياة التطبيق بشكل صريح لتجنب التعارض
   flutter_plugin_android_lifecycle: ^2.0.22 
 
 dev_dependencies:
@@ -25,7 +24,6 @@ dev_dependencies:
   flutter_launcher_icons: ^0.13.1
 
 dependency_overrides:
-  # هذا الجزء يضمن عدم حدوث تعارض في الإصدارات أثناء البناء الآلي
   uuid: ^4.4.0
 
 flutter:
@@ -33,6 +31,7 @@ flutter:
   assets:
     - assets/icons/
 
+# إعدادات الأيقونات توضع مرة واحدة فقط في نهاية الملف
 flutter_launcher_icons:
   android: true
   ios: false
