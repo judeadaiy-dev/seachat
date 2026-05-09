@@ -10,7 +10,7 @@ class SupabaseRepository {
     if (user == null) return null;
     final data = await supabase.from('profiles').select().eq('id', user.id).maybeSingle();
     if (data == null) return null;
-    return UserModel.fromJson({...data, 'email': user.email ?? ''});
+    return UserModel.fromJson({...data, 'email': user.email?? ''});
   }
 
   Future<void> signInWithGoogle() async {
@@ -34,21 +34,21 @@ class SupabaseRepository {
 
   Stream<List<RoomModel>> getRoomsStream() {
     return supabase
-        .from('rooms')
-        .stream(primaryKey: ['id'])
-        .order('is_pinned', ascending: false)
-        .order('created_at')
-        .map((list) => list.map((e) => RoomModel.fromJson(e)).toList());
+       .from('rooms')
+       .stream(primaryKey: ['id'])
+       .order('is_pinned', ascending: false)
+       .order('created_at')
+       .map((list) => list.map((e) => RoomModel.fromJson(e)).toList());
   }
 
   Stream<List<MessageModel>> getRoomMessagesStream({required String roomId}) {
     final currentUserId = supabase.auth.currentUser!.id;
     return supabase
-        .from('messages')
-        .stream(primaryKey: ['id'])
-        .eq('room_id', roomId)
-        .order('created_at')
-        .map((list) => list.map((e) => MessageModel.fromJson(e, currentUserId)).toList());
+       .from('messages')
+       .stream(primaryKey: ['id'])
+       .eq('room_id', roomId)
+       .order('created_at')
+       .map((list) => list.map((e) => MessageModel.fromJson(e, currentUserId)).toList());
   }
 
   Future<void> sendMessage({required String roomId, required String message}) async {
@@ -62,10 +62,10 @@ class SupabaseRepository {
 
   Future<List<RoomMemberModel>> getRoomMembers(String roomId) async {
     final members = await supabase
-        .from('room_members')
-        .select('*, profiles(*)')
-        .eq('room_id', roomId)
-        .order('points', ascending: false);
+       .from('room_members')
+       .select('*, profiles(*)')
+       .eq('room_id', roomId)
+       .order('points', ascending: false);
     
     return members.map((m) {
       final profile = m['profiles'] as Map<String, dynamic>?;
@@ -110,11 +110,11 @@ class SupabaseRepository {
   Future<bool> isRoomOwner(String roomId) async {
     final userId = supabase.auth.currentUser!.id;
     final member = await supabase
-        .from('room_members')
-        .select('role')
-        .eq('room_id', roomId)
-        .eq('user_id', userId)
-        .maybeSingle();
+       .from('room_members')
+       .select('role')
+       .eq('room_id', roomId)
+       .eq('user_id', userId)
+       .maybeSingle();
     return member?['role'] == 'owner';
   }
 }
