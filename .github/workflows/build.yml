@@ -1,4 +1,4 @@
-تname: Build Flutter APK Release
+name: Build Flutter APK Release
 
 on:
   push:
