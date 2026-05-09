@@ -34,19 +34,17 @@ class SupabaseRepository {
 
     try {
       final data = await _client
-          .from('users')
+          .from('profiles')
           .select()
           .eq('id', user.id)
           .maybeSingle();
 
       if (data != null) {
-        return UserModel.fromMap(data);
+        return UserModel.fromJson({...data, 'email': user.email ?? ''});
       }
-    } catch (_) {
-      // تجاهل الخطأ وكمل للـ fallback
-    }
+    } catch (_) {}
 
-    // Fallback اذا مافي بيانات بجدول users
+    // Fallback اذا مافي بيانات بجدول profiles
     final metadata = user.userMetadata ?? {};
     final email = user.email ?? '';
     
@@ -55,11 +53,9 @@ class SupabaseRepository {
       name: metadata['full_name'] as String? ?? 
             email.split('@').first ?? 
             'مستخدم',
-      username: email.split('@').first.isNotEmpty 
-            ? email.split('@').first 
-            : 'user_${user.id.substring(0, 6)}',
       email: email,
       avatarUrl: metadata['avatar_url'] as String?,
+      role: 'user',
     );
   }
 
@@ -68,11 +64,11 @@ class SupabaseRepository {
       final data = await _client
           .from('rooms')
           .select()
-          .eq('room_status', 'active')
+          .order('is_pinned', ascending: false)
           .order('created_at', ascending: false);
 
       return (data as List)
-          .map((e) => RoomModel.fromMap(e as Map<String, dynamic>))
+          .map((e) => RoomModel.fromJson(e as Map<String, dynamic>))
           .toList();
     } catch (e) {
       return [];
@@ -89,12 +85,21 @@ class SupabaseRepository {
         .stream(primaryKey: ['id'])
         .eq('room_id', roomId)
         .order('created_at', ascending: false)
-        .map((data) => data
-            .map((e) => MessageModel.fromMap(
-                  e as Map<String, dynamic>,
-                  currentUserId: userId,
-                ))
-            .toList());
+        .asyncMap((data) async {
+          List<MessageModel> messages = [];
+          for (var e in data) {
+            final profile = await _client
+                .from('profiles')
+                .select('username, avatar_url')
+                .eq('id', e['user_id'])
+                .maybeSingle();
+            messages.add(MessageModel.fromJson(
+              {...e, 'profiles': profile},
+              userId,
+            ));
+          }
+          return messages;
+        });
   }
 
   Future<void> sendMessage({
@@ -102,15 +107,12 @@ class SupabaseRepository {
     required String message,
   }) async {
     if (message.trim().isEmpty) return;
-    
-    final user = await getCurrentUser();
-    if (user == null) return;
+    if (_currentUserId == null) return;
 
     await _client.from('messages').insert({
       'id': _uuid.v4(),
       'room_id': roomId,
-      'sender_id': user.id,
-      'sender_name': user.name.isNotEmpty ? user.name : 'مستخدم',
+      'user_id': _currentUserId!,
       'text': message.trim(),
       'created_at': DateTime.now().toIso8601String(),
     });
@@ -120,12 +122,11 @@ class SupabaseRepository {
     required String roomId,
     required File imageFile,
   }) async {
-    final user = await getCurrentUser();
-    if (user == null) return;
+    if (_currentUserId == null) return;
     
     try {
       final fileExt = imageFile.path.split('.').last;
-      final fileName = '${_uuid.v4()}.$fileExt';
+      final fileName = 'chat_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
       final filePath = 'public/$fileName';
 
       await _client.storage
@@ -136,18 +137,32 @@ class SupabaseRepository {
           .from('chat_images')
           .getPublicUrl(filePath);
 
-      await _client.from('messages').insert({
-        'id': _uuid.v4(),
-        'room_id': roomId,
-        'sender_id': user.id,
-        'sender_name': user.name.isNotEmpty ? user.name : 'مستخدم',
-        'text': imageUrl,
-        'image_url': imageUrl,
-        'created_at': DateTime.now().toIso8601String(),
-      });
+      await sendMessage(roomId: roomId, message: imageUrl);
     } catch (e) {
-      // لو فشل رفع الصورة ما يكرش التطبيق
       return;
+    }
+  }
+
+  Future<List<RoomMemberModel>> getRoomMembers(String roomId) async {
+    try {
+      final members = await _client
+          .from('room_members')
+          .select()
+          .eq('room_id', roomId)
+          .order('points', ascending: false);
+      
+      List<RoomMemberModel> result = [];
+      for (var m in members) {
+        final profile = await _client
+            .from('profiles')
+            .select('username, avatar_url')
+            .eq('id', m['user_id'])
+            .single();
+        result.add(RoomMemberModel.fromJson(m, profile));
+      }
+      return result;
+    } catch (e) {
+      return [];
     }
   }
 
