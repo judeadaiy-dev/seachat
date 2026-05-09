@@ -22,7 +22,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.3' # حدثتها عشان تتوافق مع sdk: '>=3.4.0'
+          flutter-version: '3.24.3'
           channel: 'stable'
           cache: true
 
@@ -30,20 +30,23 @@ jobs:
         run: |
           rm -rf android
           flutter create --platforms=android --org com.judea --project-name sea_chat .
+          
+          # إصلاح build.gradle
+          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 34/g' android/app/build.gradle
+          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle
+          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 34/g' android/app/build.gradle
+          sed -i '/defaultConfig {/a \        ndkVersion "25.1.8937393"' android/app/build.gradle
+          
           flutter pub get
 
       - name: Configure Android Manifest Permissions
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
-          # صلاحيات الإنترنت - Supabase
           sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
           sed -i '/<application/i \    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />' $MANIFEST
-          # صلاحيات المايك - record
           sed -i '/<application/i \    <uses-permission android:name="android.permission.RECORD_AUDIO" />' $MANIFEST
-          # صلاحيات الملفات - image_picker
           sed -i '/<application/i \    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />' $MANIFEST
           sed -i '/<application/i \    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />' $MANIFEST
-          # تفعيل حركة البيانات للروابط + تشغيل الصوت بالخلفية
           sed -i 's/<application/<application android:usesCleartextTraffic="true" android:requestLegacyExternalStorage="true"/' $MANIFEST
 
       - name: Create app_config.dart
