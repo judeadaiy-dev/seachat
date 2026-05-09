@@ -16,7 +16,7 @@ class AppColors {
   static const Color button = Color(0xFF482855);
   static const Color icon = Color(0xFF898199);
   static const Color cardGlass = Color(0xB3FFFFFF);
-  static const Color textDark = Color(0xFF2D2D);
+  static const Color textDark = Color(0xFF2D2D2D);
   static const Color textLight = Color(0xFF6B6B6B);
   static const Color officialWood = Color(0xFF3D2B1F);
   static const Color officialGold = Color(0xFFD4AF37);
@@ -355,7 +355,7 @@ class HomeScreen extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
           gradient: LinearGradient(
-            colors: [Color(0xFF2C1810), Color(0xFF4A3728), Color(0xFF6B4F3A)], // خشب مودرن
+            colors: [Color(0xFF2C1810), Color(0xFF4A3728), Color(0xFF6B4F3A)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -367,7 +367,7 @@ class HomeScreen extends StatelessWidget {
             Positioned(
               right: -30,
               top: -30,
-              child: Icon(Icons.villa_outlined, size: 120, color: Colors.white.withOpacity(0.03)),
+              child: Icon(Icons.account_balance, size: 120, color: Colors.white.withOpacity(0.03)),
             ),
             Padding(
               padding: const EdgeInsets.all(20),
@@ -380,7 +380,7 @@ class HomeScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: AppColors.officialGold, width: 1.5),
                     ),
-                    child: Icon(Icons.diamond, size: 32, color: AppColors.officialGold),
+                    child: Icon(Icons.verified, size: 32, color: AppColors.officialGold),
                   ),
                   SizedBox(width: 16),
                   Expanded(
@@ -451,6 +451,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool isJoined = false;
   String? currentUserRole;
   String? currentUserId;
+  bool isAdmin = false;
 
   @override
   void initState() {
@@ -461,9 +462,11 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _checkPermissions() async {
     final isOfficial = widget.room.roomType == 'official';
+    final userProfile = await supabase.from('profiles').select('role').eq('id', currentUserId!).maybeSingle();
+    isAdmin = userProfile?['role'] == 'admin';
 
     if (isOfficial) {
-      isOwner = currentUserId == '1015ed53-d4bf-46ba-9935-9b960d6212fd'; // ID المدير
+      isOwner = isAdmin;
       final member = await supabase.from('room_members').select().eq('room_id', widget.room.id).eq('user_id', currentUserId!).maybeSingle();
       isJoined = member!= null;
     } else {
@@ -472,7 +475,7 @@ class _ChatScreenState extends State<ChatScreen> {
       isOwner = member?['role'] == 'owner';
       isJoined = member!= null;
     }
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   @override
@@ -487,6 +490,9 @@ class _ChatScreenState extends State<ChatScreen> {
     if (msgController.text.trim().isEmpty) return;
     await repo.sendMessage(roomId: widget.room.id, message: msgController.text);
     msgController.clear();
+    if (!isOwner && widget.room.roomType!= 'official') {
+      await supabase.rpc('increment_points', params: {'room_id': widget.room.id, 'user_id': currentUserId});
+    }
   }
 
   Future<void> _startRecording() async {
@@ -518,7 +524,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _leaveRoom() async {
     await supabase.from('room_members').delete().eq('room_id', widget.room.id).eq('user_id', currentUserId!);
-    Navigator.pop(context);
+    if (mounted) Navigator.pop(context);
   }
 
   @override
@@ -540,10 +546,15 @@ class _ChatScreenState extends State<ChatScreen> {
                 PopupMenuItem(child: Text('حذف الغرفة', style: TextStyle(color: Colors.red)), onTap: () => _deleteRoom()),
               ],
             ),
-          if (!isOfficial ||!isJoined)
+          if (!isJoined)
             TextButton(
-              onPressed: isJoined? _leaveRoom : _joinRoom,
-              child: Text(isJoined? 'خروج' : 'دخول', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              onPressed: _joinRoom,
+              child: Text('دخول', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          if (isJoined && (widget.room.roomType!= 'official' ||!isAdmin))
+            TextButton(
+              onPressed: _leaveRoom,
+              child: Text('خروج', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
         ],
       ),
@@ -568,7 +579,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 },
               ),
             ),
-            if (isJoined || isOfficial) _buildInputBar(),
+            if (isJoined || isOfficial && isAdmin) _buildInputBar(),
           ],
         ),
       ),
@@ -581,164 +592,4 @@ class _ChatScreenState extends State<ChatScreen> {
       return Align(
         alignment: msg.isMe? Alignment.centerLeft : Alignment.centerRight,
         child: GlassCard(
-          margin: const EdgeInsets.only(bottom: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(icon: Icon(Icons.play_arrow), onPressed: () => _audioPlayer.setUrl(url).then((_) => _audioPlayer.play())),
-              Text('رسالة صوتية', style: TextStyle(color: msg.isMe? Colors.white : AppColors.textDark)),
-            ],
-          ),
-        ),
-      );
-    }
-    return Align(
-      alignment: msg.isMe? Alignment.centerLeft : Alignment.centerRight,
-      child: GlassCard(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        child: Text(msg.text, style: TextStyle(color: msg.isMe? Colors.white : AppColors.textDark)),
-      ),
-    );
-  }
-
-  Widget _buildInputBar() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: GlassCard(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Row(
-          children: [
-            IconButton(
-              onPressed: isRecording? _stopRecording : _startRecording,
-              icon: Icon(isRecording? Icons.stop_circle : Icons.mic, color: isRecording? Colors.red : AppColors.icon),
-            ),
-            Expanded(child: TextField(controller: msgController, decoration: const InputDecoration(hintText: 'اكتب رسالة...', border: InputBorder.none), onSubmitted: (_) => _sendMessage())),
-            IconButton(onPressed: _sendMessage, icon: const Icon(Icons.send_rounded, color: AppColors.button)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showMembers() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: AppColors.backgroundEnd,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.icon, borderRadius: BorderRadius.circular(2))),
-            SizedBox(height: 16),
-            Text('أعضاء الغرفة', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            SizedBox(height: 16),
-            Expanded(
-              child: StreamBuilder<List<Map<String, dynamic>>>(
-                stream: supabase.from('room_members').stream(primaryKey: ['id']).eq('room_id', widget.room.id),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-                  return ListView.builder(
-                    itemCount: snapshot.data!.length,
-                    itemBuilder: (context, i) {
-                      final member = snapshot.data![i];
-                      return FutureBuilder(
-                        future: supabase.from('profiles').select('username, avatar_url').eq('id', member['user_id']).single(),
-                        builder: (context, userSnap) {
-                          if (!userSnap.hasData) return SizedBox();
-                          final user = userSnap.data!;
-                          return ListTile(
-                            leading: CircleAvatar(
-                              backgroundImage: user['avatar_url']!= null? NetworkImage(user['avatar_url']) : null,
-                              child: user['avatar_url'] == null? Text(user['username'][0]) : null,
-                            ),
-                            title: Text(user['username']),
-                            subtitle: Text('نقاط: ${member['points']} | ${member['role'] == 'owner'? 'المشرف' : 'عضو'}'),
-                            trailing: isOwner && member['role']!= 'owner'
-                            ? PopupMenuButton(
-                                itemBuilder: (context) => [
-                                  PopupMenuItem(child: Text('حظر'), onTap: () => _banMember(member['user_id'])),
-                                  PopupMenuItem(child: Text('إزالة'), onTap: () => _kickMember(member['user_id'])),
-                                ],
-                              )
-                              : null,
-                          );
-                        },
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _banMember(String userId) async {
-    await supabase.from('room_members').delete().eq('room_id', widget.room.id).eq('user_id', userId);
-    await supabase.from('profiles').update({'is_banned': true}).eq('id', userId);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم حظر العضو')));
-  }
-
-  Future<void> _kickMember(String userId) async {
-    await supabase.from('room_members').delete().eq('room_id', widget.room.id).eq('user_id', userId);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إزالة العضو')));
-  }
-
-  Future<void> _deleteRoom() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('حذف الغرفة'),
-        content: Text('هل أنت متأكد؟ سيتم حذف جميع الرسائل'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text('إلغاء')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: Text('حذف', style: TextStyle(color: Colors.red))),
-        ],
-      ),
-    );
-    if (confirm == true) {
-      await supabase.from('rooms').delete().eq('id', widget.room.id);
-      Navigator.pop(context);
-      Navigator.pop(context);
-    }
-  }
-
-  void _copyInviteLink() {
-    final link = 'https://seachat.app/room/${widget.room.id}';
-    Clipboard.setData(ClipboardData(text: link));
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم نسخ رابط الدعوة')));
-  }
-}
-
-class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
-  @override
-  Widget build(BuildContext context) {
-    final repo = SupabaseRepository();
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(backgroundColor: Colors.transparent, title: const Text('الملف الشخصي')),
-      body: FutureBuilder<UserModel?>(
-        future: repo.getCurrentUser(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-          if (!snapshot.hasData) return const Center(child: Text('المستخدم غير موجود'));
-          final user = snapshot.data!;
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              GlassCard(
-                child: Column(
-                  children: [
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundColor: AppColors.button,
-                      backgroundImage: user.avatarUrl!= null? NetworkImage(user.avatarUrl!) : null,
-                      child: user.avatarUrl ==
+          margin: const EdgeInsets.only(bottom
