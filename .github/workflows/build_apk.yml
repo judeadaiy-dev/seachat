@@ -1,0 +1,64 @@
+name: Build SeaChat APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch: # هذا السطر يسمح لك بتشغيل البناء يدوياً للفحص
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'
+          channel: 'stable'
+          cache: true
+
+      - name: Prepare Project
+        run: |
+          rm -rf android
+          flutter create --platforms=android --org com.judea --project-name sea_chat .
+          flutter pub get
+
+      - name: Configure Android Manifest (Internet Fix)
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          # إضافة تصريح الإنترنت بشكل صريح لضمان عمل Supabase
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />' $MANIFEST
+          # تفعيل حركة البيانات للروابط
+          sed -i 's/<application/<application android:usesCleartextTraffic="true"/' $MANIFEST
+
+      - name: Create app_config.dart
+        run: |
+          mkdir -p lib/config
+          cat > lib/config/app_config.dart << 'EOF'
+          class AppConfig {
+            static const String appName = 'SeaChat';
+            static const String supabaseUrl = 'https://jmsmrojtlstppnpwmkkk.supabase.co';
+            static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos';
+            static const String copyrightYear = '2024';
+            static const String copyrightName = 'JudeaDay';
+          }
+          EOF
+
+      - name: Build Release APK
+        run: flutter build apk --release
+
+      - name: Upload Finished APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SeaChat-App
+          path: build/app/outputs/flutter-apk/app-release.apk
