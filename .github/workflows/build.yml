@@ -31,6 +31,13 @@ jobs:
           rm -rf android
           flutter create --platforms=android --org com.judea --project-name sea_chat .
 
+      - name: Add Internet + Network Permissions
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          sed -i 's|<manifest xmlns:android="http://schemas.android.com/apk/res/android"|<manifest xmlns:android="http://schemas.android.com/apk/res/android"\n    package="com.judea.sea_chat">|' $MANIFEST
+          sed -i '/<application/a\        <uses-permission android:name="android.permission.INTERNET" />\n        <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />' $MANIFEST
+          sed -i 's/android:name="io.flutter.embedding.android.FlutterActivity"/android:name="io.flutter.embedding.android.FlutterActivity" android:exported="true"/' $MANIFEST
+
       - name: Create missing app_config.dart
         run: |
           mkdir -p lib/config
