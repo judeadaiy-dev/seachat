@@ -1,4 +1,4 @@
-name: Build SeaChat APK - Ultimate Beast
+name: Build SeaChat APK - Fast
 
 on:
   push:
@@ -26,10 +26,16 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Nuke and Rebuild Android - Ultimate Beast
+      - name: Download Cairo Font
+        run: |
+          mkdir -p fonts assets
+          curl -sL -o fonts/Cairo-Regular.ttf "https://github.com/google/fonts/raw/main/ofl/cairo/Cairo%5Bwght%5D.ttf"
+          curl -sL -o fonts/Cairo-Bold.ttf "https://github.com/google/fonts/raw/main/ofl/cairo/Cairo%5Bwght%5D.ttf"
+
+      - name: Nuke and Rebuild Android - Fast
         run: |
           rm -rf android
-          flutter create --platforms=android --org com.judea --project-name sea_chat .
+          flutter create --platforms=android --org com.judea --project-name sea_chat . > /dev/null 2>&1
           
           echo "" >> pubspec.yaml
           echo "dependency_overrides:" >> pubspec.yaml
@@ -57,11 +63,10 @@ jobs:
           android.nonFinalResIds=true
           EOF
           
-          # إضافة الكود بعد pluginManagement مباشرة - هذا الحل
           sed -i '/^} \/\* pluginManagement \*\//a\\ninclude ":app"\n\ndef localProperties = new Properties()\ndef localPropertiesFile = new File(settingsDir, "local.properties")\nif (localPropertiesFile.exists()) { localPropertiesFile.withReader("UTF-8") { reader -> localProperties.load(reader) } }\ngradle.ext.flutterCompileSdkVersion = localProperties.getProperty("flutter.compileSdkVersion")\ngradle.ext.flutterTargetSdkVersion = localProperties.getProperty("flutter.targetSdkVersion")\ngradle.ext.flutterMinSdkVersion = localProperties.getProperty("flutter.minSdkVersion")' android/settings.gradle
           
-          flutter clean
-          flutter pub get
+          flutter clean > /dev/null 2>&1
+          flutter pub get > /dev/null 2>&1
 
       - name: Inject All Permissions + Manifest Fixes
         run: |
@@ -90,14 +95,23 @@ jobs:
           EOF
 
       - name: Build App Icons
-        run: flutter pub run flutter_launcher_icons || true
+        run: flutter pub run flutter_launcher_icons > /dev/null 2>&1 || true
 
-      - name: Build Release APK - Beast Mode
-        run: flutter build apk --release --no-tree-shake-icons --verbose || flutter build apk --release --no-tree-shake-icons
+      - name: Build Release APK - Fast
+        run: |
+          set +e
+          flutter build apk --release --no-tree-shake-icons > build.log 2>&1
+          if [ $? -ne 0 ]; then
+            echo "=== BUILD FAILED - FATAL ERRORS ONLY ==="
+            grep -E "Error:|FAILURE:|Exception:|Error executing|Could not|Execution failed" build.log || cat build.log
+            exit 1
+          else
+            echo "Build successful"
+          fi
 
       - name: Upload Finished APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Beast-APK
+          name: SeaChat-APK
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
