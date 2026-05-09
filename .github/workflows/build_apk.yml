@@ -37,12 +37,13 @@ jobs:
           rm -rf android
           flutter create --platforms=android --org com.judea --project-name sea_chat .
           
-          # نصلح pubspec.yaml غصب عشان Dart 3.5.3
+          # نثبت SDK 3.5.0 ونحذف اي مكتبة Google/Firebase
           sed -i 's/^environment:/environment:\n  sdk: ">=3.5.0 <4.0.0"/' pubspec.yaml
-          sed -i 's/google_sign_in:.*/google_sign_in: ^6.2.2/' pubspec.yaml
-          sed -i 's/firebase_auth:.*/firebase_auth: ^4.17.9/' pubspec.yaml
-          sed -i 's/cloud_firestore:.*/cloud_firestore: ^4.15.9/' pubspec.yaml
-          sed -i 's/firebase_core:.*/firebase_core: ^2.27.1/' pubspec.yaml
+          sed -i '/google_sign_in:/d' pubspec.yaml
+          sed -i '/firebase_auth:/d' pubspec.yaml
+          sed -i '/cloud_firestore:/d' pubspec.yaml
+          sed -i '/firebase_core:/d' pubspec.yaml
+          sed -i '/firebase_/d' pubspec.yaml
           
           # Android SDK 35 + NDK 25
           cat > android/local.properties << EOF
