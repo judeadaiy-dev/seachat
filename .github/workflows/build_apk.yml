@@ -31,6 +31,11 @@ jobs:
           rm -rf android
           flutter create --platforms=android --org com.judea --project-name sea_chat .
           
+          # تثبيت app_links 6.3.2 عشان مشكلة Gradle
+          echo "" >> pubspec.yaml
+          echo "dependency_overrides:" >> pubspec.yaml
+          echo "  app_links: 6.3.2" >> pubspec.yaml
+          
           # إصلاحات local.properties
           echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
           echo "flutter.buildMode=release" >> android/local.properties
