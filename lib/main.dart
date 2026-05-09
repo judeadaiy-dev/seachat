@@ -44,9 +44,48 @@ class SeaChatApp extends StatelessWidget {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Scaffold(body: Center(child: CircularProgressIndicator()));
           }
+
           final session = snapshot.hasData? snapshot.data!.session : null;
+
           if (session!= null) {
-            return const MainScreen();
+            // فحص الحظر الرصين
+            return FutureBuilder(
+              future: Supabase.instance.client
+               .from('profiles')
+               .select('is_banned')
+               .eq('id', session.user.id)
+               .single(),
+              builder: (context, banSnapshot) {
+                if (banSnapshot.connectionState == ConnectionState.waiting) {
+                  return const Scaffold(body: Center(child: CircularProgressIndicator()));
+                }
+
+                // إذا محظور، اطرده
+                if (banSnapshot.data?['is_banned'] == true) {
+                  Supabase.instance.client.auth.signOut();
+                  return Scaffold(
+                    body: AppBackground(
+                      child: Center(
+                        child: GlassCard(
+                          margin: EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.block, size: 60, color: Colors.red),
+                              SizedBox(height: 16),
+                              Text('تم حظر حسابك', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.red)),
+                              SizedBox(height: 8),
+                              Text('تواصل مع الإدارة لرفع الحظر', style: TextStyle(color: AppColors.textLight)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                return const MainScreen();
+              },
+            );
           } else {
             return const LoginScreen();
           }
@@ -154,10 +193,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     setState(() => isLoading = true);
     try {
-      await Supabase.instance.client.auth.signInWithPassword(
-        email: emailController.text.trim(),
-        password: passController.text,
-      );
+      await Supabase.instance.client.auth.signInWithPassword(email: emailController.text.trim(), password: passController.text);
     } on AuthException catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل تسجيل الدخول: ${e.message}')));
     } catch (e) {
@@ -174,10 +210,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     setState(() => isLoading = true);
     try {
-      final res = await Supabase.instance.client.auth.signUp(
-        email: emailController.text.trim(),
-        password: passController.text,
-      );
+      final res = await Supabase.instance.client.auth.signUp(email: emailController.text.trim(), password: passController.text);
       if (res.user!= null && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إنشاء الحساب بنجاح')));
       }
@@ -300,9 +333,7 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         title: const Text('الغرف النشطة'),
-        leading: Builder(
-          builder: (context) => IconButton(icon: const Icon(Icons.menu), onPressed: () => Scaffold.of(context).openDrawer()),
-        ),
+        leading: Builder(builder: (context) => IconButton(icon: const Icon(Icons.menu), onPressed: () => Scaffold.of(context).openDrawer())),
       ),
       body: FutureBuilder<List<RoomModel>>(
         future: repo.getAllActiveRooms(),
@@ -394,7 +425,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           margin: const EdgeInsets.only(bottom: 8),
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                           child: msg.text.startsWith('http')
-                            ? ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(msg.text, width: 200, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Text('فشل تحميل الصورة')))
+                           ? ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(msg.text, width: 200, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Text('فشل تحميل الصورة')))
                               : Text(msg.text, style: TextStyle(color: msg.isMe? Colors.white : AppColors.textDark)),
                         ),
                       );
@@ -468,7 +499,7 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
-// ===== الهمبرغر الجديد + لوحة التحكم =====
+// ===== الهمبرغر + لوحة التحكم المدمجة =====
 class AppDrawer extends StatefulWidget {
   const AppDrawer({super.key});
   @override
@@ -583,7 +614,7 @@ class _AppDrawerState extends State<AppDrawer> with SingleTickerProviderStateMix
   }
 }
 
-// ===== لوحة التحكم =====
+// ===== لوحة التحكم الكاملة =====
 class AdminPanel extends StatefulWidget {
   const AdminPanel({super.key});
   @override
@@ -613,7 +644,12 @@ class _AdminPanelState extends State<AdminPanel> {
 
   Future<void> _banUser(String userId) async {
     await supabase.from('profiles').update({'is_banned': true}).eq('id', userId);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم حظر المستخدم')));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم حظر المستخدم وسيتم طرده'), backgroundColor: Colors.red));
+  }
+
+  Future<void> _unbanUser(String userId) async {
+    await supabase.from('profiles').update({'is_banned': false}).eq('id', userId);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم رفع الحظر'), backgroundColor: Colors.green));
   }
 
   @override
@@ -678,11 +714,14 @@ class _AdminPanelState extends State<AdminPanel> {
           itemCount: users.length,
           itemBuilder: (context, index) {
             final user = users[index];
+            final banned = user['is_banned'] == true;
             return ListTile(
               leading: CircleAvatar(child: Text(user['username']?[0]?? '?')),
               title: Text(user['username']?? 'بدون اسم', style: TextStyle(color: Colors.white)),
-              subtitle: Text('الرتبة: ${user['role']} | ${user['is_banned'] == true? "محظور" : "نشط"}', style: TextStyle(color: user['is_banned'] == true? Colors.red : Colors.green)),
-              trailing: user['is_banned'] == true? null : IconButton(icon: Icon(Icons.block, color: Colors.red), onPressed: () => _banUser(user['id'])),
+              subtitle: Text('الرتبة: ${user['role']} | ${banned? "محظور" : "نشط"}', style: TextStyle(color: banned? Colors.red : Colors.green)),
+              trailing: banned
+               ? IconButton(icon: Icon(Icons.lock_open, color: Colors.green), onPressed: () => _unbanUser(user['id']))
+                : IconButton(icon: Icon(Icons.block, color: Colors.red), onPressed: () => _banUser(user['id'])),
             );
           },
         );
@@ -691,7 +730,7 @@ class _AdminPanelState extends State<AdminPanel> {
   }
 }
 
-// ===== شاشة طلب إنشاء غرفة =====
+// ===== طلب إنشاء غرفة =====
 class CreateRoomRequestScreen extends StatefulWidget {
   const CreateRoomRequestScreen({super.key});
   @override
