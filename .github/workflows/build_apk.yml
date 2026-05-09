@@ -1,7 +1,9 @@
 name: Ultimate Force Build SeaChat
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [ "main", "master" ] # سيعمل تلقائياً عند رفع الكود
+  workflow_dispatch: # يبقي خيار التشغيل اليدوي متاحاً
 
 jobs:
   build:
@@ -25,27 +27,18 @@ jobs:
 
       - name: Nuke Old Android & Ignore Warnings
         run: |
-          # 1. إجبار السيرفر على عدم التوقف عند التحذيرات أو الأخطاء الجانبية
           set +e
-          
-          # 2. حذف ملف تحليل الأخطاء (Linting) لكي يتعامى النظام عن أي تحذيرات في كودك
           rm -f analysis_options.yaml
-          
-          # 3. حذف مجلد أندرويد القديم التالف بالكامل (لن نستخدم أي ملف أندرويد قديم لديك)
           rm -rf android/
-          
-          # 4. بناء مجلد أندرويد حديث من الصفر يطابق مشروعي (سيقوم تلقائياً بتوليد مقاسات الأيقونات الافتراضية)
           flutter create --platforms=android .
           
       - name: Inject Permissions & Force Configs
         run: |
-          # 5. زرع تصاريح الإنترنت والصوت بالقوة في الملف الحديث الذي تم إنشاؤه للتو
           MANIFEST="android/app/src/main/AndroidManifest.xml"
           sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
           sed -i '/<application/i \    <uses-permission android:name="android.permission.RECORD_AUDIO" />' $MANIFEST
           sed -i 's/<application/<application android:usesCleartextTraffic="true"/' $MANIFEST
           
-          # 6. ترقية إصدارات الأندرويد لتتوافق مع 13+ (يدعم النظامين Groovy و Kotlin)
           if [ -f "android/app/build.gradle" ]; then
             sed -i 's/minSdkVersion .*/minSdkVersion 24/' android/app/build.gradle
             sed -i 's/targetSdkVersion .*/targetSdkVersion 34/' android/app/build.gradle
@@ -56,29 +49,19 @@ jobs:
 
       - name: Gather Libraries and Build Real APK
         run: |
-          # جلب مكاتب Supabase وغيرها دون تحليل
           flutter pub get
-          
-          # تفعيل وضع الإيقاف عند الأخطاء القاتلة فقط أثناء البناء النهائي
           set -e
-          
-          # بناء المشروع بجميع معماريات المعالجات لضمان خروج تطبيق كامل
           flutter build apk --debug --target-platform android-arm,android-arm64,android-x64
 
       - name: Strict Size Verification (Anti-Fake)
         run: |
           APK_PATH="build/app/outputs/flutter-apk/app-debug.apk"
-          
-          # إذا لم يجد الملف سيعطيك خطأ مباشر
           if [ ! -f "$APK_PATH" ]; then
             echo "Error: No APK generated!"
             exit 1
           fi
-          
           SIZE=$(stat -c%s "$APK_PATH")
           echo "Real APK Size is: $SIZE bytes"
-          
-          # إذا كان الحجم أقل من 5 ميجابايت (ملف وهمي)، سيكسر العملية لكي لا يخدعك بالعلامة الخضراء
           if [ $SIZE -lt 5000000 ]; then
             echo "Error: APK is fake or empty! Size is too small."
             exit 1
