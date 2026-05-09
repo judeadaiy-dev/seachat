@@ -1,4 +1,4 @@
-name: Ultimate Force Build SeaChat V2
+name: Ultimate Force Build SeaChat V3
 
 on:
   push:
@@ -25,53 +25,64 @@ jobs:
           flutter-version: '3.24.3'
           cache: true
 
-      - name: Force Fix Android & Dependencies
+      - name: Force Clean & Reconstruction
         run: |
           set +e
-          # 1. تنظيف شامل
+          # تنظيف البيئة تماماً
           rm -rf android/
-          rm -f analysis_options.yaml
+          rm -f .dart_tool/package_config.json
           
-          # 2. إنشاء مشروع أندرويد جديد
+          # إنشاء مشروع أندرويد جديد يطابق الكود الحالي
           flutter create --platforms=android .
           
-          # 3. حل مشكلة "Could not get unknown property flutter"
-          # نقوم بإضافة المسارات اللازمة لملف local.properties
-          echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
+          # إعداد ملف local.properties بالقوة (هذا يحل مشكلة app_links)
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+          echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
           echo "flutter.buildMode=debug" >> android/local.properties
-          echo "flutter.versionName=1.0.0" >> android/local.properties
-          echo "flutter.versionCode=1" >> android/local.properties
-
-          # 4. حقن إعدادات SDK في ملف build.gradle الرئيسي والمكتبات
-          # هذا السطر يجبر كل المكاتب (مثل app_links) على استخدام SDK 34
-          sed -i 's/compileSdkVersion .*/compileSdkVersion 34/' android/app/build.gradle
-          sed -i 's/targetSdkVersion .*/targetSdkVersion 34/' android/app/build.gradle
           
-          # 5. إضافة تصاريح الإنترنت والصوت
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.RECORD_AUDIO" />' $MANIFEST
-          sed -i 's/<application/<application android:usesCleartextTraffic="true"/' $MANIFEST
+          # تعديل ملف build.gradle الرئيسي لفرض الإصدارات على كل المكتبات الخارجية (Sub-projects)
+          cat >> android/build.gradle << 'EOF'
+          subprojects {
+              project.evaluationDependsOn(':app')
+              project.afterEvaluate {
+                  if (project.hasProperty('android')) {
+                      android {
+                          compileSdkVersion 34
+                          buildToolsVersion "34.0.0"
+                      }
+                  }
+              }
+          }
+          EOF
 
-      - name: Build and bypass library errors
+          # ضبط ملف build.gradle الخاص بالتطبيق
+          APP_GRADLE="android/app/build.gradle"
+          sed -i 's/compileSdkVersion .*/compileSdkVersion 34/' $APP_GRADLE
+          sed -i 's/targetSdkVersion .*/targetSdkVersion 34/' $APP_GRADLE
+          sed -i 's/minSdkVersion .*/minSdkVersion 24/' $APP_GRADLE
+
+      - name: Build APK (Bypass Errors)
         run: |
           flutter pub get
-          # استخدام سطر بناء يتجاوز فحص إعدادات المكاتب الفرعية
+          # استخدام --no-pub لتسريع العملية وتجنب تعارض المكاتب
           flutter build apk --debug --target-platform android-arm,android-arm64,android-x64 --no-pub
 
-      - name: Verify and Upload
+      - name: Integrity Check & Size Verify
         run: |
           APK_PATH="build/app/outputs/flutter-apk/app-debug.apk"
-          if [ -f "$APK_PATH" ]; then
-            SIZE=$(stat -c%s "$APK_PATH")
-            echo "Success! Size: $SIZE bytes"
-          else
-            echo "Build Failed - No APK found"
+          if [ ! -f "$APK_PATH" ]; then
+            echo "Error: APK not found!"
+            exit 1
+          fi
+          SIZE=$(stat -c%s "$APK_PATH")
+          echo "Final APK Size: $SIZE bytes"
+          if [ $SIZE -lt 5000000 ]; then
+            echo "Error: APK is too small (fake build)."
             exit 1
           fi
 
-      - name: Upload APK
+      - name: Upload Finished APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Fixed-V2
+          name: SeaChat-Stable-Build
           path: build/app/outputs/flutter-apk/app-debug.apk
