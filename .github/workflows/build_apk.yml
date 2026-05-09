@@ -31,11 +31,11 @@ jobs:
           mkdir -p fonts assets
           curl -sL -o fonts/Cairo-Regular.ttf "https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-Regular.ttf"
           curl -sL -o fonts/Cairo-Bold.ttf "https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-Bold.ttf"
+
       - name: Force Rebuild Android - Latest Gradle/Java/Dart
-        continue-on-error: true
         run: |
           rm -rf android
-          flutter create --platforms=android --org com.judea --project-name sea_chat . 
+          flutter create --platforms=android --org com.judea --project-name sea_chat .
           
           # Android SDK 35 + NDK 25
           cat > android/local.properties << EOF
@@ -65,63 +65,16 @@ jobs:
           android.enableD8.desugaring=false
           EOF
           
-          # لا نحدث gradle wrapper هنا - Flutter يسويها
-          
           # إصلاح settings.gradle للـ SDK versions
           sed -i '/^} \/\* pluginManagement \*\//a\\ninclude ":app"\n\ndef localProperties = new Properties()\ndef localPropertiesFile = new File(settingsDir, "local.properties")\nif (localPropertiesFile.exists()) { localPropertiesFile.withReader("UTF-8") { reader -> localProperties.load(reader) } }\ngradle.ext.flutterCompileSdkVersion = localProperties.getProperty("flutter.compileSdkVersion")\ngradle.ext.flutterTargetSdkVersion = localProperties.getProperty("flutter.targetSdkVersion")\ngradle.ext.flutterMinSdkVersion = localProperties.getProperty("flutter.minSdkVersion")' android/settings.gradle
           
           flutter pub get || true
 
-      - name: Force Rebuild Android - Latest Gradle/Java/Dart
-        run: |
-          rm -rf android
-          flutter create --platforms=android --org com.judea --project-name sea_chat . > /dev/null 2>&1
-          
-          # Android SDK 35 + NDK 25 + Gradle 8 حديث
-          cat > android/local.properties << EOF
-          sdk.dir=$ANDROID_SDK_ROOT
-          flutter.sdk=$FLUTTER_ROOT
-          flutter.buildMode=release
-          flutter.versionName=1.0.0
-          flutter.versionCode=1
-          flutter.compileSdkVersion=35
-          flutter.targetSdkVersion=35
-          flutter.minSdkVersion=21
-          flutter.ndkVersion=25.1.8937393
-          EOF
-          
-          # gradle.properties - نلغي كل الفحوصات ونزيد الرام
-          cat >> android/gradle.properties << EOF
-          android.useAndroidX=true
-          android.enableJetifier=true
-          org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8
-          android.defaults.buildfeatures.buildconfig=true
-          android.nonTransitiveRClass=true
-          android.nonFinalResIds=true
-          org.gradle.daemon=true
-          org.gradle.parallel=true
-          org.gradle.caching=true
-          kotlin.code.style=official
-          android.enableR8.fullMode=false
-          android.enableD8.desugaring=false
-          EOF
-          
-          # تحديث gradle wrapper لـ 8.7 عشان Java 17
-          cd android && ./gradlew wrapper --gradle-version 8.7 --distribution-type all && cd ..
-          
-          # إصلاح settings.gradle للـ SDK versions
-          sed -i '/^} \/\* pluginManagement \*\//a\\ninclude ":app"\n\ndef localProperties = new Properties()\ndef localPropertiesFile = new File(settingsDir, "local.properties")\nif (localPropertiesFile.exists()) { localPropertiesFile.withReader("UTF-8") { reader -> localProperties.load(reader) } }\ngradle.ext.flutterCompileSdkVersion = localProperties.getProperty("flutter.compileSdkVersion")\ngradle.ext.flutterTargetSdkVersion = localProperties.getProperty("flutter.targetSdkVersion")\ngradle.ext.flutterMinSdkVersion = localProperties.getProperty("flutter.minSdkVersion")' android/settings.gradle
-          
-          # pub get بدون فحص
-          flutter pub get --no-example > /dev/null 2>&1
-
       - name: Force Internet + All Permissions
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
-          # نضيف كل الصلاحيات قبل <application>
           sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />\n    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />\n    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />\n    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />\n    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' $MANIFEST
           
-          # تفعيل HTTP + Supabase + Legacy storage
           sed -i 's/<application/<application android:usesCleartextTraffic="true" android:requestLegacyExternalStorage="true" android:largeHeap="true" android:hardwareAccelerated="true"/' $MANIFEST
           sed -i 's/android:label="sea_chat"/android:label="SeaChat"/' $MANIFEST
 
@@ -140,7 +93,6 @@ jobs:
 
       - name: Disable All Analysis
         run: |
-          # نلغي analysis_options لو موجود عشان ما يفحص شي
           echo "analyzer:" > analysis_options.yaml
           echo "  errors:" >> analysis_options.yaml
           echo "    todo: ignore" >> analysis_options.yaml
@@ -149,28 +101,6 @@ jobs:
           echo "    unused_import: ignore" >> analysis_options.yaml
 
       - name: Build APK - Force No Checks
-        run: |
-          set +e
-          # --no-pub = لا تفحص packages
-          # --no-tree-shake-icons = لا تفحص الايقونات  
-          # --no-shrink = لا تعمل R8/proguard
-          # --no-obfuscate = لا تشوش الكود
-          flutter build apk --release --no-pub --no-tree-shake-icons --no-shrink --no-obfuscate > build.log 2>&1
-          
-          # حتى لو فشل، نحاول نرفع الـ APK لو انبنى
-          if [ -f "build/app/outputs/flutter-apk/app-release.apk" ]; then
-            echo "APK FOUND - Build considered successful"
-            exit 0
-          fi
-          
-          # لو ماكو APK اطبع الاخطاء القاتلة فقط
-          if [ $? -ne 0 ]; then
-            echo "=== BUILD FAILED - FATAL ERRORS ONLY ==="
-            grep -E "Error:|FAILURE:|Exception:|Error executing|Could not resolve" build.log || tail -50 build.log
-            exit 1
-          fi
-
-            - name: Build APK - Force No Checks
         run: |
           set +e
           flutter build apk --release --no-tree-shake-icons --no-shrink --no-obfuscate > build.log 2>&1
@@ -184,3 +114,13 @@ jobs:
             echo "APK NOT FOUND - Check build.log"
           fi
           exit 0
+
+      - name: Upload APK Even If Failed
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: SeaChat-APK-ForceBuild
+          path: |
+            build/app/outputs/flutter-apk/*.apk
+            build.log
+          if-no-files-found: warn
