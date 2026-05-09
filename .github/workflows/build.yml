@@ -34,81 +34,76 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Test Supabase Login - كشف سبب عدم الدخول
+      - name: Test Supabase Login
         run: |
-          cat > test_login.dart << 'EOF'
+          mkdir -p test
+          cat > test/supabase_test.dart << 'EOF'
+          import 'package:flutter_test/flutter_test.dart';
           import 'package:supabase_flutter/supabase_flutter.dart';
           
-          void main() async {
-            print('=== بدء فحص Supabase ===');
+          void main() {
+            TestWidgetsFlutterBinding.ensureInitialized();
             
             const url = 'https://jmsmrojtlstppnpwmkkk.supabase.co';
             const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos';
             
-            try {
-              print('1. فحص الرابط: $url');
-              if (url.endsWith('/')) {
-                print('⚠️ تحذير: الرابط ينتهي بـ / وهذا يسبب مشكلة');
-                exit(1);
-              }
+            test('فحص تسجيل دخول Supabase', () async {
+              print('=== بدء فحص Supabase ===');
               
-              print('2. فحص المفتاح: ${anonKey.substring(0, 20)}...');
-              if (!anonKey.startsWith('eyJ')) {
-                print('❌ خطأ: المفتاح مو anon key. لازم يبدأ بـ eyJ');
-                exit(1);
-              }
-              
-              print('3. جاري تهيئة Supabase...');
-              await Supabase.initialize(url: url, anonKey: anonKey);
-              print('✅ تم تهيئة Supabase بنجاح');
-              
-              print('4. تجربة تسجيل دخول barqaday@gmail.com...');
-              final res = await Supabase.instance.client.auth.signInWithPassword(
-                email: 'barqaday@gmail.com',
-                password: 'tyfgcv65',
-              );
-              
-              if (res.user != null) {
+              try {
+                print('1. فحص الرابط: $url');
+                expect(url.endsWith('/'), false, reason: 'الرابط ينتهي بـ / وهذا يسبب مشكلة');
+                
+                print('2. فحص المفتاح: ${anonKey.substring(0, 20)}...');
+                expect(anonKey.startsWith('eyJ'), true, reason: 'المفتاح مو anon key');
+                
+                print('3. جاري تهيئة Supabase...');
+                await Supabase.initialize(url: url, anonKey: anonKey);
+                print('✅ تم تهيئة Supabase بنجاح');
+                
+                print('4. تجربة تسجيل دخول barqaday@gmail.com...');
+                final res = await Supabase.instance.client.auth.signInWithPassword(
+                  email: 'barqaday@gmail.com',
+                  password: 'tyfgcv65',
+                );
+                
+                expect(res.user, isNotNull, reason: 'فشل: رجع user = null');
                 print('✅ نجح تسجيل الدخول');
                 print('   User ID: ${res.user!.id}');
                 print('   Email: ${res.user!.email}');
                 print('   الجلسة محفوظة: ${Supabase.instance.client.auth.currentSession != null}');
+                
                 await Supabase.instance.client.auth.signOut();
-                print('✅ تم تسجيل الخروج بنجاح');
-              } else {
-                print('❌ فشل: رجع user = null');
-                exit(1);
+                print('✅ تم تسجيل الخروج');
+                
+              } on AuthException catch (e) {
+                print('❌ خطأ Auth: ${e.message}');
+                print('   Status Code: ${e.statusCode}');
+                if (e.message.contains('Email not confirmed')) {
+                  print('   الحل: Supabase → Authentication → Providers → Email → طفي Confirm email');
+                }
+                if (e.message.contains('Invalid login credentials')) {
+                  print('   الحل: الايميل أو الباسورد غلط. تأكد من auth.users');
+                }
+                fail('AuthException: ${e.message}');
+              } catch (e) {
+                print('❌ خطأ عام: $e');
+                if (e.toString().contains('Failed host lookup')) {
+                  print('   السبب: الرابط مكرر أو غلط');
+                  print('   الرابط الحالي: $url');
+                }
+                if (e.toString().contains('SocketException')) {
+                  print('   السبب: مافي انترنت أو الرابط غلط');
+                }
+                fail('Error: $e');
               }
               
-            } on AuthException catch (e) {
-              print('❌ خطأ Auth: ${e.message}');
-              print('   Status Code: ${e.statusCode}');
-              if (e.message.contains('Email not confirmed')) {
-                print('   الحل: روح Supabase → Authentication → Providers → Email → طفي Confirm email');
-              }
-              if (e.message.contains('Invalid login credentials')) {
-                print('   الحل: الايميل أو الباسورد غلط. تأكد من users بجدول auth.users');
-              }
-              exit(1);
-            } catch (e) {
-              print('❌ خطأ عام: $e');
-              print('   نوع الخطأ: ${e.runtimeType}');
-              if (e.toString().contains('Failed host lookup')) {
-                print('   السبب: الرابط مكرر أو فيه غلط. تأكد من AppConfig');
-              }
-              if (e.toString().contains('SocketException')) {
-                print('   السبب: مافي انترنت أو الرابط غلط');
-              }
-              exit(1);
-            }
-            
-            print('=== كل الفحوصات نجحت ✅ ===');
+              print('=== كل الفحوصات نجحت ✅ ===');
+            });
           }
           EOF
           
-          dart pub add supabase_flutter
-          dart test_login.dart
-        continue-on-error: false
+          flutter test test/supabase_test.dart
 
       - name: Generate app icons
         run: dart run flutter_launcher_icons
