@@ -57,8 +57,8 @@ jobs:
           android.nonFinalResIds=true
           EOF
           
-          # إصلاح settings.gradle بالمكان الصحيح
-          sed -i '/^}/a\\ndef localProperties = new Properties()\ndef localPropertiesFile = new File(settingsDir, "local.properties")\nif (localPropertiesFile.exists()) { localPropertiesFile.withReader("UTF-8") { reader -> localProperties.load(reader) } }\ngradle.ext.flutterCompileSdkVersion = localProperties.getProperty("flutter.compileSdkVersion")\ngradle.ext.flutterTargetSdkVersion = localProperties.getProperty("flutter.targetSdkVersion")\ngradle.ext.flutterMinSdkVersion = localProperties.getProperty("flutter.minSdkVersion")\n' android/settings.gradle
+          # إضافة الكود بعد pluginManagement مباشرة - هذا الحل
+          sed -i '/^} \/\* pluginManagement \*\//a\\ninclude ":app"\n\ndef localProperties = new Properties()\ndef localPropertiesFile = new File(settingsDir, "local.properties")\nif (localPropertiesFile.exists()) { localPropertiesFile.withReader("UTF-8") { reader -> localProperties.load(reader) } }\ngradle.ext.flutterCompileSdkVersion = localProperties.getProperty("flutter.compileSdkVersion")\ngradle.ext.flutterTargetSdkVersion = localProperties.getProperty("flutter.targetSdkVersion")\ngradle.ext.flutterMinSdkVersion = localProperties.getProperty("flutter.minSdkVersion")' android/settings.gradle
           
           flutter clean
           flutter pub get
