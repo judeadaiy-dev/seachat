@@ -63,15 +63,15 @@ class SeaChatApp extends StatelessWidget {
                     body: AppBackground(
                       child: Center(
                         child: GlassCard(
-                          margin: EdgeInsets.all(24),
+                          margin: const EdgeInsets.all(24),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.block, size: 60, color: Colors.red),
-                              SizedBox(height: 16),
-                              Text('تم حظر حسابك', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.red)),
-                              SizedBox(height: 8),
-                              Text('تواصل مع الإدارة لرفع الحظر', style: TextStyle(color: AppColors.textLight)),
+                              const Icon(Icons.block, size: 60, color: Colors.red),
+                              const SizedBox(height: 16),
+                              const Text('تم حظر حسابك', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.red)),
+                              const SizedBox(height: 8),
+                              const Text('تواصل مع الإدارة لرفع الحظر', style: TextStyle(color: AppColors.textLight)),
                             ],
                           ),
                         ),
@@ -111,9 +111,9 @@ class AppBackground extends StatelessWidget {
 
 class GlassCard extends StatelessWidget {
   final Widget child;
-  final EdgeInsets padding;
+  final EdgeInsetsGeometry padding;
   final double borderRadius;
-  final EdgeInsets? margin;
+  final EdgeInsetsGeometry? margin;
   final VoidCallback? onTap;
   const GlassCard({super.key, required this.child, this.padding = const EdgeInsets.all(16), this.borderRadius = 24, this.onTap, this.margin});
   @override
@@ -177,7 +177,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _handleLogin() async {
     if (emailController.text.trim().isEmpty || passController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('املأ البريد وكلمة المرور')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('املأ البريد وكلمة المرور')));
       return;
     }
     setState(() => isLoading = true);
@@ -194,7 +194,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _handleSignUp() async {
     if (emailController.text.trim().isEmpty || passController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('املأ البريد وكلمة المرور')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('املأ البريد وكلمة المرور')));
       return;
     }
     setState(() => isLoading = true);
@@ -316,6 +316,7 @@ class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
   @override
   Widget build(BuildContext context) {
+    final repo = SupabaseRepository();
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
@@ -323,14 +324,14 @@ class HomeScreen extends StatelessWidget {
         title: const Text('الغرف'),
         leading: Builder(builder: (context) => IconButton(icon: const Icon(Icons.menu), onPressed: () => Scaffold.of(context).openDrawer())),
       ),
-      body: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: Supabase.instance.client.from('rooms').stream(primaryKey: ['id']).order('is_pinned', ascending: false).order('created_at'),
+      body: StreamBuilder<List<RoomModel>>(
+        stream: repo.getRoomsStream(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator(color: AppColors.button));
           }
           if (snapshot.hasError) return Center(child: Text('خطأ: ${snapshot.error}'));
-          final rooms = snapshot.data?.map((r) => RoomModel.fromJson(r)).toList()?? [];
+          final rooms = snapshot.data?? [];
           if (rooms.isEmpty) return const Center(child: Text('لا توجد غرف حالياً'));
           return ListView.builder(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
@@ -355,12 +356,12 @@ class HomeScreen extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
-          gradient: LinearGradient(
+          gradient: const LinearGradient(
             colors: [Color(0xFF2C1810), Color(0xFF4A3728), Color(0xFF6B4F3A)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          boxShadow: [BoxShadow(color: AppColors.officialGold.withOpacity(0.4), blurRadius: 20, offset: Offset(0, 8))],
+          boxShadow: [BoxShadow(color: AppColors.officialGold.withOpacity(0.4), blurRadius: 20, offset: const Offset(0, 8))],
           border: Border.all(color: AppColors.officialGold.withOpacity(0.6), width: 2),
         ),
         child: Stack(
@@ -375,36 +376,36 @@ class HomeScreen extends StatelessWidget {
               child: Row(
                 children: [
                   Container(
-                    padding: EdgeInsets.all(14),
+                    padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                       color: AppColors.officialGold.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: AppColors.officialGold, width: 1.5),
                     ),
-                    child: Icon(Icons.verified, size: 32, color: AppColors.officialGold),
+                    child: const Icon(Icons.verified, size: 32, color: AppColors.officialGold),
                   ),
-                  SizedBox(width: 16),
+                  const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            Text(room.roomName, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
-                            SizedBox(width: 8),
+                            Text(room.roomName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
+                            const SizedBox(width: 8),
                             Container(
-                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                               decoration: BoxDecoration(color: AppColors.officialGold, borderRadius: BorderRadius.circular(8)),
-                              child: Text('رسمية', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.officialWood)),
+                              child: const Text('رسمية', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.officialWood)),
                             ),
                           ],
                         ),
-                        SizedBox(height: 6),
+                        const SizedBox(height: 6),
                         Text(room.description?? 'الغرفة الرسمية - أهلاً بالجميع', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 13)),
                       ],
                     ),
                   ),
-                  Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.officialGold),
+                  const Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.officialGold),
                 ],
               ),
             ),
@@ -419,15 +420,15 @@ class HomeScreen extends StatelessWidget {
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(room: room))),
       child: ListTile(
         leading: Container(
-          padding: EdgeInsets.all(10),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             gradient: LinearGradient(colors: [AppColors.button, AppColors.button.withOpacity(0.7)]),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(Icons.groups_2_rounded, color: Colors.white),
+          child: const Icon(Icons.groups_2_rounded, color: Colors.white),
         ),
         title: Text(room.roomName, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(room.description?? 'غرفة جماعية', style: TextStyle(fontSize: 12, color: AppColors.textLight)),
+        subtitle: Text(room.description?? 'غرفة جماعية', style: const TextStyle(fontSize: 12, color: AppColors.textLight)),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.icon),
       ),
     );
@@ -540,22 +541,22 @@ class _ChatScreenState extends State<ChatScreen> {
         actions: [
           if (!isOfficial && isOwner)
             PopupMenuButton(
-              icon: Icon(Icons.more_vert),
+              icon: const Icon(Icons.more_vert),
               itemBuilder: (context) => [
-                PopupMenuItem(child: Text('عرض الأعضاء'), onTap: () => _showMembers()),
-                PopupMenuItem(child: Text('نسخ رابط الدعوة'), onTap: () => _copyInviteLink()),
-                PopupMenuItem(child: Text('حذف الغرفة', style: TextStyle(color: Colors.red)), onTap: () => _deleteRoom()),
+                PopupMenuItem(child: const Text('عرض الأعضاء'), onTap: () => _showMembers()),
+                PopupMenuItem(child: const Text('نسخ رابط الدعوة'), onTap: () => _copyInviteLink()),
+                PopupMenuItem(child: const Text('حذف الغرفة', style: TextStyle(color: Colors.red)), onTap: () => _deleteRoom()),
               ],
             ),
           if (!isJoined)
             TextButton(
               onPressed: _joinRoom,
-              child: Text('دخول', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: const Text('دخول', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           if (isJoined && (widget.room.roomType!= 'official' ||!isAdmin))
             TextButton(
               onPressed: _leaveRoom,
-              child: Text('خروج', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: const Text('خروج', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
         ],
       ),
@@ -597,7 +598,7 @@ class _ChatScreenState extends State<ChatScreen> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              IconButton(icon: Icon(Icons.play_arrow), onPressed: () => _audioPlayer.setUrl(url).then((_) => _audioPlayer.play())),
+              IconButton(icon: const Icon(Icons.play_arrow), onPressed: () => _audioPlayer.setUrl(url).then((_) => _audioPlayer.play())),
               Text('رسالة صوتية', style: TextStyle(color: msg.isMe? Colors.white : AppColors.textDark)),
             ],
           ),
@@ -638,54 +639,49 @@ class _ChatScreenState extends State<ChatScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: AppColors.backgroundEnd,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.icon, borderRadius: BorderRadius.circular(2))),
-            SizedBox(height: 16),
-            Text('أعضاء الغرفة', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
+            const Text('أعضاء الغرفة', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
             Expanded(
-              child: StreamBuilder<List<Map<String, dynamic>>>(
-                stream: supabase.from('room_members').stream(primaryKey: ['id']).eq('room_id', widget.room.id).order('points', ascending: false),
+              child: FutureBuilder<List<RoomMemberModel>>(
+                future: repo.getRoomMembers(widget.room.id),
                 builder: (context, snapshot) {
-                  if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
+                  if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                  final members = snapshot.data!;
+                  members.sort((a, b) => b.points.compareTo(a.points));
                   return ListView.builder(
-                    itemCount: snapshot.data!.length,
+                    itemCount: members.length,
                     itemBuilder: (context, i) {
-                      final member = snapshot.data![i];
-                      return FutureBuilder(
-                        future: supabase.from('profiles').select('username, avatar_url').eq('id', member['user_id']).single(),
-                        builder: (context, userSnap) {
-                          if (!userSnap.hasData) return SizedBox();
-                          final user = userSnap.data!;
-                          final rank = i < 3? ['🥇','🥈','🥉'][i] : '${i+1}';
-                          return ListTile(
-                            leading: Stack(
-                              children: [
-                                CircleAvatar(
-                                  backgroundImage: user['avatar_url']!= null? NetworkImage(user['avatar_url']) : null,
-                                  child: user['avatar_url'] == null? Text(user['username'][0]) : null,
-                                ),
-                                if (i < 3) Positioned(right: -2, bottom: -2, child: Text(rank, style: TextStyle(fontSize: 16))),
-                              ],
+                      final member = members[i];
+                      final rank = i < 3? ['🥇', '🥈', '🥉'][i] : '${i + 1}';
+                      return ListTile(
+                        leading: Stack(
+                          children: [
+                            CircleAvatar(
+                              backgroundImage: member.user?.avatarUrl!= null? NetworkImage(member.user!.avatarUrl!) : null,
+                              child: member.user?.avatarUrl == null? Text(member.user?.name[0]?? 'U') : null,
                             ),
-                            title: Text(user['username']),
-                            subtitle: Text('نقاط: ${member['points']} | ${member['role'] == 'owner'? 'المشرف' : 'عضو'}'),
-                            trailing: isOwner && member['role']!= 'owner'
-                       ? PopupMenuButton(
+                            if (i < 3) Positioned(right: -2, bottom: -2, child: Text(rank, style: const TextStyle(fontSize: 16))),
+                          ],
+                        ),
+                        title: Text(member.user?.name?? 'مستخدم'),
+                        subtitle: Text('نقاط: ${member.points} | ${member.role == 'owner'? 'المشرف' : 'عضو'}'),
+                        trailing: isOwner && member.role!= 'owner'
+                           ? PopupMenuButton(
                                 itemBuilder: (context) => [
-                                  PopupMenuItem(child: Text('حظر'), onTap: () => _banMember(member['user_id'])),
-                                  PopupMenuItem(child: Text('إزالة'), onTap: () => _kickMember(member['user_id'])),
+                                  PopupMenuItem(child: const Text('حظر'), onTap: () => _banMember(member.userId)),
+                                  PopupMenuItem(child: const Text('إزالة'), onTap: () => _kickMember(member.userId)),
                                 ],
                               )
-                              : null,
-                          );
-                        },
+                            : null,
                       );
                     },
                   );
@@ -701,23 +697,23 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _banMember(String userId) async {
     await supabase.from('room_members').delete().eq('room_id', widget.room.id).eq('user_id', userId);
     await supabase.from('profiles').update({'is_banned': true}).eq('id', userId);
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم حظر العضو من التطبيق')));
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حظر العضو من التطبيق')));
   }
 
   Future<void> _kickMember(String userId) async {
     await supabase.from('room_members').delete().eq('room_id', widget.room.id).eq('user_id', userId);
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إزالة العضو')));
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إزالة العضو')));
   }
 
   Future<void> _deleteRoom() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('حذف الغرفة'),
-        content: Text('هل أنت متأكد؟ سيتم حذف جميع الرسائل'),
+        title: const Text('حذف الغرفة'),
+        content: const Text('هل أنت متأكد؟ سيتم حذف جميع الرسائل'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text('إلغاء')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: Text('حذف', style: TextStyle(color: Colors.red))),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('حذف', style: TextStyle(color: Colors.red))),
         ],
       ),
     );
@@ -733,7 +729,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void _copyInviteLink() {
     final link = 'https://seachat.app/room/${widget.room.id}';
     Clipboard.setData(ClipboardData(text: link));
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم نسخ رابط الدعوة')));
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نسخ رابط الدعوة')));
   }
 }
 
@@ -768,6 +764,7 @@ class ProfileScreen extends StatelessWidget {
                     Text(user.email, style: const TextStyle(color: AppColors.textLight)),
                   ],
                 ),
+              ),
               const SizedBox(height: 16),
               GlassCard(
                 onTap: () async => await Supabase.instance.client.auth.signOut(),
@@ -797,7 +794,7 @@ class _AppDrawerState extends State<AppDrawer> with SingleTickerProviderStateMix
   void initState() {
     super.initState();
     _checkAdmin();
-    _animationController = AnimationController(vsync: this, duration: Duration(milliseconds: 300));
+    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
     _animation = Tween<double>(begin: 0, end: 1).animate(_animationController);
   }
 
@@ -852,76 +849,3 @@ class _AppDrawerState extends State<AppDrawer> with SingleTickerProviderStateMix
                                 child: Container(width: 30, height: 3, decoration: BoxDecoration(color: AppColors.button, borderRadius: BorderRadius.circular(2))),
                               ),
                             ],
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(AppConfig.appName, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.button)),
-                  ],
-                ),
-              ),
-            ),
-            if (isAdmin)
-              ListTile(
-                leading: const Icon(Icons.admin_panel_settings_rounded, color: AppColors.button),
-                title: const Text('لوحة التحكم', style: TextStyle(fontWeight: FontWeight.bold)),
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdminPanel())),
-              ),
-            ListTile(
-              leading: const Icon(Icons.add_home_work_outlined, color: AppColors.icon),
-              title: const Text('طلب إنشاء غرفة'),
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CreateRoomRequestScreen())),
-            ),
-            ListTile(
-              leading: const Icon(Icons.privacy_tip_outlined, color: AppColors.icon),
-              title: const Text('سياسة الخصوصية'),
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen())),
-            ),
-            ListTile(
-              leading: const Icon(Icons.mail_outline_rounded, color: AppColors.icon),
-              title: const Text('تواصل معنا'),
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactUsScreen())),
-            ),
-            const Divider(),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text('© ${AppConfig.copyrightYear} ${AppConfig.copyrightName}. All rights reserved.', style: const TextStyle(color: AppColors.textLight, fontSize: 12), textAlign: TextAlign.center),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class AdminPanel extends StatefulWidget {
-  const AdminPanel({super.key});
-  @override
-  State<AdminPanel> createState() => _AdminPanelState();
-}
-
-class _AdminPanelState extends State<AdminPanel> {
-  final supabase = Supabase.instance.client;
-  bool isAdmin = false;
-  bool loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkIfAdmin();
-  }
-
-  Future<void> _checkIfAdmin() async {
-    final user = supabase.auth.currentUser;
-    if (user == null) return;
-    final profile = await supabase.from('profiles').select('role').eq('id', user.id).single();
-    setState(() {
-      isAdmin = profile['role'] == 'admin';
-      loading = false;
-    });
-  }
-
-  Future<void> _banUser(String userId) async {
-    await supabase.from('profiles').update({'is_banned': true}).eq('id', userId);
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar
