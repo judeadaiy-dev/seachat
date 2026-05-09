@@ -3,7 +3,7 @@ name: Build SeaChat APK
 on:
   push:
     branches: [ main, master ]
-  workflow_dispatch: # هذا السطر يسمح لك بتشغيل البناء يدوياً للفحص
+  workflow_dispatch:
 
 jobs:
   build:
@@ -22,7 +22,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.0'
+          flutter-version: '3.24.3' # حدثتها عشان تتوافق مع sdk: '>=3.4.0'
           channel: 'stable'
           cache: true
 
@@ -32,14 +32,19 @@ jobs:
           flutter create --platforms=android --org com.judea --project-name sea_chat .
           flutter pub get
 
-      - name: Configure Android Manifest (Internet Fix)
+      - name: Configure Android Manifest Permissions
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
-          # إضافة تصريح الإنترنت بشكل صريح لضمان عمل Supabase
+          # صلاحيات الإنترنت - Supabase
           sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
           sed -i '/<application/i \    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />' $MANIFEST
-          # تفعيل حركة البيانات للروابط
-          sed -i 's/<application/<application android:usesCleartextTraffic="true"/' $MANIFEST
+          # صلاحيات المايك - record
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.RECORD_AUDIO" />' $MANIFEST
+          # صلاحيات الملفات - image_picker
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />' $MANIFEST
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />' $MANIFEST
+          # تفعيل حركة البيانات للروابط + تشغيل الصوت بالخلفية
+          sed -i 's/<application/<application android:usesCleartextTraffic="true" android:requestLegacyExternalStorage="true"/' $MANIFEST
 
       - name: Create app_config.dart
         run: |
@@ -55,7 +60,7 @@ jobs:
           EOF
 
       - name: Build Release APK
-        run: flutter build apk --release
+        run: flutter build apk --release --no-tree-shake-icons
 
       - name: Upload Finished APK
         uses: actions/upload-artifact@v4
