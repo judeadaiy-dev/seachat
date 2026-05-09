@@ -57,12 +57,8 @@ jobs:
           android.nonFinalResIds=true
           EOF
           
-          sed -i '1i\def localProperties = new Properties()\n' android/settings.gradle
-          sed -i '2i\def localPropertiesFile = new File(settingsDir, "local.properties")\n' android/settings.gradle
-          sed -i '3i\if (localPropertiesFile.exists()) { localPropertiesFile.withReader("UTF-8") { reader -> localProperties.load(reader) } }\n' android/settings.gradle
-          sed -i '4i\gradle.ext.flutterCompileSdkVersion = localProperties.getProperty("flutter.compileSdkVersion")\n' android/settings.gradle
-          sed -i '5i\gradle.ext.flutterTargetSdkVersion = localProperties.getProperty("flutter.targetSdkVersion")\n' android/settings.gradle
-          sed -i '6i\gradle.ext.flutterMinSdkVersion = localProperties.getProperty("flutter.minSdkVersion")\n' android/settings.gradle
+          # إصلاح settings.gradle بالمكان الصحيح
+          sed -i '/^}/a\\ndef localProperties = new Properties()\ndef localPropertiesFile = new File(settingsDir, "local.properties")\nif (localPropertiesFile.exists()) { localPropertiesFile.withReader("UTF-8") { reader -> localProperties.load(reader) } }\ngradle.ext.flutterCompileSdkVersion = localProperties.getProperty("flutter.compileSdkVersion")\ngradle.ext.flutterTargetSdkVersion = localProperties.getProperty("flutter.targetSdkVersion")\ngradle.ext.flutterMinSdkVersion = localProperties.getProperty("flutter.minSdkVersion")\n' android/settings.gradle
           
           flutter clean
           flutter pub get
@@ -97,7 +93,7 @@ jobs:
         run: flutter pub run flutter_launcher_icons || true
 
       - name: Build Release APK - Beast Mode
-        run: flutter build apk --release --no-tree-shake-icons
+        run: flutter build apk --release --no-tree-shake-icons --verbose || flutter build apk --release --no-tree-shake-icons
 
       - name: Upload Finished APK
         uses: actions/upload-artifact@v4
