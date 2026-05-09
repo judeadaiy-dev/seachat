@@ -331,6 +331,7 @@ class HomeScreen extends StatelessWidget {
           }
           if (snapshot.hasError) return Center(child: Text('خطأ: ${snapshot.error}'));
           final rooms = snapshot.data?.map((r) => RoomModel.fromJson(r)).toList()?? [];
+          if (rooms.isEmpty) return const Center(child: Text('لا توجد غرف حالياً'));
           return ListView.builder(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
             itemCount: rooms.length,
@@ -592,4 +593,335 @@ class _ChatScreenState extends State<ChatScreen> {
       return Align(
         alignment: msg.isMe? Alignment.centerLeft : Alignment.centerRight,
         child: GlassCard(
-          margin: const EdgeInsets.only(bottom
+          margin: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(icon: Icon(Icons.play_arrow), onPressed: () => _audioPlayer.setUrl(url).then((_) => _audioPlayer.play())),
+              Text('رسالة صوتية', style: TextStyle(color: msg.isMe? Colors.white : AppColors.textDark)),
+            ],
+          ),
+        ),
+      );
+    }
+    return Align(
+      alignment: msg.isMe? Alignment.centerLeft : Alignment.centerRight,
+      child: GlassCard(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Text(msg.text, style: TextStyle(color: msg.isMe? Colors.white : AppColors.textDark)),
+      ),
+    );
+  }
+
+  Widget _buildInputBar() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: GlassCard(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Row(
+          children: [
+            IconButton(
+              onPressed: isRecording? _stopRecording : _startRecording,
+              icon: Icon(isRecording? Icons.stop_circle : Icons.mic, color: isRecording? Colors.red : AppColors.icon),
+            ),
+            Expanded(child: TextField(controller: msgController, decoration: const InputDecoration(hintText: 'اكتب رسالة...', border: InputBorder.none), onSubmitted: (_) => _sendMessage())),
+            IconButton(onPressed: _sendMessage, icon: const Icon(Icons.send_rounded, color: AppColors.button)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showMembers() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: AppColors.backgroundEnd,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.icon, borderRadius: BorderRadius.circular(2))),
+            SizedBox(height: 16),
+            Text('أعضاء الغرفة', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            SizedBox(height: 16),
+            Expanded(
+              child: StreamBuilder<List<Map<String, dynamic>>>(
+                stream: supabase.from('room_members').stream(primaryKey: ['id']).eq('room_id', widget.room.id).order('points', ascending: false),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
+                  return ListView.builder(
+                    itemCount: snapshot.data!.length,
+                    itemBuilder: (context, i) {
+                      final member = snapshot.data![i];
+                      return FutureBuilder(
+                        future: supabase.from('profiles').select('username, avatar_url').eq('id', member['user_id']).single(),
+                        builder: (context, userSnap) {
+                          if (!userSnap.hasData) return SizedBox();
+                          final user = userSnap.data!;
+                          final rank = i < 3? ['🥇','🥈','🥉'][i] : '${i+1}';
+                          return ListTile(
+                            leading: Stack(
+                              children: [
+                                CircleAvatar(
+                                  backgroundImage: user['avatar_url']!= null? NetworkImage(user['avatar_url']) : null,
+                                  child: user['avatar_url'] == null? Text(user['username'][0]) : null,
+                                ),
+                                if (i < 3) Positioned(right: -2, bottom: -2, child: Text(rank, style: TextStyle(fontSize: 16))),
+                              ],
+                            ),
+                            title: Text(user['username']),
+                            subtitle: Text('نقاط: ${member['points']} | ${member['role'] == 'owner'? 'المشرف' : 'عضو'}'),
+                            trailing: isOwner && member['role']!= 'owner'
+                       ? PopupMenuButton(
+                                itemBuilder: (context) => [
+                                  PopupMenuItem(child: Text('حظر'), onTap: () => _banMember(member['user_id'])),
+                                  PopupMenuItem(child: Text('إزالة'), onTap: () => _kickMember(member['user_id'])),
+                                ],
+                              )
+                              : null,
+                          );
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _banMember(String userId) async {
+    await supabase.from('room_members').delete().eq('room_id', widget.room.id).eq('user_id', userId);
+    await supabase.from('profiles').update({'is_banned': true}).eq('id', userId);
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم حظر العضو من التطبيق')));
+  }
+
+  Future<void> _kickMember(String userId) async {
+    await supabase.from('room_members').delete().eq('room_id', widget.room.id).eq('user_id', userId);
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إزالة العضو')));
+  }
+
+  Future<void> _deleteRoom() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('حذف الغرفة'),
+        content: Text('هل أنت متأكد؟ سيتم حذف جميع الرسائل'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: Text('حذف', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await supabase.from('rooms').delete().eq('id', widget.room.id);
+      if (mounted) {
+        Navigator.pop(context);
+        Navigator.pop(context);
+      }
+    }
+  }
+
+  void _copyInviteLink() {
+    final link = 'https://seachat.app/room/${widget.room.id}';
+    Clipboard.setData(ClipboardData(text: link));
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم نسخ رابط الدعوة')));
+  }
+}
+
+class ProfileScreen extends StatelessWidget {
+  const ProfileScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    final repo = SupabaseRepository();
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(backgroundColor: Colors.transparent, title: const Text('الملف الشخصي')),
+      body: FutureBuilder<UserModel?>(
+        future: repo.getCurrentUser(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData) return const Center(child: Text('المستخدم غير موجود'));
+          final user = snapshot.data!;
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              GlassCard(
+                child: Column(
+                  children: [
+                    CircleAvatar(
+                      radius: 50,
+                      backgroundColor: AppColors.button,
+                      backgroundImage: user.avatarUrl!= null? NetworkImage(user.avatarUrl!) : null,
+                      child: user.avatarUrl == null? Text(user.name.isNotEmpty? user.name[0] : 'U', style: const TextStyle(fontSize: 40, color: Colors.white)) : null,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(user.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                    Text(user.email, style: const TextStyle(color: AppColors.textLight)),
+                  ],
+                ),
+              const SizedBox(height: 16),
+              GlassCard(
+                onTap: () async => await Supabase.instance.client.auth.signOut(),
+                child: const ListTile(leading: Icon(Icons.logout, color: Colors.red), title: Text('تسجيل الخروج', style: TextStyle(color: Colors.red))),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class AppDrawer extends StatefulWidget {
+  const AppDrawer({super.key});
+  @override
+  State<AppDrawer> createState() => _AppDrawerState();
+}
+
+class _AppDrawerState extends State<AppDrawer> with SingleTickerProviderStateMixin {
+  final supabase = Supabase.instance.client;
+  bool isAdmin = false;
+  late AnimationController _animationController;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAdmin();
+    _animationController = AnimationController(vsync: this, duration: Duration(milliseconds: 300));
+    _animation = Tween<double>(begin: 0, end: 1).animate(_animationController);
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _checkAdmin() async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+    final res = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+    if (mounted) setState(() => isAdmin = res?['role'] == 'admin');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Drawer(
+      backgroundColor: Colors.transparent,
+      child: AppBackground(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              child: GlassCard(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        if (_animationController.isCompleted) {
+                          _animationController.reverse();
+                        } else {
+                          _animationController.forward();
+                        }
+                        Scaffold.of(context).closeDrawer();
+                      },
+                      child: AnimatedBuilder(
+                        animation: _animation,
+                        builder: (context, child) {
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Transform.rotate(
+                                angle: _animation.value * 0.785,
+                                child: Container(width: 30, height: 3, decoration: BoxDecoration(color: AppColors.button, borderRadius: BorderRadius.circular(2))),
+                              ),
+                              SizedBox(height: _animation.value * 8 + 6),
+                              Transform.rotate(
+                                angle: -_animation.value * 0.785,
+                                child: Container(width: 30, height: 3, decoration: BoxDecoration(color: AppColors.button, borderRadius: BorderRadius.circular(2))),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(AppConfig.appName, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.button)),
+                  ],
+                ),
+              ),
+            ),
+            if (isAdmin)
+              ListTile(
+                leading: const Icon(Icons.admin_panel_settings_rounded, color: AppColors.button),
+                title: const Text('لوحة التحكم', style: TextStyle(fontWeight: FontWeight.bold)),
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdminPanel())),
+              ),
+            ListTile(
+              leading: const Icon(Icons.add_home_work_outlined, color: AppColors.icon),
+              title: const Text('طلب إنشاء غرفة'),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CreateRoomRequestScreen())),
+            ),
+            ListTile(
+              leading: const Icon(Icons.privacy_tip_outlined, color: AppColors.icon),
+              title: const Text('سياسة الخصوصية'),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen())),
+            ),
+            ListTile(
+              leading: const Icon(Icons.mail_outline_rounded, color: AppColors.icon),
+              title: const Text('تواصل معنا'),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactUsScreen())),
+            ),
+            const Divider(),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text('© ${AppConfig.copyrightYear} ${AppConfig.copyrightName}. All rights reserved.', style: const TextStyle(color: AppColors.textLight, fontSize: 12), textAlign: TextAlign.center),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class AdminPanel extends StatefulWidget {
+  const AdminPanel({super.key});
+  @override
+  State<AdminPanel> createState() => _AdminPanelState();
+}
+
+class _AdminPanelState extends State<AdminPanel> {
+  final supabase = Supabase.instance.client;
+  bool isAdmin = false;
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkIfAdmin();
+  }
+
+  Future<void> _checkIfAdmin() async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+    final profile = await supabase.from('profiles').select('role').eq('id', user.id).single();
+    setState(() {
+      isAdmin = profile['role'] == 'admin';
+      loading = false;
+    });
+  }
+
+  Future<void> _banUser(String userId) async {
+    await supabase.from('profiles').update({'is_banned': true}).eq('id', userId);
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar
