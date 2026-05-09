@@ -1,148 +1,124 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
-
 class UserModel {
   final String id;
   final String name;
-  final String username;
-  final String email;
   final String? avatarUrl;
+  final String email;
+  final String role;
+  final bool isBanned;
 
   const UserModel({
     required this.id,
     required this.name,
-    required this.username,
-    required this.email,
     this.avatarUrl,
+    required this.email,
+    this.role = 'user',
+    this.isBanned = false,
   });
 
-  factory UserModel.fromMap(Map<String, dynamic> map) {
+  factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      id: map['id'] as String?? '',
-      name: map['name'] as String?? '',
-      username: map['username'] as String?? '',
-      email: map['email'] as String?? '',
-      avatarUrl: map['avatar_url'] as String?,
+      id: json['id'] ?? '',
+      name: json['name'] ?? json['username'] ?? 'User',
+      avatarUrl: json['avatar_url'],
+      email: json['email'] ?? '',
+      role: json['role'] ?? 'user',
+      isBanned: json['is_banned'] ?? false,
     );
-  }
-
-  factory UserModel.fromSupabaseUser(User user) {
-    return UserModel(
-      id: user.id,
-      name: user.userMetadata?['name'] as String?? 'مستخدم',
-      username: user.userMetadata?['username'] as String?? user.email!.split('@')[0],
-      email: user.email?? '',
-      avatarUrl: user.userMetadata?['avatar_url'] as String?,
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'name': name,
-      'username': username,
-      'email': email,
-      'avatar_url': avatarUrl,
-    };
   }
 }
 
 class RoomModel {
   final String id;
   final String roomName;
-  final String roomBio;
-  final String roomImage;
-  final String roomStatus;
-  final int membersCount;
-  final bool allowMessages;
-  final bool allowMedia;
+  final String? description;
+  final String? imageUrl;
+  final String creatorId;
+  final bool isPrivate;
+  final String roomType;
+  final bool isPinned;
 
   const RoomModel({
     required this.id,
     required this.roomName,
-    required this.roomBio,
-    required this.roomImage,
-    required this.membersCount,
-    required this.allowMessages,
-    required this.allowMedia,
-    required this.roomStatus,
+    this.description,
+    this.imageUrl,
+    required this.creatorId,
+    this.isPrivate = false,
+    this.roomType = 'user',
+    this.isPinned = false,
   });
 
-  factory RoomModel.fromMap(Map<String, dynamic> map) {
+  factory RoomModel.fromJson(Map<String, dynamic> json) {
     return RoomModel(
-      id: map['id'] as String?? '',
-      roomName: map['room_name'] as String?? 'غرفة بدون اسم',
-      roomBio: map['room_bio'] as String?? '',
-      roomImage: map['room_image'] as String?? '',
-      membersCount: (map['members_count'] as num?)?.toInt()?? 0,
-      allowMessages: map['allow_messages'] as bool?? true,
-      allowMedia: map['allow_media'] as bool?? true,
-      roomStatus: map['room_status'] as String?? 'active',
+      id: json['id'] ?? '',
+      roomName: json['room_name'] ?? json['name'] ?? '',
+      description: json['description'],
+      imageUrl: json['image_url'],
+      creatorId: json['creator_id'] ?? '',
+      isPrivate: json['is_private'] ?? false,
+      roomType: json['room_type'] ?? 'user',
+      isPinned: json['is_pinned'] ?? false,
     );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'room_name': roomName,
-      'room_bio': roomBio,
-      'room_image': roomImage,
-      'members_count': membersCount,
-      'allow_messages': allowMessages,
-      'allow_media': allowMedia,
-      'room_status': roomStatus,
-    };
   }
 }
 
 class MessageModel {
   final String id;
-  final String text;
-  final String senderId;
-  final String senderName;
   final String roomId;
+  final String userId;
+  final String text;
   final DateTime createdAt;
+  final String? userName;
+  final String? userAvatar;
   final bool isMe;
 
   const MessageModel({
     required this.id,
-    required this.text,
-    required this.senderId,
-    required this.senderName,
     required this.roomId,
+    required this.userId,
+    required this.text,
     required this.createdAt,
-    required this.isMe,
+    this.userName,
+    this.userAvatar,
+    this.isMe = false,
   });
 
-  String get time =>
-      '${createdAt.hour.toString().padLeft(2, '0')}:${createdAt.minute.toString().padLeft(2, '0')}';
-
-  factory MessageModel.fromMap(
-    Map<String, dynamic> map, {
-    required String currentUserId,
-  }) {
-    final senderId = map['sender_id'] as String?? '';
-    final createdAt =
-        DateTime.tryParse(map['created_at'] as String?? '')?? DateTime.now();
-
+  factory MessageModel.fromJson(Map<String, dynamic> json, String currentUserId) {
     return MessageModel(
-      id: map['id'] as String?? '',
-      text: map['text'] as String?? '',
-      senderId: senderId,
-      senderName: map['sender_name'] as String?? 'مجهول',
-      roomId: map['room_id'] as String?? '',
-      createdAt: createdAt,
-      isMe: senderId == currentUserId,
+      id: json['id'] ?? '',
+      roomId: json['room_id'] ?? '',
+      userId: json['user_id'] ?? '',
+      text: json['content'] ?? json['text'] ?? '',
+      createdAt: DateTime.parse(json['created_at']),
+      userName: json['profiles']?['name'] ?? json['profiles']?['username'],
+      userAvatar: json['profiles']?['avatar_url'],
+      isMe: json['user_id'] == currentUserId,
     );
   }
+}
 
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'text': text,
-      'sender_id': senderId,
-      'sender_name': senderName,
-      'room_id': roomId,
-      'created_at': createdAt.toIso8601String(),
-    };
+class RoomMemberModel {
+  final String userId;
+  final String roomId;
+  final String role;
+  final int points;
+  final UserModel? user;
+
+  const RoomMemberModel({
+    required this.userId,
+    required this.roomId,
+    required this.role,
+    this.points = 0,
+    this.user,
+  });
+
+  factory RoomMemberModel.fromJson(Map<String, dynamic> json, Map<String, dynamic>? profile) {
+    return RoomMemberModel(
+      userId: json['user_id'] ?? '',
+      roomId: json['room_id'] ?? '',
+      role: json['role'] ?? 'member',
+      points: json['points'] ?? 0,
+      user: profile != null ? UserModel.fromJson(profile) : null,
+    );
   }
 }
