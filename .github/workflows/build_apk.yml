@@ -22,25 +22,24 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.3'
+          flutter-version: '3.24.3' # يدعم Dart 3.5.0 من pubspec.yaml
           channel: 'stable'
           cache: true
 
       - name: Download Cairo Font
         run: |
           mkdir -p fonts assets
-          curl -sL -o fonts/Cairo-Regular.ttf "https://github.com/google/fonts/raw/main/ofl/cairo/Cairo%5Bwght%5D.ttf"
-          curl -sL -o fonts/Cairo-Bold.ttf "https://github.com/google/fonts/raw/main/ofl/cairo/Cairo%5Bwght%5D.ttf"
+          # Regular 400
+          curl -sL -o fonts/Cairo-Regular.ttf "https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-Regular.ttf"
+          # Bold 700  
+          curl -sL -o fonts/Cairo-Bold.ttf "https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-Bold.ttf"
 
       - name: Nuke and Rebuild Android - Fast
         run: |
           rm -rf android
           flutter create --platforms=android --org com.judea --project-name sea_chat . > /dev/null 2>&1
           
-          echo "" >> pubspec.yaml
-          echo "dependency_overrides:" >> pubspec.yaml
-          echo "  app_links: 6.3.2" >> pubspec.yaml
-          echo "  record_android: 1.3.1" >> pubspec.yaml
+          # بدون dependency_overrides - النسخ الجديدة متوافقة
           
           cat > android/local.properties << EOF
           sdk.dir=$ANDROID_SDK_ROOT
@@ -74,10 +73,11 @@ jobs:
           sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
           sed -i '/<application/i \    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />' $MANIFEST
           sed -i '/<application/i \    <uses-permission android:name="android.permission.RECORD_AUDIO" />' $MANIFEST
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />' $MANIFEST
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />' $MANIFEST
           sed -i '/<application/i \    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />' $MANIFEST
           sed -i '/<application/i \    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />' $MANIFEST
           sed -i '/<application/i \    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />' $MANIFEST
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' $MANIFEST
           sed -i 's/<application/<application android:usesCleartextTraffic="true" android:requestLegacyExternalStorage="true" android:largeHeap="true"/' $MANIFEST
           sed -i 's/android:label="sea_chat"/android:label="SeaChat"/' $MANIFEST
 
@@ -89,7 +89,7 @@ jobs:
             static const String appName = 'SeaChat';
             static const String supabaseUrl = 'https://jmsmrojtlstppnpwmkkk.supabase.co';
             static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos';
-            static const String copyrightYear = '2024';
+            static const String copyrightYear = '2026';
             static const String copyrightName = 'JudeaDay';
           }
           EOF
@@ -112,6 +112,6 @@ jobs:
       - name: Upload Finished APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-APK
+          name: SeaChat-APK-v1.0.0
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
