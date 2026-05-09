@@ -1,183 +1,120 @@
-import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:uuid/uuid.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../models.dart';
 
 class SupabaseRepository {
-  final SupabaseClient _client = Supabase.instance.client;
-  final _uuid = const Uuid();
+  final supabase = Supabase.instance.client;
 
-  String? get _currentUserId => _client.auth.currentUser?.id;
-
-  Future<bool> signInWithEmail({
-    required String email,
-    required String password,
-  }) async {
-    try {
-      final res = await _client.auth.signInWithPassword(
-        email: email.trim(),
-        password: password,
-      );
-      return res.user != null;
-    } catch (e) {
-      return false;
-    }
+  Future<UserModel?> getCurrentUser() async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return null;
+    final data = await supabase.from('profiles').select().eq('id', user.id).maybeSingle();
+    if (data == null) return null;
+    return UserModel.fromJson({...data, 'email': user.email ?? ''});
   }
 
   Future<void> signInWithGoogle() async {
-    await _client.auth.signInWithOAuth(OAuthProvider.google);
-  }
-
-  Future<UserModel?> getCurrentUser() async {
-    final user = _client.auth.currentUser;
-    if (user == null) return null;
-
     try {
-      final data = await _client
-          .from('profiles')
-          .select()
-          .eq('id', user.id)
-          .maybeSingle();
-
-      if (data != null) {
-        return UserModel.fromJson({...data, 'email': user.email ?? ''});
-      }
-    } catch (_) {}
-
-    // Fallback اذا مافي بيانات بجدول profiles
-    final metadata = user.userMetadata ?? {};
-    final email = user.email ?? '';
-    
-    return UserModel(
-      id: user.id,
-      name: metadata['full_name'] as String? ?? 
-            email.split('@').first ?? 
-            'مستخدم',
-      email: email,
-      avatarUrl: metadata['avatar_url'] as String?,
-      role: 'user',
-    );
-  }
-
-  Future<List<RoomModel>> getAllActiveRooms() async {
-    try {
-      final data = await _client
-          .from('rooms')
-          .select()
-          .order('is_pinned', ascending: false)
-          .order('created_at', ascending: false);
-
-      return (data as List)
-          .map((e) => RoomModel.fromJson(e as Map<String, dynamic>))
-          .toList();
+      final GoogleSignIn googleSignIn = GoogleSignIn(scopes: ['email']);
+      final googleUser = await googleSignIn.signIn();
+      if (googleUser == null) return;
+      final googleAuth = await googleUser.authentication;
+      final accessToken = googleAuth.accessToken;
+      final idToken = googleAuth.idToken;
+      if (accessToken == null || idToken == null) return;
+      await supabase.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+        accessToken: accessToken,
+      );
     } catch (e) {
-      return [];
+      rethrow;
     }
   }
 
-  Stream<List<MessageModel>> getRoomMessagesStream({
-    required String roomId,
-  }) {
-    final userId = _currentUserId ?? '';
-    
-    return _client
+  Stream<List<RoomModel>> getRoomsStream() {
+    return supabase
+        .from('rooms')
+        .stream(primaryKey: ['id'])
+        .order('is_pinned', ascending: false)
+        .order('created_at')
+        .map((list) => list.map((e) => RoomModel.fromJson(e)).toList());
+  }
+
+  Stream<List<MessageModel>> getRoomMessagesStream({required String roomId}) {
+    final currentUserId = supabase.auth.currentUser!.id;
+    return supabase
         .from('messages')
         .stream(primaryKey: ['id'])
         .eq('room_id', roomId)
-        .order('created_at', ascending: false)
-        .asyncMap((data) async {
-          List<MessageModel> messages = [];
-          for (var e in data) {
-            final profile = await _client
-                .from('profiles')
-                .select('username, avatar_url')
-                .eq('id', e['user_id'])
-                .maybeSingle();
-            messages.add(MessageModel.fromJson(
-              {...e, 'profiles': profile},
-              userId,
-            ));
-          }
-          return messages;
-        });
+        .order('created_at')
+        .map((list) => list.map((e) => MessageModel.fromJson(e, currentUserId)).toList());
   }
 
-  Future<void> sendMessage({
-    required String roomId,
-    required String message,
-  }) async {
-    if (message.trim().isEmpty) return;
-    if (_currentUserId == null) return;
-
-    await _client.from('messages').insert({
-      'id': _uuid.v4(),
+  Future<void> sendMessage({required String roomId, required String message}) async {
+    final userId = supabase.auth.currentUser!.id;
+    await supabase.from('messages').insert({
       'room_id': roomId,
-      'user_id': _currentUserId!,
-      'text': message.trim(),
-      'created_at': DateTime.now().toIso8601String(),
+      'user_id': userId,
+      'content': message,
     });
   }
 
-  Future<void> sendImageMessage({
-    required String roomId,
-    required File imageFile,
-  }) async {
-    if (_currentUserId == null) return;
-    
-    try {
-      final fileExt = imageFile.path.split('.').last;
-      final fileName = 'chat_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
-      final filePath = 'public/$fileName';
-
-      await _client.storage
-          .from('chat_images')
-          .upload(filePath, imageFile);
-
-      final imageUrl = _client.storage
-          .from('chat_images')
-          .getPublicUrl(filePath);
-
-      await sendMessage(roomId: roomId, message: imageUrl);
-    } catch (e) {
-      return;
-    }
-  }
-
   Future<List<RoomMemberModel>> getRoomMembers(String roomId) async {
-    try {
-      final members = await _client
-          .from('room_members')
-          .select()
-          .eq('room_id', roomId)
-          .order('points', ascending: false);
-      
-      List<RoomMemberModel> result = [];
-      for (var m in members) {
-        final profile = await _client
-            .from('profiles')
-            .select('username, avatar_url')
-            .eq('id', m['user_id'])
-            .single();
-        result.add(RoomMemberModel.fromJson(m, profile));
-      }
-      return result;
-    } catch (e) {
-      return [];
-    }
+    final members = await supabase
+        .from('room_members')
+        .select('*, profiles(*)')
+        .eq('room_id', roomId)
+        .order('points', ascending: false);
+    
+    return members.map((m) {
+      final profile = m['profiles'] as Map<String, dynamic>?;
+      return RoomMemberModel.fromJson(m, profile);
+    }).toList();
   }
 
-  Future<String> getPrivacyPolicy() async {
-    try {
-      final data = await _client
-          .from('app_settings')
-          .select('value')
-          .eq('key', 'privacy_policy')
-          .maybeSingle();
+  Future<void> joinRoom(String roomId) async {
+    final userId = supabase.auth.currentUser!.id;
+    await supabase.from('room_members').insert({
+      'room_id': roomId,
+      'user_id': userId,
+      'role': 'member',
+      'points': 0,
+    });
+  }
 
-      return data?['value'] as String? ?? 
-             'سياسة الخصوصية غير متوفرة حالياً';
-    } catch (_) {
-      return 'سياسة الخصوصية غير متوفرة حالياً';
-    }
+  Future<void> leaveRoom(String roomId) async {
+    final userId = supabase.auth.currentUser!.id;
+    await supabase.from('room_members').delete().eq('room_id', roomId).eq('user_id', userId);
+  }
+
+  Future<void> banUser(String userId) async {
+    await supabase.from('profiles').update({'is_banned': true}).eq('id', userId);
+  }
+
+  Future<void> kickMember(String roomId, String userId) async {
+    await supabase.from('room_members').delete().eq('room_id', roomId).eq('user_id', userId);
+  }
+
+  Future<void> deleteRoom(String roomId) async {
+    await supabase.from('rooms').delete().eq('id', roomId);
+  }
+
+  Future<bool> isAdmin() async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return false;
+    final profile = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+    return profile?['role'] == 'admin';
+  }
+
+  Future<bool> isRoomOwner(String roomId) async {
+    final userId = supabase.auth.currentUser!.id;
+    final member = await supabase
+        .from('room_members')
+        .select('role')
+        .eq('room_id', roomId)
+        .eq('user_id', userId)
+        .maybeSingle();
+    return member?['role'] == 'owner';
   }
 }
