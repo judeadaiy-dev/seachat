@@ -45,7 +45,9 @@ jobs:
           sed -i '/firebase_core:/d' pubspec.yaml
           sed -i '/firebase_/d' pubspec.yaml
           
-          # Android SDK 35 + NDK 25
+          echo "=== pubspec.yaml بعد التعديل ==="
+          cat pubspec.yaml
+          
           cat > android/local.properties << EOF
           sdk.dir=$ANDROID_SDK_ROOT
           flutter.sdk=$FLUTTER_ROOT
@@ -74,7 +76,7 @@ jobs:
           
           sed -i '/^} \/\* pluginManagement \*\//a\\ninclude ":app"\n\ndef localProperties = new Properties()\ndef localPropertiesFile = new File(settingsDir, "local.properties")\nif (localPropertiesFile.exists()) { localPropertiesFile.withReader("UTF-8") { reader -> localProperties.load(reader) } }\ngradle.ext.flutterCompileSdkVersion = localProperties.getProperty("flutter.compileSdkVersion")\ngradle.ext.flutterTargetSdkVersion = localProperties.getProperty("flutter.targetSdkVersion")\ngradle.ext.flutterMinSdkVersion = localProperties.getProperty("flutter.minSdkVersion")' android/settings.gradle
           
-          flutter pub get || true
+          flutter pub get
 
       - name: Force Internet + All Permissions
         run: |
@@ -106,26 +108,16 @@ jobs:
           echo "    unused_element: ignore" >> analysis_options.yaml
           echo "    unused_import: ignore" >> analysis_options.yaml
 
-      - name: Build Single Universal APK - Force No Checks
+      - name: Build Single Universal APK
         run: |
-          set +e
-          # هذا الامر يبني APK واحد فقط Universal لكل المعماريات
-          flutter build apk --release --no-tree-shake-icons --no-shrink --no-obfuscate > build.log 2>&1
+          # شيلنا set +e و exit 0 عشان نشوف الخطأ الحقيقي
+          flutter build apk --release --no-tree-shake-icons --no-shrink --no-obfuscate --verbose
           
-          echo "=== اخر 50 سطر من اللوج ==="
-          tail -50 build.log
-          
-          if [ -f "build/app/outputs/flutter-apk/app-release.apk" ]; then
-            echo "APK FOUND - Build success"
-            ls -lh build/app/outputs/flutter-apk/
-          else
-            echo "APK NOT FOUND - Check build.log"
-          fi
-          exit 0
+          echo "=== محتويات مجلد APK ==="
+          ls -lah build/app/outputs/flutter-apk/
 
       - name: Upload Single APK
         uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: SeaChat-APK-Universal
           path: build/app/outputs/flutter-apk/app-release.apk
