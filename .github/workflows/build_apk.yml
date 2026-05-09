@@ -31,7 +31,6 @@ jobs:
           rm -rf android
           flutter create --platforms=android --org com.judea --project-name sea_chat .
           
-          # إصلاح SDK Versions
           echo "flutter.compileSdkVersion=34" >> android/local.properties
           echo "flutter.targetSdkVersion=34" >> android/local.properties
           echo "flutter.minSdkVersion=21" >> android/local.properties
@@ -60,6 +59,9 @@ jobs:
             static const String copyrightName = 'JudeaDay';
           }
           EOF
+
+      - name: Build App Icons
+        run: flutter pub run flutter_launcher_icons
 
       - name: Build Release APK
         run: flutter build apk --release --no-tree-shake-icons
