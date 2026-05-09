@@ -14,13 +14,14 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   # Backend
-  supabase_flutter: ^2.8.4
+  supabase_flutter: ^2.5.6
 
   # Chat Features
   image_picker: ^1.1.2
-  record: ^5.1.2
-  just_audio: ^0.9.38
+  record: ^5.2.1
+  just_audio: ^0.9.46
   permission_handler: ^11.3.1
+  google_sign_in: ^6.2.1
 
   # Utilities
   uuid: ^4.5.1
@@ -29,12 +30,19 @@ dependencies:
   # Fonts
   google_fonts: ^6.2.1
 
-dependencies:
-  flutter:
-    sdk: flutter
-  supabase_flutter: ^2.5.6
-  image_picker: ^1.1.2
-  record: ^5.2.1
-  just_audio: ^0.9.46
-  google_sign_in: ^6.2.1  # <-- ضيف هذا السطر
+  # App Icons
   flutter_launcher_icons: ^0.13.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icon.png"
+  min_sdk_android: 21
