@@ -76,7 +76,11 @@ jobs:
         run: |
           rm -rf android
           flutter create --platforms=android .
-          echo "Re-created android folder with new Gradle"
+
+      - name: Upgrade all dependencies
+        run: |
+          flutter pub upgrade --major-versions
+          flutter pub get
 
       - name: Install flutter_launcher_icons
         run: flutter pub add dev:flutter_launcher_icons
@@ -94,9 +98,6 @@ jobs:
           EOF
           flutter pub get
           dart run flutter_launcher_icons:main
-
-      - name: Get dependencies
-        run: flutter pub get
 
       - name: Build Release APK
         run: flutter build apk --release
