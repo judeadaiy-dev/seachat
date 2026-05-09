@@ -37,7 +37,7 @@ jobs:
           rm -rf android
           flutter create --platforms=android --org com.judea --project-name sea_chat .
           
-          # نثبت SDK 3.5.0 ونحذف اي مكتبة Google/Firebase
+          # نحذف Google و Firebase نهائياً
           sed -i 's/^environment:/environment:\n  sdk: ">=3.5.0 <4.0.0"/' pubspec.yaml
           sed -i '/google_sign_in:/d' pubspec.yaml
           sed -i '/firebase_auth:/d' pubspec.yaml
@@ -106,9 +106,10 @@ jobs:
           echo "    unused_element: ignore" >> analysis_options.yaml
           echo "    unused_import: ignore" >> analysis_options.yaml
 
-      - name: Build APK - Force No Checks
+      - name: Build Single Universal APK - Force No Checks
         run: |
           set +e
+          # هذا الامر يبني APK واحد فقط Universal لكل المعماريات
           flutter build apk --release --no-tree-shake-icons --no-shrink --no-obfuscate > build.log 2>&1
           
           echo "=== اخر 50 سطر من اللوج ==="
@@ -116,18 +117,16 @@ jobs:
           
           if [ -f "build/app/outputs/flutter-apk/app-release.apk" ]; then
             echo "APK FOUND - Build success"
+            ls -lh build/app/outputs/flutter-apk/
           else
             echo "APK NOT FOUND - Check build.log"
           fi
           exit 0
 
-      - name: Upload APK Even If Failed
+      - name: Upload Single APK
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: SeaChat-APK-ForceBuild
-          path: |
-            build/app/outputs/flutter-apk/*.apk
-            build.log
-            pubspec.yaml
-          if-no-files-found: warn
+          name: SeaChat-APK-Universal
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
