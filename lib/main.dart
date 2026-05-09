@@ -12,7 +12,7 @@ class AppConfig {
   static const int copyrightYear = 2026;
   static const String supabaseUrl = 'https://jmsmrojtlstppnpwmkkk.supabase.co';
   static const String supabaseAnonKey =
-      'sb_publishable_tegHrQjpG27hHsymIJz6YQ_EkH19LVI';
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos';
 }
 
 class AppColors {
