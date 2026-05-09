@@ -1,95 +1,14 @@
-name: SeaChat CI
+name: Build Android APK
 
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
-  test-supabase:
-    name: Test Supabase Connection
+  test-and-build:
+    name: Test Auth + Build APK
     runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.24.0'
-          channel: 'stable'
-
-      - name: Create standalone test project
-        run: |
-          mkdir supabase_test
-          cd supabase_test
-          
-          cat > pubspec.yaml << 'EOF'
-          name: supabase_test
-          environment:
-            sdk: '>=3.0.0 <4.0.0'
-          dependencies:
-            supabase: ^2.0.0
-          EOF
-          
-          cat > test.dart << 'EOF'
-          import 'dart:io';
-          import 'package:supabase/supabase.dart';
-          
-          Future<void> main() async {
-            print('Starting Supabase test');
-            
-            const url = 'https://jmsmrojtlstppnpwmkkk.supabase.co';
-            const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos';
-            
-            try {
-              print('Connecting to Supabase');
-              
-              if (url.endsWith('/')) {
-                print('Error: URL ends with slash');
-                exit(1);
-              }
-              
-              final supabase = SupabaseClient(url, anonKey);
-              print('Client created successfully');
-              
-              final res = await supabase.auth.signInWithPassword(
-                email: 'barqaday@gmail.com',
-                password: 'tyfgcv65',
-              );
-              
-              if (res.user != null) {
-                print('Login success');
-                print('User ID: ${res.user!.id}');
-                print('Email: ${res.user!.email}');
-                await supabase.auth.signOut();
-                print('Logout success');
-              } else {
-                print('Login failed: user null');
-                exit(1);
-              }
-              
-            } on AuthException catch (e) {
-              print('Auth error: ${e.message}');
-              exit(1);
-            } catch (e) {
-              print('General error: $e');
-              exit(1);
-            }
-            
-            print('All tests passed');
-          }
-          EOF
-          
-          dart pub get
-          dart test.dart
-
-  build-android:
-    name: Build Android APK
-    runs-on: ubuntu-latest
-    needs: test-supabase
     
     steps:
       - name: Checkout code
@@ -107,14 +26,81 @@ jobs:
           flutter-version: '3.24.0'
           channel: 'stable'
 
+      - name: Test Supabase Email Login
+        run: |
+          mkdir supabase_test
+          cd supabase_test
+          
+          cat > pubspec.yaml << 'EOF'
+          name: supabase_test
+          environment:
+            sdk: '>=3.0.0 <4.0.0'
+          dependencies:
+            supabase: ^2.0.0
+          EOF
+          
+          cat > test.dart << 'EOF'
+          import 'dart:io';
+          import 'package:supabase/supabase.dart';
+          
+          Future<void> main() async {
+            print('Testing Supabase...');
+            const url = 'https://jmsmrojtlstppnpwmkkk.supabase.co';
+            const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos';
+            
+            final supabase = SupabaseClient(url, anonKey);
+            
+            try {
+              final res = await supabase.auth.signInWithPassword(
+                email: 'barqaday@gmail.com',
+                password: 'tyfgcv65',
+              );
+              
+              if (res.user != null) {
+                print('SUCCESS: Login works');
+                exit(0);
+              } else {
+                print('FAILED: User null');
+                exit(1);
+              }
+            } on AuthException catch (e) {
+              print('AUTH ERROR: ${e.message}');
+              exit(1);
+            }
+          }
+          EOF
+          
+          dart pub get
+          dart test.dart
+
+      - name: Install flutter_launcher_icons
+        run: flutter pub add dev:flutter_launcher_icons
+
+      - name: Create app icon and generate all sizes
+        run: |
+          mkdir -p assets
+          curl -o assets/icon.png https://raw.githubusercontent.com/flutter/website/main/src/assets/images/docs/app-icon.png
+          
+          cat > flutter_launcher_icons.yaml << 'EOF'
+          flutter_launcher_icons:
+            android: true
+            ios: false
+            image_path: "assets/icon.png"
+            min_sdk_android: 21
+          EOF
+          
+          flutter pub get
+          dart run flutter_launcher_icons:main
+
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Build APK
+      - name: Build Release APK
         run: flutter build apk --release
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: sea-chat-apk
+          name: SeaChat-Android
           path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 7
