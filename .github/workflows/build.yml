@@ -69,10 +69,14 @@ jobs:
         run: |
           if [ ! -f "assets/icon.png" ]; then
             echo "ERROR: assets/icon.png not found!"
-            echo "Upload your 1024x1024 icon.png to assets/ folder first"
             exit 1
           fi
-          echo "Icon found: assets/icon.png"
+
+      - name: Fix Android Gradle Project
+        run: |
+          rm -rf android
+          flutter create --platforms=android .
+          echo "Re-created android folder with new Gradle"
 
       - name: Install flutter_launcher_icons
         run: flutter pub add dev:flutter_launcher_icons
@@ -85,10 +89,9 @@ jobs:
             ios: false
             image_path: "assets/icon.png"
             min_sdk_android: 21
-            adaptive_icon_background: "#FFFFFF"
+            adaptive_icon_background: "#482855"
             adaptive_icon_foreground: "assets/icon.png"
           EOF
-          
           flutter pub get
           dart run flutter_launcher_icons:main
 
