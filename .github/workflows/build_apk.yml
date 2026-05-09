@@ -1,4 +1,4 @@
-name: Build SeaChat - REAL APK
+name: Build My Real SeaChat APK
 
 on:
   workflow_dispatch:
@@ -23,56 +23,56 @@ jobs:
           flutter-version: '3.24.3'
           cache: true
 
-      - name: Create Clean Project Structure
+      - name: Prepare Android Environment
         run: |
-          # تنظيف أي مخلفات سابقة
-          rm -rf ./* # إنشاء مشروع جديد كلياً بنفس الاسم
-          flutter create --platforms=android --org com.judea --project-name sea_chat .
-          
-          # إنشاء ملف الـ pubspec بالأصناف المطلوبة
-          cat > pubspec.yaml << 'EOF'
-          name: sea_chat
-          description: "SeaChat Application"
-          version: 1.0.0+1
-          publish_to: 'none'
-          environment:
-            sdk: '>=3.5.0 <4.0.0'
-          dependencies:
-            flutter:
-              sdk: flutter
-            cupertino_icons: ^1.0.8
-            supabase_flutter: ^2.8.4
-            google_fonts: ^6.2.1
-          flutter:
-            uses-material-design: true
-          EOF
+          # 1. التأكد من وجود مجلد أندرويد أو إنشاؤه إذا فقد
+          if [ ! -d "android" ]; then
+            flutter create --platforms=android .
+          fi
 
-          # ضبط إعدادات الأندرويد يدوياً لضمان التوافق مع 13+
-          # تعديل minSdkVersion و targetSdkVersion في build.gradle
-          sed -i 's/minSdkVersion .*/minSdkVersion 24/' android/app/build.gradle
-          sed -i 's/targetSdkVersion .*/targetSdkVersion 34/' android/app/build.gradle
+          # 2. تنظيف ملفات الكاش القديمة
+          flutter clean
           
-          # إضافة إذن الإنترنت بشكل صحيح
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
+          # 3. تحديث الأذونات وإصدارات الـ SDK في ملفات المشروع الحقيقية
+          GRADLE_PATH="android/app/build.gradle"
+          if [ -f "$GRADLE_PATH" ]; then
+            sed -i 's/minSdkVersion .*/minSdkVersion 24/' $GRADLE_PATH
+            sed -i 's/targetSdkVersion .*/targetSdkVersion 34/' $GRADLE_PATH
+          fi
+
+          # 4. إضافة إذن الإنترنت للمانيفيست الأصلي
+          MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
+          if ! grep -q "android.permission.INTERNET" "$MANIFEST_PATH"; then
+            sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' "$MANIFEST_PATH"
+          fi
+
+      - name: Install Dependencies
+        run: flutter pub get
 
       - name: Build APK
         run: |
-          flutter pub get
-          # بناء APK حقيقي وشامل لجميع المعالجات لضمان الحجم الكامل
+          # بناء APK يشمل كل المعماريات لضمان اشتغاله على هاتفك
           flutter build apk --debug --target-platform android-arm,android-arm64,android-x64
 
-      - name: Check APK Size (Verify)
+      - name: Verify APK Integrity
         run: |
-          ls -lh build/app/outputs/flutter-apk/app-debug.apk
-          # إذا كان الحجم أقل من 1 ميجا سيفشل الـ workflow هنا لتعرف السبب
-          SIZE=$(stat -c%s "build/app/outputs/flutter-apk/app-debug.apk")
-          if [ $SIZE -lt 1000000 ]; then
-            echo "Error: APK is too small, something went wrong!"
+          APK_PATH="build/app/outputs/flutter-apk/app-debug.apk"
+          if [ ! -f "$APK_PATH" ]; then
+            echo "Error: APK file not found!"
+            exit 1
+          fi
+          
+          SIZE=$(stat -c%s "$APK_PATH")
+          echo "Final APK Size: $SIZE bytes"
+          
+          # إذا كان الحجم أقل من 5 ميجابايت (يعني فشل البناء الحقيقي)
+          if [ $SIZE -lt 5000000 ]; then
+            echo "Error: Built APK is too small (fake/empty)."
             exit 1
           fi
 
-      - name: Upload Real APK
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Real-Installable
+          name: SeaChat-Your-Actual-App
           path: build/app/outputs/flutter-apk/app-debug.apk
