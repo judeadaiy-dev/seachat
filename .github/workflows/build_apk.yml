@@ -74,36 +74,4 @@ jobs:
           sed -i '/<application/i \    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />' $MANIFEST
           sed -i '/<application/i \    <uses-permission android:name="android.permission.RECORD_AUDIO" />' $MANIFEST
           sed -i '/<application/i \    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />' $MANIFEST
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />' $MANIFEST
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />' $MANIFEST
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />' $MANIFEST
-          sed -i 's/<application/<application android:usesCleartextTraffic="true" android:requestLegacyExternalStorage="true" android:largeHeap="true"/' $MANIFEST
-          sed -i 's/android:label="sea_chat"/android:label="SeaChat"/' $MANIFEST
-
-      - name: Force App Config + Icons
-        run: |
-          sed -i 's/image_path: "assets\/icon.png"/image_path: "assets\/icon.png"\n  android: "ic_launcher"\n  ios: false\n  min_sdk_android: 21/' pubspec.yaml
-          
-          mkdir -p lib/config
-          cat > lib/config/app_config.dart << 'EOF'
-          class AppConfig {
-            static const String appName = 'SeaChat';
-            static const String supabaseUrl = 'https://jmsmrojtlstppnpwmkkk.supabase.co';
-            static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos';
-            static const String copyrightYear = '2024';
-            static const String copyrightName = 'JudeaDay';
-          }
-          EOF
-
-      - name: Build App Icons
-        run: flutter pub run flutter_launcher_icons || true
-
-      - name: Build Release APK - Beast Mode
-        run: flutter build apk --release --no-tree-shake-icons --verbose
-
-      - name: Upload Finished APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: SeaChat-Beast-APK
-          path: build/app/outputs/flutter-apk/app-release.apk
-          if-no-files-found: error
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.READ_MEDIA
