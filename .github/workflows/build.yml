@@ -31,6 +31,19 @@ jobs:
           rm -rf android
           flutter create --platforms=android --org com.judea --project-name sea_chat .
 
+      - name: Create missing app_config.dart
+        run: |
+          mkdir -p lib/config
+          cat > lib/config/app_config.dart << 'EOF'
+          class AppConfig {
+            static const String appName = 'SeaChat';
+            static const String supabaseUrl = 'https://jmsmrojtlstppnpwmkkk.supabase.co';
+            static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos';
+            static const String copyrightYear = '2024';
+            static const String copyrightName = 'JudeaDay';
+          }
+          EOF
+
       - name: Get dependencies
         run: flutter pub get
 
