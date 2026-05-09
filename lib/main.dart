@@ -1,19 +1,11 @@
 import 'dart:io';
 import 'dart:ui';
-import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'data/supabase_repository.dart';
 import 'models.dart';
-
-class AppConfig {
-  static const String appName = 'SeaChat';
-  static const String copyrightName = 'Joud Oday';
-  static const int copyrightYear = 2026;
-  static const String supabaseUrl = 'https://jmsmrojtlstppnpwmkkk.supabase.co';
-  static const String supabaseAnonKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos';
-}
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'config/app_config.dart';
 
 class AppColors {
   static const Color backgroundStart = Color(0xFFCAD5D4);
@@ -25,12 +17,53 @@ class AppColors {
   static const Color textLight = Color(0xFF6B6B6B);
 }
 
+
+
 Future<void> main() async {
+  // 1. لازم أول سطر
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // 2. تهيئة Supabase قبل تشغيل التطبيق
   await Supabase.initialize(
     url: AppConfig.supabaseUrl,
     anonKey: AppConfig.supabaseAnonKey,
   );
+  
+  // 3. شغل التطبيق
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Sea Chat',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        useMaterial3: true,
+      ),
+      home: const LoginPage(), // غيّرها لصفحة البداية مالتك
+    );
+  }
+}
+
+// صفحة مؤقتة للتجربة
+class LoginPage extends StatelessWidget {
+  const LoginPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Sea Chat')),
+      body: const Center(child: Text('تم الاتصال بـ Supabase')),
+    );
+  }
+}
+  runApp(MyApp());
+}
   runApp(const SeaChatApp());
 }
 
