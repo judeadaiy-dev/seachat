@@ -48,7 +48,7 @@ class SeaChatApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: AppColors.button),
       ),
       home: Supabase.instance.client.auth.currentUser == null
-         ? const LoginScreen()
+        ? const LoginScreen()
           : const MainScreen(),
     );
   }
@@ -240,7 +240,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         onPressed: isLoading? null : _handleLogin,
                         child: isLoading
-                           ? const CircularProgressIndicator(color: Colors.white)
+                          ? const CircularProgressIndicator(color: Colors.white)
                             : const Text(
                                 'تسجيل الدخول',
                                 style: TextStyle(fontSize: 18, color: Colors.white),
@@ -453,14 +453,14 @@ class _ChatScreenState extends State<ChatScreen> {
                       final msg = messages[i];
                       return Align(
                         alignment: msg.isMe
-                           ? Alignment.centerLeft
+                          ? Alignment.centerLeft
                             : Alignment.centerRight,
                         child: GlassCard(
                           margin: const EdgeInsets.only(bottom: 8),
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 10),
                           child: msg.text.startsWith('http')
-                             ? ClipRRect(
+                            ? ClipRRect(
                                   borderRadius: BorderRadius.circular(12),
                                   child: Image.network(
                                     msg.text,
@@ -474,7 +474,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                   msg.text,
                                   style: TextStyle(
                                     color: msg.isMe
-                                       ? Colors.white
+                                      ? Colors.white
                                         : AppColors.textDark,
                                   ),
                                 ),
@@ -554,10 +554,10 @@ class ProfileScreen extends StatelessWidget {
                       radius: 50,
                       backgroundColor: AppColors.button,
                       backgroundImage: user.avatarUrl!= null
-                         ? NetworkImage(user.avatarUrl!)
+                        ? NetworkImage(user.avatarUrl!)
                           : null,
                       child: user.avatarUrl == null
-                         ? Text(
+                        ? Text(
                               user.name.isNotEmpty? user.name[0] : 'U',
                               style: const TextStyle(
                                   fontSize: 40, color: Colors.white),
@@ -746,3 +746,16 @@ class NotificationModel {
           DateTime.now(),
       isRead: json['is_read']?? false,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'user_id': userId,
+      'title': title,
+      'body': body,
+      'created_at': createdAt.toIso8601String(),
+      'is_read': isRead,
+    };
+  }
+}
