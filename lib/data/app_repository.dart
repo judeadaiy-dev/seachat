@@ -4,66 +4,69 @@
 
 abstract class AppRepository {
   
-  // ========== جدول: users ==========
+  // ========== جدول: profiles ==========
   
   // يستدعى من: LoginScreen - زر تسجيل الدخول
-  Future<UserModel?> loginUser({required String email, required String password});
+  Future<bool> signInWithEmail({required String email, required String password});
+  
+  // يستدعى من: LoginScreen - زر Google
+  Future<void> signInWithGoogle();
   
   // يستدعى من: ProfileScreen - تعديل البيانات
-  Future<bool> updateUser({required String userId, required String name, required String email});
+  Future<bool> updateProfile({required String userId, required String username, String? avatarUrl});
   
   // يستدعى من: ProfileScreen - جلب بيانات المستخدم الحالي
-  Future<UserModel?> getCurrentUser({required String userId});
+  Future<UserModel?> getCurrentUser();
 
   // ========== جدول: rooms ==========
   
   // يستدعى من: HomeScreen - عرض قائمة الغرف
   Future<List<RoomModel>> getAllActiveRooms();
   
-  // يستدعى من: AppDrawer - زر إنشاء غرفة جديد
-  Future<bool> createRoomRequest({required String userId, required String requestedName, required String requestedBio});
-  // جدول: room_requests
-
-  // ========== جدول: messages ==========
+  // يستدعى من: AppDrawer - زر إنشاء غرفة - يحفظها مباشرة كـ room_type = 'user'
+  Future<bool> createRoom({required String roomName, String? description});
   
-  // يستدعى من: ChatScreen - تحميل رسائل الغرفة
-  Future<List<MessageModel>> getRoomMessages({required String roomId});
-  
-  // يستدعى من: ChatScreen - زر إرسال
-  Future<bool> sendMessage({required String roomId, required String senderId, required String message, required String messageType});
-  
-  // يستدعى من: ChatScreen - حذف رسالة
-  Future<bool> deleteMessage({required String messageId});
+  // يستدعى من: ChatScreen - حذف الغرفة - للـ owner فقط
+  Future<bool> deleteRoom({required String roomId});
 
   // ========== جدول: room_members ==========
   
-  // يستدعى من: ChatScreen - عرض أعضاء الغرفة
-  Future<List<UserModel>> getRoomMembers({required String roomId});
+  // يستدعى من: ChatScreen - دخول الغرفة
+  Future<bool> joinRoom({required String roomId});
   
-  // يستدعى من: ChatScreen - كتم عضو
-  Future<bool> muteRoomMember({required String roomId, required String userId});
+  // يستدعى من: ChatScreen - خروج من الغرفة
+  Future<bool> leaveRoom({required String roomId});
   
-  // يستدعى من: ChatScreen - حظر عضو
-  Future<bool> banUserFromRoom({required String roomId, required String bannedUserId, required String bannedBy, required String reason});
-  // جدول: bans
+  // يستدعى من: ChatScreen - عرض أعضاء الغرفة مع النقاط
+  Future<List<RoomMemberModel>> getRoomMembers({required String roomId});
+  
+  // يستدعى من: ChatScreen - إزالة عضو - للـ owner فقط
+  Future<bool> kickRoomMember({required String roomId, required String userId});
+  
+  // يستدعى من: ChatScreen - زيادة نقاط العضو تلقائي بعد كل رسالة
+  Future<void> incrementMemberPoints({required String roomId, required String userId});
 
-  // ========== جدول: notifications ==========
+  // ========== جدول: messages ==========
   
-  // يستدعى من: HomeScreen - أيقونة الإشعارات
-  Future<List<NotificationModel>> getUserNotifications({required String userId});
+  // يستدعى من: ChatScreen - تحميل رسائل الغرفة - Stream
+  Stream<List<MessageModel>> getRoomMessagesStream({required String roomId});
   
-  // يستدعى من: NotificationsScreen - تحديد كمقروء
-  Future<bool> markNotificationAsRead({required String notificationId});
+  // يستدعى من: ChatScreen - زر إرسال نص
+  Future<bool> sendMessage({required String roomId, required String message});
+  
+  // يستدعى من: ChatScreen - زر إرسال صورة
+  Future<bool> sendImageMessage({required String roomId, required File imageFile});
+  
+  // يستدعى من: ChatScreen - زر إرسال صوت
+  Future<bool> sendVoiceMessage({required String roomId, required String voiceUrl});
+  
+  // يستدعى من: ChatScreen - حذف رسالة - للـ owner أو صاحب الرسالة
+  Future<bool> deleteMessage({required String messageId});
 
-  // ========== جدول: support_messages ==========
+  // ========== جدول: bans ==========
   
-  // يستدعى من: ContactUsScreen - زر إرسال
-  Future<bool> sendSupportMessage({required String userId, required String subject, required String message});
-
-  // ========== جدول: reports ==========
-  
-  // يستدعى من: ChatScreen - زر إبلاغ عن مستخدم
-  Future<bool> reportUser({required String reporterId, required String reportedUserId, required String roomId, required String reason});
+  // يستدعى من: ChatScreen - حظر عضو من التطبيق كله - للـ admin فقط
+  Future<bool> banUser({required String userId});
 
   // ========== جدول: app_settings ==========
   
