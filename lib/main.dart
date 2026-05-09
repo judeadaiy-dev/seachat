@@ -919,6 +919,35 @@ class _AdminPanelState extends State<AdminPanel> {
   Future<void> _banUser(String userId) async {
     await supabase.from('profiles').update({'is_banned': true}).eq('id', userId);
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حظر المستخدم')));
+class _AdminPanelState extends State<AdminPanel> {
+  final supabase = Supabase.instance.client;
+  bool isAdmin = false;
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkIfAdmin();
+  }
+
+  Future<void> _checkIfAdmin() async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+    final profile = await supabase.from('profiles').select('role').eq('id', user.id).single();
+    setState(() {
+      isAdmin = profile['role'] == 'admin';
+      loading = false;
+    });
+  }
+
+  Future<void> _banUser(String userId) async {
+    await supabase.from('profiles').update({'is_banned': true}).eq('id', userId);
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حظر المستخدم')));
+  }
+
+  Future<void> _unbanUser(String userId) async {
+    await supabase.from('profiles').update({'is_banned': false}).eq('id', userId);
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم رفع الحظر')));
   }
 
   @override
@@ -939,8 +968,111 @@ class _AdminPanelState extends State<AdminPanel> {
               itemCount: users.length,
               itemBuilder: (context, i) {
                 final user = users[i];
+                final isBanned = user['is_banned'] == true;
                 return GlassCard(
                   margin: const EdgeInsets.only(bottom: 12),
                   child: ListTile(
                     leading: CircleAvatar(
-                      backgroundImage: user['avatar_url
+                      backgroundImage: user['avatar_url']!= null? NetworkImage(user['avatar_url']) : null,
+                      child: user['avatar_url'] == null? Text(user['name']?[0]?? 'U') : null,
+                    ),
+                    title: Text(user['name']?? 'مستخدم'),
+                    subtitle: Text(user['email']?? ''),
+                    trailing: isBanned
+                       ? TextButton(
+                            onPressed: () => _unbanUser(user['id']),
+                            child: const Text('رفع الحظر', style: TextStyle(color: Colors.green)),
+                          )
+                        : TextButton(
+                            onPressed: () => _banUser(user['id']),
+                            child: const Text('حظر', style: TextStyle(color: Colors.red)),
+                          ),
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+                      class CreateRoomRequestScreen extends StatelessWidget {
+  const CreateRoomRequestScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('طلب إنشاء غرفة')),
+      body: AppBackground(
+        child: Center(
+          child: GlassCard(
+            margin: const EdgeInsets.all(24),
+            child: const Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.construction, size: 60, color: AppColors.button),
+                SizedBox(height: 16),
+                Text('قريباً', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                SizedBox(height: 8),
+                Text('هذه الميزة قيد التطوير', style: TextStyle(color: AppColors.textLight)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class PrivacyPolicyScreen extends StatelessWidget {
+  const PrivacyPolicyScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('سياسة الخصوصية')),
+      body: AppBackground(
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: const [
+            GlassCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('سياسة الخصوصية', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  SizedBox(height: 16),
+                  Text('نحن نحترم خصوصيتك. لا نشارك بياناتك مع أي طرف ثالث.'),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ContactUsScreen extends StatelessWidget {
+  const ContactUsScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('تواصل معنا')),
+      body: AppBackground(
+        child: Center(
+          child: GlassCard(
+            margin: const EdgeInsets.all(24),
+            child: const Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.email, size: 60, color: AppColors.button),
+                SizedBox(height: 16),
+                Text('support@seachat.app', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+   
