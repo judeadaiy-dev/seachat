@@ -41,18 +41,15 @@ class SeaChatApp extends StatelessWidget {
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: AppColors.button),
       ),
-      // هذا هو الحل: StreamBuilder يتابع حالة تسجيل الدخول
       home: StreamBuilder<AuthState>(
         stream: Supabase.instance.client.auth.onAuthStateChange,
         builder: (context, snapshot) {
-          // 1. أثناء التحميل
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Scaffold(
               body: Center(child: CircularProgressIndicator()),
             );
           }
 
-          // 2. اذا فيه جلسة = مسجل دخول
           final session = snapshot.hasData? snapshot.data!.session : null;
 
           if (session!= null) {
@@ -167,30 +164,66 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
-    if (emailController.text.trim().isEmpty ||
-        passController.text.trim().isEmpty) return;
+    if (emailController.text.trim().isEmpty || passController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('املأ البريد وكلمة المرور')),
+      );
+      return;
+    }
 
     setState(() => isLoading = true);
-
     try {
-      // بس سجل دخول. لا تسوي Navigator. الـ StreamBuilder هو اللي ينقلك
       await Supabase.instance.client.auth.signInWithPassword(
         email: emailController.text.trim(),
         password: passController.text,
       );
-
-      // لو وصل هنا معناته نجح، والـ StreamBuilder راح يوديك MainScreen تلقائي
-
     } on AuthException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ: ${e.message}')),
+          SnackBar(content: Text('فشل تسجيل الدخول: ${e.message}')),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ غير متوقع: $e')),
+          SnackBar(content: Text('خطأ: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> _handleSignUp() async {
+    if (emailController.text.trim().isEmpty || passController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('املأ البريد وكلمة المرور')),
+      );
+      return;
+    }
+
+    setState(() => isLoading = true);
+    try {
+      final res = await Supabase.instance.client.auth.signUp(
+        email: emailController.text.trim(),
+        password: passController.text,
+      );
+
+      if (res.user!= null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم إنشاء الحساب بنجاح')),
+        );
+      }
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل إنشاء الحساب: ${e.message}')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ: $e')),
         );
       }
     } finally {
@@ -211,8 +244,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.waves_rounded,
-                        size: 60, color: AppColors.button),
+                    const Icon(Icons.waves_rounded, size: 60, color: AppColors.button),
                     const SizedBox(height: 12),
                     const Text(
                       AppConfig.appName,
@@ -226,35 +258,47 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextField(
                       controller: emailController,
                       keyboardType: TextInputType.emailAddress,
-                      decoration: _inputDecoration(
-                          'البريد الإلكتروني', Icons.email_outlined),
+                      decoration: _inputDecoration('البريد الإلكتروني', Icons.email_outlined),
                     ),
                     const SizedBox(height: 16),
                     TextField(
                       controller: passController,
                       obscureText: true,
-                      decoration:
-                          _inputDecoration('كلمة المرور', Icons.lock_outline),
+                      decoration: _inputDecoration('كلمة المرور', Icons.lock_outline),
                     ),
                     const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.button,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.button,
+                              minimumSize: const Size(0, 50),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                            onPressed: isLoading? null : _handleLogin,
+                            child: isLoading
+                               ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                  )
+                                : const Text('تسجيل الدخول', style: TextStyle(fontSize: 16, color: Colors.white)),
                           ),
                         ),
-                        onPressed: isLoading? null : _handleLogin,
-                        child: isLoading
-                           ? const CircularProgressIndicator(color: Colors.white)
-                            : const Text(
-                                'تسجيل الدخول',
-                                style: TextStyle(fontSize: 18, color: Colors.white),
-                              ),
-                      ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: AppColors.button),
+                              minimumSize: const Size(0, 50),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                            onPressed: isLoading? null : _handleSignUp,
+                            child: const Text('حساب جديد', style: TextStyle(fontSize: 16, color: AppColors.button)),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
                     SizedBox(
@@ -263,17 +307,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: AppColors.button),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         ),
                         onPressed: () async => await repo.signInWithGoogle(),
-                        icon: const Icon(Icons.g_mobiledata_rounded,
-                            color: AppColors.button, size: 28),
-                        label: const Text(
-                          'المتابعة عبر Google',
-                          style: TextStyle(color: AppColors.button),
-                        ),
+                        icon: const Icon(Icons.g_mobiledata_rounded, color: AppColors.button, size: 28),
+                        label: const Text('المتابعة عبر Google', style: TextStyle(color: AppColors.button)),
                       ),
                     ),
                   ],
@@ -287,7 +325,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-// باقي الكلاسات نفسها بدون تغيير
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
   @override
@@ -317,10 +354,8 @@ class _MainScreenState extends State<MainScreen> {
             selectedItemColor: AppColors.button,
             unselectedItemColor: AppColors.icon,
             items: const [
-              BottomNavigationBarItem(
-                  icon: Icon(Icons.home_rounded), label: 'الرئيسية'),
-              BottomNavigationBarItem(
-                  icon: Icon(Icons.person_rounded), label: 'الملف الشخصي'),
+              BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'الرئيسية'),
+              BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'الملف الشخصي'),
             ],
           ),
         ),
@@ -351,8 +386,377 @@ class HomeScreen extends StatelessWidget {
         future: repo.getAllActiveRooms(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-                child: CircularProgressIndicator(color: AppColors.button));
+            return const Center(child: CircularProgressIndicator(color: AppColors.button));
           }
           if (snapshot.hasError) {
-            return Center(child: Text('خطأ: ${snapshot
+            return Center(child: Text('خطأ: ${snapshot.error}'));
+          }
+          final rooms = snapshot.data?? [];
+          if (rooms.isEmpty) {
+            return const Center(child: Text('لا توجد غرف حالياً'));
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+            itemCount: rooms.length,
+            itemBuilder: (context, i) {
+              final room = rooms[i];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: GlassCard(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ChatScreen(room: room),
+                    ),
+                  ),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: AppColors.button.withOpacity(0.2),
+                      child: const Icon(Icons.group, color: AppColors.button),
+                    ),
+                    title: Text(room.roomName, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: Text('${room.membersCount} عضو'),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.icon),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class ChatScreen extends StatefulWidget {
+  final RoomModel room;
+  const ChatScreen({super.key, required this.room});
+
+  @override
+  State<ChatScreen> createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends State<ChatScreen> {
+  final repo = SupabaseRepository();
+  final msgController = TextEditingController();
+
+  @override
+  void dispose() {
+    msgController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _sendMessage() async {
+    if (msgController.text.trim().isEmpty) return;
+    await repo.sendMessage(
+      roomId: widget.room.id,
+      message: msgController.text,
+    );
+    msgController.clear();
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    if (image!= null && mounted) {
+      await repo.sendImageMessage(
+        roomId: widget.room.id,
+        imageFile: File(image.path),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        title: Text(widget.room.roomName),
+      ),
+      body: AppBackground(
+        child: Column(
+          children: [
+            Expanded(
+              child: StreamBuilder<List<MessageModel>>(
+                stream: repo.getRoomMessagesStream(roomId: widget.room.id),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final messages = snapshot.data!;
+                  return ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 100, 16, 16),
+                    reverse: true,
+                    itemCount: messages.length,
+                    itemBuilder: (context, i) {
+                      final msg = messages[i];
+                      return Align(
+                        alignment: msg.isMe? Alignment.centerLeft : Alignment.centerRight,
+                        child: GlassCard(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          child: msg.text.startsWith('http')
+                             ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.network(
+                                    msg.text,
+                                    width: 200,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => const Text('فشل تحميل الصورة'),
+                                  ),
+                                )
+                              : Text(
+                                  msg.text,
+                                  style: TextStyle(color: msg.isMe? Colors.white : AppColors.textDark),
+                                ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: GlassCard(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: _pickImage,
+                      icon: const Icon(Icons.attach_file_rounded, color: AppColors.icon),
+                    ),
+                    Expanded(
+                      child: TextField(
+                        controller: msgController,
+                        decoration: const InputDecoration(
+                          hintText: 'اكتب رسالة...',
+                          border: InputBorder.none,
+                        ),
+                        onSubmitted: (_) => _sendMessage(),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: _sendMessage,
+                      icon: const Icon(Icons.send_rounded, color: AppColors.button),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ProfileScreen extends StatelessWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final repo = SupabaseRepository();
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        title: const Text('الملف الشخصي'),
+      ),
+      body: FutureBuilder<UserModel?>(
+        future: repo.getCurrentUser(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData) {
+            return const Center(child: Text('المستخدم غير موجود'));
+          }
+          final user = snapshot.data!;
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              GlassCard(
+                child: Column(
+                  children: [
+                    CircleAvatar(
+                      radius: 50,
+                      backgroundColor: AppColors.button,
+                      backgroundImage: user.avatarUrl!= null? NetworkImage(user.avatarUrl!) : null,
+                      child: user.avatarUrl == null
+                         ? Text(
+                              user.name.isNotEmpty? user.name[0] : 'U',
+                              style: const TextStyle(fontSize: 40, color: Colors.white),
+                            )
+                          : null,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(user.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                    Text(user.email, style: const TextStyle(color: AppColors.textLight)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              GlassCard(
+                onTap: () async {
+                  await Supabase.instance.client.auth.signOut();
+                },
+                child: const ListTile(
+                  leading: Icon(Icons.logout, color: Colors.red),
+                  title: Text('تسجيل الخروج', style: TextStyle(color: Colors.red)),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class AppDrawer extends StatelessWidget {
+  const AppDrawer({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Drawer(
+      backgroundColor: Colors.transparent,
+      child: AppBackground(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              child: GlassCard(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.waves_rounded, size: 40, color: AppColors.button),
+                    const SizedBox(height: 8),
+                    const Text(
+                      AppConfig.appName,
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.privacy_tip_outlined, color: AppColors.icon),
+              title: const Text('سياسة الخصوصية'),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.mail_outline_rounded, color: AppColors.icon),
+              title: const Text('تواصل معنا'),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ContactUsScreen()),
+              ),
+            ),
+            const Divider(),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                '© ${AppConfig.copyrightYear} ${AppConfig.copyrightName}. All rights reserved.',
+                style: const TextStyle(color: AppColors.textLight, fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class PrivacyPolicyScreen extends StatelessWidget {
+  const PrivacyPolicyScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('سياسة الخصوصية')),
+      body: AppBackground(
+        child: FutureBuilder<String>(
+          future: SupabaseRepository().getPrivacyPolicy(),
+          builder: (context, snapshot) {
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                GlassCard(
+                  child: Text(
+                    snapshot.data?? 'جاري التحميل...',
+                    style: const TextStyle(color: AppColors.textLight, height: 1.6),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class ContactUsScreen extends StatelessWidget {
+  const ContactUsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('تواصل معنا')),
+      body: const AppBackground(
+        child: Center(
+          child: GlassCard(
+            margin: EdgeInsets.all(24),
+            child: Text('للتواصل: support@seachat.app', style: TextStyle(fontSize: 18)),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class NotificationModel {
+  final String id;
+  final String userId;
+  final String title;
+  final String body;
+  final DateTime createdAt;
+  final bool isRead;
+
+  NotificationModel({
+    required this.id,
+    required this.userId,
+    required this.title,
+    required this.body,
+    required this.createdAt,
+    this.isRead = false,
+  });
+
+  factory NotificationModel.fromJson(Map<String, dynamic> json) {
+    return NotificationModel(
+      id: json['id']?? '',
+      userId: json['user_id']?? '',
+      title: json['title']?? '',
+      body: json['body']?? '',
+      createdAt: DateTime.tryParse(json['created_at']?? '')?? DateTime.now(),
+      isRead: json['is_read']?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'user_id': userId,
+      'title': title,
+      'body': body,
+      'created_at': createdAt.toIso8601String(),
+      'is_read': isRead,
+    };
+  }
+}
