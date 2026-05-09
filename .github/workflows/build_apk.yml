@@ -1,14 +1,11 @@
-name: Build SeaChat APK - Nuclear Force Build
+name: Build SeaChat APK - Real Only
 
 on:
-  push:
-    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    continue-on-error: true
     
     steps:
       - name: Checkout code
@@ -27,46 +24,73 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Nuke Everything + Force Build
+      - name: Build Real APK
         run: |
-          set +e
+          set -e
           
-          rm -rf android ios .dart_tool .packages pubspec.lock
-          flutter create --platforms=android --org com.judea --project-name sea_chat . || true
+          # 1. امسح android وابدأ نظيف
+          rm -rf android ios .dart_tool pubspec.lock
+          flutter create --platforms=android --org com.judea --project-name sea_chat .
           
-          mkdir -p fonts assets
-          curl -sL -o fonts/Cairo-Regular.ttf "https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-Regular.ttf" || true
-          curl -sL -o fonts/Cairo-Bold.ttf "https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-Bold.ttf" || true
-          
-          # نصلح pubspec.yaml صح - نشيل المكرر
-          sed -i '/^environment:/,/^$/c\environment:\n  sdk: ">=3.5.0 <4.0.0"\n' pubspec.yaml || true
-          sed -i '/google_sign_in:/d' pubspec.yaml || true
-          sed -i '/firebase_/d' pubspec.yaml || true
-          
-          # نحذف اي import ل google من كل الملفات
-          find lib -name "*.dart" -exec sed -i '/google_sign_in/d' {} \; || true
-          find lib -name "*.dart" -exec sed -i '/GoogleSignIn/d' {} \; || true
-          find lib -name "*.dart" -exec sed -i '/Firebase/d' {} \; || true
-          
-          echo "=== pubspec.yaml بعد التصليح ==="
-          cat pubspec.yaml
-          
-          # عطل كل التحليل
-          cat > analysis_options.yaml << 'EOF'
-          analyzer:
-            errors:
-              todo: ignore
-              dead_code: ignore
-              unused_import: ignore
-              unused_element: ignore
-              undefined_identifier: ignore
-              undefined_class: ignore
-              undefined_method: ignore
-              undefined_function: ignore
-              invalid_assignment: ignore
-              argument_type_not_assignable: ignore
+          # 2. صلح pubspec.yaml - اهم خطوة
+          cat > pubspec.yaml << 'EOF'
+          name: sea_chat
+          description: "A modern glassmorphism chat application powered by Supabase."
+          publish_to: 'none'
+          version: 1.0.0+1
+
+          environment:
+            sdk: ">=3.5.0 <4.0.0"
+
+          dependencies:
+            flutter:
+              sdk: flutter
+            cupertino_icons: ^1.0.8
+            supabase_flutter: ^2.8.4
+            image_picker: ^1.1.2
+            record: ^5.2.1
+            just_audio: ^0.9.42
+            permission_handler: ^11.3.1
+            uuid: ^4.5.1
+            path_provider: ^2.1.5
+            google_fonts: ^6.2.1
+            flutter_launcher_icons: ^0.13.1
+
+          dev_dependencies:
+            flutter_test:
+              sdk: flutter
+            flutter_lints: ^5.0.0
+
+          flutter:
+            uses-material-design: true
+            assets:
+              - assets/icon.png
+            fonts:
+              - family: Cairo
+                fonts:
+                  - asset: fonts/Cairo-Regular.ttf
+                  - asset: fonts/Cairo-Bold.ttf
+                    weight: 700
+
+          flutter_launcher_icons:
+            android: "launcher_icon"
+            ios: true
+            image_path: "assets/icon.png"
+            min_sdk_android: 21
           EOF
           
+          # 3. نزل الخطوط
+          mkdir -p fonts assets
+          curl -sL -o fonts/Cairo-Regular.ttf "https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-Regular.ttf"
+          curl -sL -o fonts/Cairo-Bold.ttf "https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-Bold.ttf"
+          
+          # 4. احذف اي كود Google من المشروع كله
+          find lib -type f -name "*.dart" -exec sed -i '/google_sign_in/d' {} \;
+          find lib -type f -name "*.dart" -exec sed -i '/GoogleSignIn/d' {} \;
+          find lib -type f -name "*.dart" -exec sed -i '/signInWithGoogle/d' {} \;
+          find lib -type f -name "*.dart" -exec sed -i '/Firebase/d' {} \;
+          
+          # 5. Android SDK 35
           cat > android/local.properties << EOF
           sdk.dir=$ANDROID_SDK_ROOT
           flutter.sdk=$FLUTTER_ROOT
@@ -82,23 +106,17 @@ jobs:
           cat >> android/gradle.properties << EOF
           android.useAndroidX=true
           android.enableJetifier=true
-          org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8
+          org.gradle.jvmargs=-Xmx4096m -Dfile.encoding=UTF-8
           android.defaults.buildfeatures.buildconfig=true
-          android.nonTransitiveRClass=true
-          android.nonFinalResIds=true
-          org.gradle.daemon=true
-          org.gradle.parallel=true
-          org.gradle.caching=true
-          android.enableR8.fullMode=false
-          android.enableD8.desugaring=false
-          org.gradle.warning.mode=none
           EOF
           
+          # 6. صلاحيات الانترنت
           MANIFEST="android/app/src/main/AndroidManifest.xml"
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />\n    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />' $MANIFEST || true
-          sed -i 's/<application/<application android:usesCleartextTraffic="true" android:largeHeap="true"/' $MANIFEST || true
-          sed -i 's/android:label="sea_chat"/android:label="SeaChat"/' $MANIFEST || true
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />' $MANIFEST
+          sed -i 's/<application/<application android:usesCleartextTraffic="true"/' $MANIFEST
+          sed -i 's/android:label="sea_chat"/android:label="SeaChat"/' $MANIFEST
           
+          # 7. Supabase config
           mkdir -p lib/config
           cat > lib/config/app_config.dart << 'EOF'
           class AppConfig {
@@ -110,27 +128,18 @@ jobs:
           }
           EOF
           
-          flutter pub get || true
-          flutter clean || true
+          flutter pub get
           
-          # ابني غصب 3 مرات بطرق مختلفة
-          flutter build apk --release --no-tree-shake-icons --no-shrink --no-obfuscate --no-sound-null-safety || true
-          flutter build apk --release --no-tree-shake-icons || true
-          flutter build apk --release || true
+          # 8. ابني APK حقيقي - اذا فشل راح يطبع الخطأ ونتوقف
+          flutter build apk --release
           
-          # اذا ما انبنى، سوّي APK وهمي
-          if [ ! -f "build/app/outputs/flutter-apk/app-release.apk" ]; then
-            mkdir -p build/app/outputs/flutter-apk/
-            echo "DUMMY" > build/app/outputs/flutter-apk/app-release.apk
-          fi
-          
-          ls -lah build/app/outputs/flutter-apk/
-          exit 0
+          echo "=== حجم الـ APK الحقيقي ==="
+          ls -lh build/app/outputs/flutter-apk/app-release.apk
+          file build/app/outputs/flutter-apk/app-release.apk
 
-      - name: Upload APK No Matter What
+      - name: Upload Real APK
         uses: actions/upload-artifact@v4
-        if: always()
         with:
-          name: SeaChat-APK-NUCLEAR
+          name: SeaChat-Real-APK
           path: build/app/outputs/flutter-apk/app-release.apk
-          if-no-files-found: warn
+          if-no-files-found: error
