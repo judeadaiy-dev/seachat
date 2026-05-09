@@ -18,16 +18,13 @@ class AppColors {
 }
 
 Future<void> main() async {
-  // 1. لازم أول سطر
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 2. تهيئة Supabase - هذا هو اللي يحل مشكلة local_storage.dart
   await Supabase.initialize(
     url: AppConfig.supabaseUrl,
     anonKey: AppConfig.supabaseAnonKey,
   );
 
-  // 3. شغل التطبيق مرة وحدة فقط
   runApp(const SeaChatApp());
 }
 
@@ -44,9 +41,27 @@ class SeaChatApp extends StatelessWidget {
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: AppColors.button),
       ),
-      home: Supabase.instance.client.auth.currentUser == null
-         ? const LoginScreen()
-          : const MainScreen(),
+      // هذا هو الحل: StreamBuilder يتابع حالة تسجيل الدخول
+      home: StreamBuilder<AuthState>(
+        stream: Supabase.instance.client.auth.onAuthStateChange,
+        builder: (context, snapshot) {
+          // 1. أثناء التحميل
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+
+          // 2. اذا فيه جلسة = مسجل دخول
+          final session = snapshot.hasData? snapshot.data!.session : null;
+
+          if (session!= null) {
+            return const MainScreen();
+          } else {
+            return const LoginScreen();
+          }
+        },
+      ),
     );
   }
 }
@@ -158,17 +173,14 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => isLoading = true);
 
     try {
+      // بس سجل دخول. لا تسوي Navigator. الـ StreamBuilder هو اللي ينقلك
       await Supabase.instance.client.auth.signInWithPassword(
         email: emailController.text.trim(),
         password: passController.text,
       );
 
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const MainScreen()),
-        );
-      }
+      // لو وصل هنا معناته نجح، والـ StreamBuilder راح يوديك MainScreen تلقائي
+
     } on AuthException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -275,6 +287,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
+// باقي الكلاسات نفسها بدون تغيير
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
   @override
@@ -342,6 +355,4 @@ class HomeScreen extends StatelessWidget {
                 child: CircularProgressIndicator(color: AppColors.button));
           }
           if (snapshot.hasError) {
-            return Center(child: Text('خطأ: ${snapshot.error}'));
-          }
-          final rooms = snapshot.data
+            return Center(child: Text('خطأ: ${snapshot
