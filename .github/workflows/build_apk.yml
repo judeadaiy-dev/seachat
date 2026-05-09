@@ -32,10 +32,17 @@ jobs:
           curl -sL -o fonts/Cairo-Regular.ttf "https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-Regular.ttf"
           curl -sL -o fonts/Cairo-Bold.ttf "https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-Bold.ttf"
 
-      - name: Force Rebuild Android - Latest Gradle/Java/Dart
+      - name: Force Rebuild Android + Fix Dependencies
         run: |
           rm -rf android
           flutter create --platforms=android --org com.judea --project-name sea_chat .
+          
+          # نصلح pubspec.yaml غصب عشان Dart 3.5.3
+          sed -i 's/^environment:/environment:\n  sdk: ">=3.5.0 <4.0.0"/' pubspec.yaml
+          sed -i 's/google_sign_in:.*/google_sign_in: ^6.2.2/' pubspec.yaml
+          sed -i 's/firebase_auth:.*/firebase_auth: ^4.17.9/' pubspec.yaml
+          sed -i 's/cloud_firestore:.*/cloud_firestore: ^4.15.9/' pubspec.yaml
+          sed -i 's/firebase_core:.*/firebase_core: ^2.27.1/' pubspec.yaml
           
           # Android SDK 35 + NDK 25
           cat > android/local.properties << EOF
@@ -50,7 +57,6 @@ jobs:
           flutter.ndkVersion=25.1.8937393
           EOF
           
-          # gradle.properties - نلغي كل الفحوصات ونزيد الرام
           cat >> android/gradle.properties << EOF
           android.useAndroidX=true
           android.enableJetifier=true
@@ -65,7 +71,6 @@ jobs:
           android.enableD8.desugaring=false
           EOF
           
-          # إصلاح settings.gradle للـ SDK versions
           sed -i '/^} \/\* pluginManagement \*\//a\\ninclude ":app"\n\ndef localProperties = new Properties()\ndef localPropertiesFile = new File(settingsDir, "local.properties")\nif (localPropertiesFile.exists()) { localPropertiesFile.withReader("UTF-8") { reader -> localProperties.load(reader) } }\ngradle.ext.flutterCompileSdkVersion = localProperties.getProperty("flutter.compileSdkVersion")\ngradle.ext.flutterTargetSdkVersion = localProperties.getProperty("flutter.targetSdkVersion")\ngradle.ext.flutterMinSdkVersion = localProperties.getProperty("flutter.minSdkVersion")' android/settings.gradle
           
           flutter pub get || true
@@ -123,4 +128,5 @@ jobs:
           path: |
             build/app/outputs/flutter-apk/*.apk
             build.log
+            pubspec.yaml
           if-no-files-found: warn
