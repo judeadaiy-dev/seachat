@@ -11,26 +11,15 @@ import 'data/supabase_repository.dart';
 import 'models.dart';
 
 class AppColors {
-  // الخلفية - تدرج من فاتح لـ غامق لافندر
-  static const Color backgroundStart = Color(0xFF81B7EC); // AERO
-  static const Color backgroundEnd = Color(0xFF655B77);   // PLUMMY
-  
-  // الأزرار الرئيسية - غامق فخم
-  static const Color button = Color(0xFF443C50);          // PLUM ISLAND
-  
-  // الأيقونات - لافندر متوسط
-  static const Color icon = Color(0xFF968A98);            // MINIMAL GREY
-  
-  // كروت الزجاج - شفاف على لافندر
-  static const Color cardGlass = Color(0x40FFFFFF);      // أبيض شفاف 25%
-  
-  // الخطوط - واضحة على الخلفية الغامقة
-  static const Color textDark = Color(0xFF1A1821);       // RIVER STYX للعناوين
-  static const Color textLight = Color(0xFFFFFFFF);      // أبيض للخطوط العادية
-  
-  // للغرف الرسمية - ذهبي على غامق
-  static const Color officialWood = Color(0xFF1A1821);   // RIVER STYX
-  static const Color officialGold = Color(0xFF81B7EC);  // AERO أزرق فاتح بديل الذهبي
+  static const Color backgroundStart = Color(0xFF81B7EC);
+  static const Color backgroundEnd = Color(0xFF655B77);
+  static const Color button = Color(0xFF443C50);
+  static const Color icon = Color(0xFF968A98);
+  static const Color cardGlass = Color(0x40FFFFFF);
+  static const Color textDark = Color(0xFF1A1821);
+  static const Color textLight = Color(0xFFFFFFFF);
+  static const Color officialWood = Color(0xFF1A1821);
+  static const Color officialGold = Color(0xFF81B7EC);
 }
 
 Future<void> main() async {
@@ -527,17 +516,42 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _joinRoom() async {
-    await supabase.from('room_members').insert({
-      'room_id': widget.room.id,
-      'user_id': currentUserId!,
-      'role': 'member'
-    });
+    await repo.joinRoom(widget.room.id);
     setState(() => isJoined = true);
   }
 
   Future<void> _leaveRoom() async {
-    await supabase.from('room_members').delete().eq('room_id', widget.room.id).eq('user_id', currentUserId!);
+    await repo.leaveRoom(widget.room.id);
     if (mounted) Navigator.pop(context);
+  }
+
+  Future<void> _copyInviteLink() async {
+    final link = 'https://seachat.app/room/${widget.room.id}';
+    await Clipboard.setData(ClipboardData(text: link));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نسخ رابط الدعوة')));
+    }
+  }
+
+  Future<void> _deleteRoom() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('حذف الغرفة'),
+        content: const Text('هل أنت متأكد؟ سيتم حذف جميع الرسائل'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('حذف', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await repo.deleteRoom(widget.room.id);
+      if (mounted) {
+        Navigator.pop(context);
+        Navigator.pop(context);
+      }
+    }
   }
 
   @override
@@ -581,7 +595,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
                   final messages = snapshot.data!;
                   return ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 100, 16, 16),
+                    padding: const EdgeInsets.fromLTRB(16, 100, 16),
                     reverse: true,
                     itemCount: messages.length,
                     itemBuilder: (context, i) {
@@ -600,82 +614,4 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildMessage(MessageModel msg) {
-    if (msg.text.startsWith('[VOICE]')) {
-      final url = msg.text.replaceFirst('[VOICE]', '');
-      return Align(
-        alignment: msg.isMe? Alignment.centerLeft : Alignment.centerRight,
-        child: GlassCard(
-          margin: const EdgeInsets.only(bottom: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(icon: const Icon(Icons.play_arrow), onPressed: () => _audioPlayer.setUrl(url).then((_) => _audioPlayer.play())),
-              Text('رسالة صوتية', style: TextStyle(color: msg.isMe? Colors.white : AppColors.textDark)),
-            ],
-          ),
-        ),
-      );
-    }
-    return Align(
-      alignment: msg.isMe? Alignment.centerLeft : Alignment.centerRight,
-      child: GlassCard(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        child: Text(msg.text, style: TextStyle(color: msg.isMe? Colors.white : AppColors.textDark)),
-      ),
-    );
-  }
-
-  Widget _buildInputBar() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: GlassCard(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Row(
-          children: [
-            IconButton(
-              onPressed: isRecording? _stopRecording : _startRecording,
-              icon: Icon(isRecording? Icons.stop_circle : Icons.mic, color: isRecording? Colors.red : AppColors.icon),
-            ),
-            Expanded(child: TextField(controller: msgController, decoration: const InputDecoration(hintText: 'اكتب رسالة...', border: InputBorder.none), onSubmitted: (_) => _sendMessage())),
-            IconButton(onPressed: _sendMessage, icon: const Icon(Icons.send_rounded, color: AppColors.button)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showMembers() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: AppColors.backgroundEnd,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.icon, borderRadius: BorderRadius.circular(2))),
-            const SizedBox(height: 16),
-            const Text('أعضاء الغرفة', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            Expanded(
-              child: FutureBuilder<List<RoomMemberModel>>(
-                future: repo.getRoomMembers(widget.room.id),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                  final members = snapshot.data!;
-                  members.sort((a, b) => b.points.compareTo(a.points));
-                  return ListView.builder(
-                    itemCount: members.length,
-                    itemBuilder: (context, i) {
-                      final member = members[i];
-                      final rank = i < 3? ['🥇', '🥈', '🥉'][i] : '${i + 1}';
-                      return ListTile(
-                        leading: Stack(
-                          children: [
-                            CircleAvatar(
-                              backgroundImage: member.user?.avatarUrl!= null? NetworkImage(member.user!.avatarUrl!) : null,
-                              child: member.user?.avatarUrl == null? Text(member.user?.
+    if (msg.text.starts
