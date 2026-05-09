@@ -1,4 +1,4 @@
-name: Build SeaChat DEBUG APK - Installable
+name: Build SeaChat DEBUG APK - Android 13 Plus
 
 on:
   workflow_dispatch:
@@ -24,77 +24,75 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Build Debug APK - Guaranteed Installable
+      - name: Configure and Build
         run: |
           set -e
           
-          rm -rf android ios .dart_tool pubspec.lock
-          flutter create --platforms=android --org com.judea --project-name sea_chat .
+          # 1. تنظيف شامل للمشروع
+          flutter clean
           
-          # pubspec نظيف بدون Google
-          cat > pubspec.yaml << 'EOF'
-          name: sea_chat
-          description: "A modern glassmorphism chat application powered by Supabase."
-          publish_to: 'none'
-          version: 1.0.0+1
+          # 2. ضبط أندرويد لاستهداف إصدارات 13 و 14
+          # نقوم بتعديل ملف build.gradle لرفع إصدار الـ SDK
+          GRADLE_FILE="android/app/build.gradle"
+          if [ -f "$GRADLE_FILE" ]; then
+            sed -i 's/compileSdkVersion .*/compileSdkVersion 34/' $GRADLE_FILE
+            sed -i 's/targetSdkVersion .*/targetSdkVersion 34/' $GRADLE_FILE
+            sed -i 's/minSdkVersion .*/minSdkVersion 24/' $GRADLE_FILE
+          fi
 
-          environment:
-            sdk: ">=3.5.0 <4.0.0"
+          # 3. تحديث الـ Manifest ليتوافق مع متطلبات أندرويد 13 (Permissions)
+          MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
+          mkdir -p android/app/src/main
+          cat > $MANIFEST_PATH << 'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.judea.sea_chat">
+              
+              <uses-permission android:name="android.permission.INTERNET"/>
+              <uses-permission android:name="android.permission.RECORD_AUDIO" />
+              <!-- أذونات أندرويد 13 للوصول للملفات -->
+              <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+              <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+              <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+              <!-- إذن الإشعارات لأندرويد 13+ -->
+              <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-          dependencies:
-            flutter:
-              sdk: flutter
-            cupertino_icons: ^1.0.8
-            supabase_flutter: ^2.8.4
-            image_picker: ^1.1.2
-            record: ^5.2.1
-            just_audio: ^0.9.42
-            permission_handler: ^11.3.1
-            uuid: ^4.5.1
-            path_provider: ^2.1.5
-            google_fonts: ^6.2.1
-
-          dev_dependencies:
-            flutter_test:
-              sdk: flutter
-
-          flutter:
-            uses-material-design: true
+              <application
+                  android:label="SeaChat"
+                  android:name="${applicationName}"
+                  android:icon="@mipmap/ic_launcher"
+                  android:usesCleartextTraffic="true">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:launchMode="singleTop"
+                      android:theme="@style/LaunchTheme"
+                      android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|density|kbNavigation"
+                      android:hardwareAccelerated="true"
+                      android:windowSoftInputMode="adjustResize">
+                      <meta-data
+                        android:name="io.flutter.embedding.android.NormalTheme"
+                        android:resource="@style/NormalTheme"
+                        />
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+                  <meta-data
+                      android:name="flutterEmbedding"
+                      android:value="2" />
+              </application>
+          </manifest>
           EOF
-          
-          # احذف اي كود Google
-          find lib -name "*.dart" -exec sed -i '/google_sign_in/d' {} \;
-          find lib -name "*.dart" -exec sed -i '/GoogleSignIn/d' {} \;
-          find lib -name "*.dart" -exec sed -i '/signInWithGoogle/d' {} \;
-          
-          # Supabase config
-          mkdir -p lib/config
-          cat > lib/config/app_config.dart << 'EOF'
-          class AppConfig {
-            static const String appName = 'SeaChat';
-            static const String supabaseUrl = 'https://jmsmrojtlstppnpwmkkk.supabase.co';
-            static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos';
-          }
-          EOF
-          
+
+          # 4. بناء الـ APK
           flutter pub get
+          flutter build apk --debug --target-platform android-arm64
           
-          # صلاحيات الانترنت
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
-          sed -i 's/<application/<application android:usesCleartextTraffic="true"/' $MANIFEST
-          sed -i 's/android:label="sea_chat"/android:label="SeaChat"/' $MANIFEST
-          
-          # ابني Debug APK - هذا موقع تلقائياً ويشتغل على كل الاجهزة
-          flutter build apk --debug
-          
-          echo "=== تفاصيل الـ APK ==="
-          ls -lh build/app/outputs/flutter-apk/app-debug.apk
-          file build/app/outputs/flutter-apk/app-debug.apk
+          # التأكد من المسار الصحيح للرفع
+          mv build/app/outputs/flutter-apk/app-debug.apk build/app/outputs/flutter-apk/SeaChat_Android13_Plus.apk
 
-      - name: Upload Debug APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-DEBUG-Installable
-          path: build/app/outputs/flutter-apk/app-debug.apk
-          if-no-files-found: error
+          name: SeaChat-Android13-Up
+          path: build/app/outputs/flutter-apk/SeaChat_Android13_Plus.apk
