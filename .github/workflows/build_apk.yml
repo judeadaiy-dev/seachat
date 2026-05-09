@@ -31,11 +31,10 @@ jobs:
           rm -rf android
           flutter create --platforms=android --org com.judea --project-name sea_chat .
           
-          # إصلاح build.gradle
-          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 34/g' android/app/build.gradle
-          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle
-          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 34/g' android/app/build.gradle
-          sed -i '/defaultConfig {/a \        ndkVersion "25.1.8937393"' android/app/build.gradle
+          # إصلاح SDK Versions
+          echo "flutter.compileSdkVersion=34" >> android/local.properties
+          echo "flutter.targetSdkVersion=34" >> android/local.properties
+          echo "flutter.minSdkVersion=21" >> android/local.properties
           
           flutter pub get
 
