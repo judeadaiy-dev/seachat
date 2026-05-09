@@ -15,14 +15,26 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Dart SDK
-        uses: dart-lang/setup-dart@v1
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
-          sdk: stable
+          flutter-version: '3.24.0'
+          channel: 'stable'
 
-      - name: Test Supabase Connection - CI Only
+      - name: Create standalone test project
         run: |
-          cat > test_login.dart << 'EOF'
+          mkdir supabase_test
+          cd supabase_test
+          
+          cat > pubspec.yaml << 'EOF'
+          name: supabase_test
+          environment:
+            sdk: '>=3.0.0 <4.0.0'
+          dependencies:
+            supabase: ^2.0.0
+          EOF
+          
+          cat > test.dart << 'EOF'
           import 'dart:io';
           import 'package:supabase/supabase.dart';
           
@@ -71,8 +83,8 @@ jobs:
           }
           EOF
           
-          dart pub add supabase
-          dart test_login.dart
+          dart pub get
+          dart test.dart
 
   build-android:
     name: Build Android APK
