@@ -13,12 +13,17 @@ dependencies:
 
   cupertino_icons: ^1.0.8
 
-  # Backend - نسخة وحدة فقط
+  # Backend
   supabase_flutter: ^2.8.4
+
+  # Chat Features
+  image_picker: ^1.1.2
+  record: ^5.1.2
+  just_audio: ^0.9.38
+  permission_handler: ^11.3.1
 
   # Utilities
   uuid: ^4.5.1
-  image_picker: ^1.1.2
   path_provider: ^2.1.5
   
   # Fonts
