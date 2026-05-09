@@ -5,13 +5,15 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'data/supabase_repository.dart';
 import 'models.dart';
+
 class AppConfig {
   static const String appName = 'SeaChat';
   static const String copyrightName = 'Joud Oday';
   static const int copyrightYear = 2026;
   static const String supabaseUrl = 'https://jmsmrojtlstppnpwmkkk.supabase.co';
   static const String supabaseAnonKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos'
+      'sb_publishable_tegHrQjpG27hHsymIJz6YQ_EkH19LVI';
+}
 
 class AppColors {
   static const Color backgroundStart = Color(0xFFCAD5D4);
@@ -157,21 +159,34 @@ class _LoginScreenState extends State<LoginScreen> {
         passController.text.trim().isEmpty) return;
 
     setState(() => isLoading = true);
-    final success = await repo.signInWithEmail(
-      email: emailController.text,
-      password: passController.text,
-    );
-    if (success && mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const MainScreen()),
+
+    try {
+      await Supabase.instance.client.auth.signInWithPassword(
+        email: emailController.text.trim(),
+        password: passController.text,
       );
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('فشل تسجيل الدخول')),
-      );
+
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const MainScreen()),
+        );
+      }
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ: ${e.message}')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ غير متوقع: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => isLoading = false);
     }
-    if (mounted) setState(() => isLoading = false);
   }
 
   @override
@@ -702,6 +717,7 @@ class ContactUsScreen extends StatelessWidget {
     );
   }
 }
+
 class NotificationModel {
   final String id;
   final String userId;
@@ -721,25 +737,12 @@ class NotificationModel {
 
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
     return NotificationModel(
-      id: json['id'] ?? '',
-      userId: json['user_id'] ?? '',
-      title: json['title'] ?? '',
-      body: json['body'] ?? '',
+      id: json['id']?? '',
+      userId: json['user_id']?? '',
+      title: json['title']?? '',
+      body: json['body']?? '',
       createdAt:
-          DateTime.tryParse(json['created_at'] ?? '') ??
+          DateTime.tryParse(json['created_at']?? '')??
           DateTime.now(),
-      isRead: json['is_read'] ?? false,
+      isRead: json['is_read']?? false,
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'user_id': userId,
-      'title': title,
-      'body': body,
-      'created_at': createdAt.toIso8601String(),
-      'is_read': isRead,
-    };
-  }
-}
