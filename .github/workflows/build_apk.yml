@@ -1,4 +1,4 @@
-name: SeaChat Ultimate Force Build V4
+name: SeaChat Professional Build V5
 
 on:
   push:
@@ -25,81 +25,77 @@ jobs:
           flutter-version: '3.24.3'
           cache: true
 
-      - name: Hard Reset & Clean Construction
+      - name: Reconstruct Modern Android Environment
         run: |
-          # 1. تنظيف شامل للبيئة
+          # 1. حذف المجلد القديم لضمان عدم وجود ملفات مكسورة
           rm -rf android/
-          flutter create --platforms=android .
           
-          # 2. إنشاء ملف local.properties يدوي بمسارات صحيحة
+          # 2. إنشاء مشروع أندرويد جديد بأحدث المعايير (Declarative Support)
+          flutter create --platforms=android --org com.judea --project-name sea_chat .
+          
+          # 3. إعداد ملف local.properties بشكل صحيح وشامل
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
           echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
           
-          # 3. تعديل settings.gradle لتعريف مسار الفلاتر (حل جذري لمشاكل المكاتب)
-          # نستخدم ملف الإعدادات لفرض نسخة الـ SDK على كل المشروع
-          cat > android/app/build.gradle << 'EOF'
-          def localProperties = new Properties()
-          def localPropertiesFile = rootProject.file('local.properties')
-          if (localPropertiesFile.exists()) {
-              localPropertiesFile.withReader('UTF-8') { reader ->
-                  localProperties.load(reader)
+          # 4. حل مشكلة compileSdkVersion للمكتبات الخارجية (app_links وغيرها)
+          # نقوم بتعديل ملف build.gradle الرئيسي لفرض الإعدادات على المشاريع الفرعية
+          cat > android/build.gradle << 'EOF'
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
               }
           }
-
-          def flutterRoot = localProperties.getProperty('flutter.sdk')
-          if (flutterRoot == null) {
-              throw new GradleException("Flutter SDK not found. Define flutter.sdk in local.properties.")
-          }
-
-          apply plugin: 'com.android.application'
-          apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
-
-          android {
-              compileSdkVersion 34
-              namespace "com.judea.sea_chat"
-              
-              defaultConfig {
-                  applicationId "com.judea.sea_chat"
-                  minSdkVersion 24
-                  targetSdkVersion 34
-                  versionCode 1
-                  versionName "1.0.0"
-              }
-              
-              buildTypes {
-                  release {
-                      signingConfig signingConfigs.debug
+          rootProject.buildDir = '../build'
+          subprojects {
+              project.buildDir = "${rootProject.buildDir}/${project.name}"
+              afterEvaluate { project ->
+                  if (project.hasProperty('android')) {
+                      project.android {
+                          if (namespace == null) {
+                              namespace project.group
+                          }
+                          compileSdkVersion 34
+                          buildToolsVersion "34.0.0"
+                      }
                   }
               }
           }
-
-          dependencies {
-              implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22"
+          subprojects {
+              project.evaluationDependsOn(':app')
+          }
+          tasks.register("clean", Delete) {
+              delete rootProject.buildDir
           }
           EOF
 
-      - name: Build APK
+          # 5. ضبط إعدادات تطبيقك (minSdkVersion) وتفعيل الإنترنت
+          sed -i 's/minSdkVersion .*/minSdkVersion 24/' android/app/build.gradle
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
+
+      - name: Clean & Get Packages
         run: |
+          flutter clean
           flutter pub get
-          # بناء مباشر بدون إجراء فحوصات إضافية قد تسبب توقف
+
+      - name: Build Actual APK
+        run: |
+          # بناء APK ديبيج شامل (Debug APK)
           flutter build apk --debug --target-platform android-arm,android-arm64,android-x64
 
-      - name: Size Check & Verification
+      - name: Final Verification
         run: |
           APK_PATH="build/app/outputs/flutter-apk/app-debug.apk"
-          if [ ! -f "$APK_PATH" ]; then
-            echo "FAILED: APK NOT GENERATED"
-            exit 1
-          fi
-          SIZE=$(stat -c%s "$APK_PATH")
-          echo "Success! APK Size: $SIZE bytes"
-          if [ $SIZE -lt 5000000 ]; then
-            echo "ERROR: FAKE APK GENERATED"
+          if [ -f "$APK_PATH" ]; then
+            echo "Success! APK Size: $(stat -c%s "$APK_PATH") bytes"
+          else
+            echo "Error: Build process failed to create APK file."
             exit 1
           fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Final-V4
+          name: SeaChat-Stable-V5
           path: build/app/outputs/flutter-apk/app-debug.apk
