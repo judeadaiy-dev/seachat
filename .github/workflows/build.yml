@@ -30,7 +30,6 @@ jobs:
         run: |
           mkdir supabase_test
           cd supabase_test
-          
           cat > pubspec.yaml << 'EOF'
           name: supabase_test
           environment:
@@ -38,24 +37,18 @@ jobs:
           dependencies:
             supabase: ^2.0.0
           EOF
-          
           cat > test.dart << 'EOF'
           import 'dart:io';
           import 'package:supabase/supabase.dart';
-          
           Future<void> main() async {
-            print('Testing Supabase...');
             const url = 'https://jmsmrojtlstppnpwmkkk.supabase.co';
             const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos';
-            
             final supabase = SupabaseClient(url, anonKey);
-            
             try {
               final res = await supabase.auth.signInWithPassword(
                 email: 'barqaday@gmail.com',
                 password: 'tyfgcv65',
               );
-              
               if (res.user != null) {
                 print('SUCCESS: Login works');
                 exit(0);
@@ -69,24 +62,31 @@ jobs:
             }
           }
           EOF
-          
           dart pub get
           dart test.dart
+
+      - name: Check if icon.png exists
+        run: |
+          if [ ! -f "assets/icon.png" ]; then
+            echo "ERROR: assets/icon.png not found!"
+            echo "Upload your 1024x1024 icon.png to assets/ folder first"
+            exit 1
+          fi
+          echo "Icon found: assets/icon.png"
 
       - name: Install flutter_launcher_icons
         run: flutter pub add dev:flutter_launcher_icons
 
-      - name: Create app icon and generate all sizes
+      - name: Generate App Icons from your PNG
         run: |
-          mkdir -p assets
-          curl -o assets/icon.png https://raw.githubusercontent.com/flutter/website/main/src/assets/images/docs/app-icon.png
-          
           cat > flutter_launcher_icons.yaml << 'EOF'
           flutter_launcher_icons:
             android: true
             ios: false
             image_path: "assets/icon.png"
             min_sdk_android: 21
+            adaptive_icon_background: "#FFFFFF"
+            adaptive_icon_foreground: "assets/icon.png"
           EOF
           
           flutter pub get
