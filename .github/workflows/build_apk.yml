@@ -1,4 +1,4 @@
-name: Build SeaChat APK - Real Only
+name: Build SeaChat DEBUG APK - Installable
 
 on:
   workflow_dispatch:
@@ -24,15 +24,14 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Build Real APK
+      - name: Build Debug APK - Guaranteed Installable
         run: |
           set -e
           
-          # 1. امسح android وابدأ نظيف
           rm -rf android ios .dart_tool pubspec.lock
           flutter create --platforms=android --org com.judea --project-name sea_chat .
           
-          # 2. صلح pubspec.yaml - اهم خطوة
+          # pubspec نظيف بدون Google
           cat > pubspec.yaml << 'EOF'
           name: sea_chat
           description: "A modern glassmorphism chat application powered by Supabase."
@@ -54,92 +53,48 @@ jobs:
             uuid: ^4.5.1
             path_provider: ^2.1.5
             google_fonts: ^6.2.1
-            flutter_launcher_icons: ^0.13.1
 
           dev_dependencies:
             flutter_test:
               sdk: flutter
-            flutter_lints: ^5.0.0
 
           flutter:
             uses-material-design: true
-            assets:
-              - assets/icon.png
-            fonts:
-              - family: Cairo
-                fonts:
-                  - asset: fonts/Cairo-Regular.ttf
-                  - asset: fonts/Cairo-Bold.ttf
-                    weight: 700
-
-          flutter_launcher_icons:
-            android: "launcher_icon"
-            ios: true
-            image_path: "assets/icon.png"
-            min_sdk_android: 21
           EOF
           
-          # 3. نزل الخطوط
-          mkdir -p fonts assets
-          curl -sL -o fonts/Cairo-Regular.ttf "https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-Regular.ttf"
-          curl -sL -o fonts/Cairo-Bold.ttf "https://github.com/google/fonts/raw/main/ofl/cairo/static/Cairo-Bold.ttf"
+          # احذف اي كود Google
+          find lib -name "*.dart" -exec sed -i '/google_sign_in/d' {} \;
+          find lib -name "*.dart" -exec sed -i '/GoogleSignIn/d' {} \;
+          find lib -name "*.dart" -exec sed -i '/signInWithGoogle/d' {} \;
           
-          # 4. احذف اي كود Google من المشروع كله
-          find lib -type f -name "*.dart" -exec sed -i '/google_sign_in/d' {} \;
-          find lib -type f -name "*.dart" -exec sed -i '/GoogleSignIn/d' {} \;
-          find lib -type f -name "*.dart" -exec sed -i '/signInWithGoogle/d' {} \;
-          find lib -type f -name "*.dart" -exec sed -i '/Firebase/d' {} \;
-          
-          # 5. Android SDK 35
-          cat > android/local.properties << EOF
-          sdk.dir=$ANDROID_SDK_ROOT
-          flutter.sdk=$FLUTTER_ROOT
-          flutter.buildMode=release
-          flutter.versionName=1.0.0
-          flutter.versionCode=1
-          flutter.compileSdkVersion=35
-          flutter.targetSdkVersion=35
-          flutter.minSdkVersion=21
-          flutter.ndkVersion=25.1.8937393
-          EOF
-          
-          cat >> android/gradle.properties << EOF
-          android.useAndroidX=true
-          android.enableJetifier=true
-          org.gradle.jvmargs=-Xmx4096m -Dfile.encoding=UTF-8
-          android.defaults.buildfeatures.buildconfig=true
-          EOF
-          
-          # 6. صلاحيات الانترنت
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />' $MANIFEST
-          sed -i 's/<application/<application android:usesCleartextTraffic="true"/' $MANIFEST
-          sed -i 's/android:label="sea_chat"/android:label="SeaChat"/' $MANIFEST
-          
-          # 7. Supabase config
+          # Supabase config
           mkdir -p lib/config
           cat > lib/config/app_config.dart << 'EOF'
           class AppConfig {
             static const String appName = 'SeaChat';
             static const String supabaseUrl = 'https://jmsmrojtlstppnpwmkkk.supabase.co';
             static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos';
-            static const String copyrightYear = '2026';
-            static const String copyrightName = 'JudeaDay';
           }
           EOF
           
           flutter pub get
           
-          # 8. ابني APK حقيقي - اذا فشل راح يطبع الخطأ ونتوقف
-          flutter build apk --release
+          # صلاحيات الانترنت
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
+          sed -i 's/<application/<application android:usesCleartextTraffic="true"/' $MANIFEST
+          sed -i 's/android:label="sea_chat"/android:label="SeaChat"/' $MANIFEST
           
-          echo "=== حجم الـ APK الحقيقي ==="
-          ls -lh build/app/outputs/flutter-apk/app-release.apk
-          file build/app/outputs/flutter-apk/app-release.apk
+          # ابني Debug APK - هذا موقع تلقائياً ويشتغل على كل الاجهزة
+          flutter build apk --debug
+          
+          echo "=== تفاصيل الـ APK ==="
+          ls -lh build/app/outputs/flutter-apk/app-debug.apk
+          file build/app/outputs/flutter-apk/app-debug.apk
 
-      - name: Upload Real APK
+      - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Real-APK
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: SeaChat-DEBUG-Installable
+          path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
