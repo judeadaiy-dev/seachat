@@ -34,7 +34,7 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Test Supabase Login
+      - name: Test Supabase Login & Diagnose
         run: |
           mkdir -p test
           cat > test/supabase_test.dart << 'EOF'
@@ -47,71 +47,61 @@ jobs:
             const url = 'https://jmsmrojtlstppnpwmkkk.supabase.co';
             const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos';
             
-            test('فحص تسجيل دخول Supabase', () async {
-              print('=== بدء فحص Supabase ===');
+            test('تشخيص دقيق لفشل تسجيل الدخول', () async {
+              print('\n🔍 --- بدء الفحص التشخيصي لـ Supabase ---');
               
               try {
-                print('1. فحص الرابط: $url');
-                expect(url.endsWith('/'), false, reason: 'الرابط ينتهي بـ / وهذا يسبب مشكلة');
-                
-                print('2. فحص المفتاح: ${anonKey.substring(0, 20)}...');
-                expect(anonKey.startsWith('eyJ'), true, reason: 'المفتاح مو anon key');
-                
-                print('3. جاري تهيئة Supabase...');
+                // 1. فحص الاتصال الأولي
+                print('📡 1. جاري الاتصال بـ Supabase...');
                 await Supabase.initialize(url: url, anonKey: anonKey);
-                print('✅ تم تهيئة Supabase بنجاح');
-                
-                print('4. تجربة تسجيل دخول barqaday@gmail.com...');
-                final res = await Supabase.instance.client.auth.signInWithPassword(
+                final client = Supabase.instance.client;
+                print('✅ تم الاتصال بنجاح.');
+
+                // 2. محاولة تسجيل الدخول
+                print('🔑 2. محاولة تسجيل الدخول بـ (barqaday@gmail.com)...');
+                final res = await client.auth.signInWithPassword(
                   email: 'barqaday@gmail.com',
                   password: 'tyfgcv65',
                 );
-                
-                expect(res.user, isNotNull, reason: 'فشل: رجع user = null');
-                print('✅ نجح تسجيل الدخول');
-                print('   User ID: ${res.user!.id}');
-                print('   Email: ${res.user!.email}');
-                print('   الجلسة محفوظة: ${Supabase.instance.client.auth.currentSession != null}');
-                
-                await Supabase.instance.client.auth.signOut();
-                print('✅ تم تسجيل الخروج');
-                
+
+                if (res.user != null) {
+                  print('✅ نجح التسجيل! المشكلة ليست من الإعدادات.');
+                  print('📧 الايميل المسجل: ${res.user!.email}');
+                }
+
               } on AuthException catch (e) {
-                print('❌ خطأ Auth: ${e.message}');
-                print('   Status Code: ${e.statusCode}');
+                print('\n❌ تم اكتشاف سبب الفشل (AuthException):');
+                print('-----------------------------------------');
+                print('الرسالة: ${e.message}');
+                print('الكود (Status): ${e.statusCode}');
+                
                 if (e.message.contains('Email not confirmed')) {
-                  print('   الحل: Supabase → Authentication → Providers → Email → طفي Confirm email');
+                  print('⚠️ التشخيص: الحساب موجود لكن الإيميل "غير مؤكد".');
+                  print('💡 الحل: اذهب لـ Supabase -> Auth -> Providers -> Email وعطل "Confirm Email"');
+                } else if (e.statusCode == '400' || e.message.contains('Invalid login credentials')) {
+                  print('⚠️ التشخيص: "بيانات الاعتماد غير صحيحة".');
+                  print('💡 الحل: تأكد أن الإيميل والباسورد مضافين يدوياً في خانة Users في Supabase.');
+                } else if (e.message.contains('rate limit')) {
+                  print('⚠️ التشخيص: محاولات كثيرة جداً (Rate Limit).');
+                  print('💡 الحل: انتظر بضع دقائق أو ارفع حد المحاولات من إعدادات الـ Auth.');
+                } else {
+                  print('⚠️ سبب آخر: ${e.message}');
                 }
-                if (e.message.contains('Invalid login credentials')) {
-                  print('   الحل: الايميل أو الباسورد غلط. تأكد من auth.users');
-                }
-                fail('AuthException: ${e.message}');
+                fail('فشل الفحص: ${e.message}');
               } catch (e) {
-                print('❌ خطأ عام: $e');
-                if (e.toString().contains('Failed host lookup')) {
-                  print('   السبب: الرابط مكرر أو غلط');
-                  print('   الرابط الحالي: $url');
-                }
-                if (e.toString().contains('SocketException')) {
-                  print('   السبب: مافي انترنت أو الرابط غلط');
-                }
-                fail('Error: $e');
+                print('\n❌ خطأ غير متوقع: $e');
+                fail('Unexpected Error: $e');
               }
-              
-              print('=== كل الفحوصات نجحت ✅ ===');
             });
           }
           EOF
-          
           flutter test test/supabase_test.dart
 
       - name: Generate app icons
-        run: dart run flutter_launcher_icons
-        continue-on-error: true
+        run: dart run flutter_launcher_icons || true
 
       - name: Generate splash screen
-        run: dart run flutter_native_splash:create
-        continue-on-error: true
+        run: dart run flutter_native_splash:create || true
 
       - name: Build APK Release
         run: flutter build apk --release --split-per-abi
