@@ -1,7 +1,6 @@
 name: sea_chat
 description: "A modern glassmorphism chat application powered by Supabase."
 publish_to: 'none'
-
 version: 1.0.0+1
 
 environment:
@@ -40,6 +39,14 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icon.png
+  fonts:
+    - family: Cairo
+      fonts:
+        - asset: fonts/Cairo-Regular.ttf
+        - asset: fonts/Cairo-Bold.ttf
+          weight: 700
 
 flutter_launcher_icons:
   android: "launcher_icon"
