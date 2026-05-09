@@ -1,19 +1,89 @@
-name: Build Flutter APK Release
+name: SeaChat CI
 
 on:
   push:
-    branches: [ main, master ]
-  workflow_dispatch:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  build:
+  test-supabase:
+    name: Test Supabase Connection
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Java 17
+      - name: Setup Dart SDK
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Test Supabase Connection - CI Only
+        run: |
+          cat > test_login.dart << 'EOF'
+          import 'dart:io';
+          import 'package:supabase/supabase.dart';
+          
+          Future<void> main() async {
+            print('Starting Supabase test');
+            
+            const url = 'https://jmsmrojtlstppnpwmkkk.supabase.co';
+            const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos';
+            
+            try {
+              print('Connecting to Supabase');
+              
+              if (url.endsWith('/')) {
+                print('Error: URL ends with slash');
+                exit(1);
+              }
+              
+              final supabase = SupabaseClient(url, anonKey);
+              print('Client created successfully');
+              
+              final res = await supabase.auth.signInWithPassword(
+                email: 'barqaday@gmail.com',
+                password: 'tyfgcv65',
+              );
+              
+              if (res.user != null) {
+                print('Login success');
+                print('User ID: ${res.user!.id}');
+                print('Email: ${res.user!.email}');
+                await supabase.auth.signOut();
+                print('Logout success');
+              } else {
+                print('Login failed: user null');
+                exit(1);
+              }
+              
+            } on AuthException catch (e) {
+              print('Auth error: ${e.message}');
+              exit(1);
+            } catch (e) {
+              print('General error: $e');
+              exit(1);
+            }
+            
+            print('All tests passed');
+          }
+          EOF
+          
+          dart pub add supabase
+          dart test_login.dart
+
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    needs: test-supabase
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
@@ -22,98 +92,17 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.0'
+          flutter-version: '3.24.0'
           channel: 'stable'
-          cache: true
-
-      - name: Regenerate Android folder
-        run: |
-          rm -rf android
-          flutter create --platforms=android --org com.judea --project-name sea_chat .
 
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Test Supabase Login & Diagnose
-        run: |
-          mkdir -p test
-          cat > test/supabase_test.dart << 'EOF'
-          import 'package:flutter_test/flutter_test.dart';
-          import 'package:supabase_flutter/supabase_flutter.dart';
-          
-          void main() {
-            TestWidgetsFlutterBinding.ensureInitialized();
-            
-            const url = 'https://jmsmrojtlstppnpwmkkk.supabase.co';
-            const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos';
-            
-            test('تشخيص دقيق لفشل تسجيل الدخول', () async {
-              print('\n🔍 --- بدء الفحص التشخيصي لـ Supabase ---');
-              
-              try {
-                // 1. فحص الاتصال الأولي
-                print('📡 1. جاري الاتصال بـ Supabase...');
-                await Supabase.initialize(url: url, anonKey: anonKey);
-                final client = Supabase.instance.client;
-                print('✅ تم الاتصال بنجاح.');
+      - name: Build APK
+        run: flutter build apk --release
 
-                // 2. محاولة تسجيل الدخول
-                print('🔑 2. محاولة تسجيل الدخول بـ (barqaday@gmail.com)...');
-                final res = await client.auth.signInWithPassword(
-                  email: 'barqaday@gmail.com',
-                  password: 'tyfgcv65',
-                );
-
-                if (res.user != null) {
-                  print('✅ نجح التسجيل! المشكلة ليست من الإعدادات.');
-                  print('📧 الايميل المسجل: ${res.user!.email}');
-                }
-
-              } on AuthException catch (e) {
-                print('\n❌ تم اكتشاف سبب الفشل (AuthException):');
-                print('-----------------------------------------');
-                print('الرسالة: ${e.message}');
-                print('الكود (Status): ${e.statusCode}');
-                
-                if (e.message.contains('Email not confirmed')) {
-                  print('⚠️ التشخيص: الحساب موجود لكن الإيميل "غير مؤكد".');
-                  print('💡 الحل: اذهب لـ Supabase -> Auth -> Providers -> Email وعطل "Confirm Email"');
-                } else if (e.statusCode == '400' || e.message.contains('Invalid login credentials')) {
-                  print('⚠️ التشخيص: "بيانات الاعتماد غير صحيحة".');
-                  print('💡 الحل: تأكد أن الإيميل والباسورد مضافين يدوياً في خانة Users في Supabase.');
-                } else if (e.message.contains('rate limit')) {
-                  print('⚠️ التشخيص: محاولات كثيرة جداً (Rate Limit).');
-                  print('💡 الحل: انتظر بضع دقائق أو ارفع حد المحاولات من إعدادات الـ Auth.');
-                } else {
-                  print('⚠️ سبب آخر: ${e.message}');
-                }
-                fail('فشل الفحص: ${e.message}');
-              } catch (e) {
-                print('\n❌ خطأ غير متوقع: $e');
-                fail('Unexpected Error: $e');
-              }
-            });
-          }
-          EOF
-          flutter test test/supabase_test.dart
-
-      - name: Generate app icons
-        run: dart run flutter_launcher_icons || true
-
-      - name: Generate splash screen
-        run: dart run flutter_native_splash:create || true
-
-      - name: Build APK Release
-        run: flutter build apk --release --split-per-abi
-
-      - name: Upload APK - arm64
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-arm64-v8a
-          path: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
-
-      - name: Upload APK - Universal
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release-universal
+          name: sea-chat-apk
           path: build/app/outputs/flutter-apk/app-release.apk
