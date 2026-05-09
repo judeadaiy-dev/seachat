@@ -11,15 +11,26 @@ import 'data/supabase_repository.dart';
 import 'models.dart';
 
 class AppColors {
-  static const Color backgroundStart = Color(0xFFCAD5D4);
-  static const Color backgroundEnd = Color(0xFFE8EFEE);
-  static const Color button = Color(0xFF482855);
-  static const Color icon = Color(0xFF898199);
-  static const Color cardGlass = Color(0xB3FFFFFF);
-  static const Color textDark = Color(0xFF2D2D2D);
-  static const Color textLight = Color(0xFF6B6B6B);
-  static const Color officialWood = Color(0xFF3D2B1F);
-  static const Color officialGold = Color(0xFFD4AF37);
+  // الخلفية - تدرج من فاتح لـ غامق لافندر
+  static const Color backgroundStart = Color(0xFF81B7EC); // AERO
+  static const Color backgroundEnd = Color(0xFF655B77);   // PLUMMY
+  
+  // الأزرار الرئيسية - غامق فخم
+  static const Color button = Color(0xFF443C50);          // PLUM ISLAND
+  
+  // الأيقونات - لافندر متوسط
+  static const Color icon = Color(0xFF968A98);            // MINIMAL GREY
+  
+  // كروت الزجاج - شفاف على لافندر
+  static const Color cardGlass = Color(0x40FFFFFF);      // أبيض شفاف 25%
+  
+  // الخطوط - واضحة على الخلفية الغامقة
+  static const Color textDark = Color(0xFF1A1821);       // RIVER STYX للعناوين
+  static const Color textLight = Color(0xFFFFFFFF);      // أبيض للخطوط العادية
+  
+  // للغرف الرسمية - ذهبي على غامق
+  static const Color officialWood = Color(0xFF1A1821);   // RIVER STYX
+  static const Color officialGold = Color(0xFF81B7EC);  // AERO أزرق فاتح بديل الذهبي
 }
 
 Future<void> main() async {
@@ -667,185 +678,4 @@ class _ChatScreenState extends State<ChatScreen> {
                           children: [
                             CircleAvatar(
                               backgroundImage: member.user?.avatarUrl!= null? NetworkImage(member.user!.avatarUrl!) : null,
-                              child: member.user?.avatarUrl == null? Text(member.user?.name[0]?? 'U') : null,
-                            ),
-                            if (i < 3) Positioned(right: -2, bottom: -2, child: Text(rank, style: const TextStyle(fontSize: 16))),
-                          ],
-                        ),
-                        title: Text(member.user?.name?? 'مستخدم'),
-                        subtitle: Text('نقاط: ${member.points} | ${member.role == 'owner'? 'المشرف' : 'عضو'}'),
-                        trailing: isOwner && member.role!= 'owner'
-                           ? PopupMenuButton(
-                                itemBuilder: (context) => [
-                                  PopupMenuItem(child: const Text('حظر'), onTap: () => _banMember(member.userId)),
-                                  PopupMenuItem(child: const Text('إزالة'), onTap: () => _kickMember(member.userId)),
-                                ],
-                              )
-                            : null,
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _banMember(String userId) async {
-    await supabase.from('room_members').delete().eq('room_id', widget.room.id).eq('user_id', userId);
-    await supabase.from('profiles').update({'is_banned': true}).eq('id', userId);
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حظر العضو من التطبيق')));
-  }
-
-  Future<void> _kickMember(String userId) async {
-    await supabase.from('room_members').delete().eq('room_id', widget.room.id).eq('user_id', userId);
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إزالة العضو')));
-  }
-
-  Future<void> _deleteRoom() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('حذف الغرفة'),
-        content: const Text('هل أنت متأكد؟ سيتم حذف جميع الرسائل'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('حذف', style: TextStyle(color: Colors.red))),
-        ],
-      ),
-    );
-    if (confirm == true) {
-      await supabase.from('rooms').delete().eq('id', widget.room.id);
-      if (mounted) {
-        Navigator.pop(context);
-        Navigator.pop(context);
-      }
-    }
-  }
-
-  void _copyInviteLink() {
-    final link = 'https://seachat.app/room/${widget.room.id}';
-    Clipboard.setData(ClipboardData(text: link));
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نسخ رابط الدعوة')));
-  }
-}
-
-class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
-  @override
-  Widget build(BuildContext context) {
-    final repo = SupabaseRepository();
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(backgroundColor: Colors.transparent, title: const Text('الملف الشخصي')),
-      body: FutureBuilder<UserModel?>(
-        future: repo.getCurrentUser(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-          if (!snapshot.hasData) return const Center(child: Text('المستخدم غير موجود'));
-          final user = snapshot.data!;
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              GlassCard(
-                child: Column(
-                  children: [
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundColor: AppColors.button,
-                      backgroundImage: user.avatarUrl!= null? NetworkImage(user.avatarUrl!) : null,
-                      child: user.avatarUrl == null? Text(user.name.isNotEmpty? user.name[0] : 'U', style: const TextStyle(fontSize: 40, color: Colors.white)) : null,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(user.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                    Text(user.email, style: const TextStyle(color: AppColors.textLight)),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              GlassCard(
-                onTap: () async => await Supabase.instance.client.auth.signOut(),
-                child: const ListTile(leading: Icon(Icons.logout, color: Colors.red), title: Text('تسجيل الخروج', style: TextStyle(color: Colors.red))),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class AppDrawer extends StatefulWidget {
-  const AppDrawer({super.key});
-  @override
-  State<AppDrawer> createState() => _AppDrawerState();
-}
-
-class _AppDrawerState extends State<AppDrawer> with SingleTickerProviderStateMixin {
-  final supabase = Supabase.instance.client;
-  bool isAdmin = false;
-  late AnimationController _animationController;
-  late Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkAdmin();
-    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
-    _animation = Tween<double>(begin: 0, end: 1).animate(_animationController);
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _checkAdmin() async {
-    final user = supabase.auth.currentUser;
-    if (user == null) return;
-    final res = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
-    if (mounted) setState(() => isAdmin = res?['role'] == 'admin');
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Drawer(
-      backgroundColor: Colors.transparent,
-      child: AppBackground(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              child: GlassCard(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        if (_animationController.isCompleted) {
-                          _animationController.reverse();
-                        } else {
-                          _animationController.forward();
-                        }
-                        Scaffold.of(context).closeDrawer();
-                      },
-                      child: AnimatedBuilder(
-                        animation: _animation,
-                        builder: (context, child) {
-                          return Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Transform.rotate(
-                                angle: _animation.value * 0.785,
-                                child: Container(width: 30, height: 3, decoration: BoxDecoration(color: AppColors.button, borderRadius: BorderRadius.circular(2))),
-                              ),
-                              SizedBox(height: _animation.value * 8 + 6),
-                              Transform.rotate(
-                                angle: -_animation.value * 0.785,
-                                child: Container(width: 30, height: 3, decoration: BoxDecoration(color: AppColors.button, borderRadius: BorderRadius.circular(2))),
-                              ),
-                            ],
+                              child: member.user?.avatarUrl == null? Text(member.user?.
