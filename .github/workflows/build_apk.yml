@@ -26,17 +26,16 @@ jobs:
           channel: 'stable'
           cache: true
 
-      # تصحيح: لا تحذف المجلد بالكامل إذا كان يحتوي على ملفاتك المهمة
+      # 1. جلب المكتبات (بما فيها cached_network_image وغيرها)
       - name: Get dependencies
         run: flutter pub get
 
-      # إضافة: التأكد من وجود ملف الخدمات إذا كنت قد رفعته كـ Secret (اختياري)
-      # إذا كنت ترفع الملف يدوياً في المستودع، تجاوز هذه الخطوة.
-
+      # 2. بناء الـ APK (سيستخدم ملف AndroidManifest.xml الخاص بك تلقائياً)
       - name: Build APK Release
         run: flutter build apk --release --split-per-abi
 
-      - name: Upload APK - arm64 (مناسب لأغلب هواتف الأندرويد الحديثة)
+      # 3. رفع ملفات الـ APK لتتمكن من تحميلها
+      - name: Upload APK - arm64
         uses: actions/upload-artifact@v4
         with:
           name: SeaChat-arm64-v8a
@@ -47,8 +46,3 @@ jobs:
         with:
           name: SeaChat-Universal
           path: build/app/outputs/flutter-apk/app-release.apk
-      - name: Get dependencies
-        run: flutter pub get
-
-      - name: Build APK Release
-        run: flutter build apk --release --split-per-abi
