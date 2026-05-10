@@ -2,10 +2,49 @@ import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:storage_client/storage_client.dart';
 import 'models.dart';
 import 'private_chat.dart';
 import 'main.dart';
+Future<void> _saveProfile() async {
+  if (!_formKey.currentState!.validate()) return;
+  setState(() => _isSaving = true);
 
+  try {
+    String? avatarUrl = widget.user.avatarUrl;
+
+    if (_imageFile!= null) {
+      final bytes = await _imageFile!.readAsBytes();
+      final fileName = '${repo.supabase.auth.currentUser!.id}.jpg';
+      final path = 'avatars/$fileName';
+      
+      await repo.supabase.storage.from('avatars').uploadBinary(
+        path,
+        bytes,
+        fileOptions: FileOptions(upsert: true), // هذا الصح لنسختك
+      );
+      
+      avatarUrl = repo.supabase.storage.from('avatars').getPublicUrl(path);
+    }
+
+    await repo.supabase.from('profiles').update({
+      'name': _nameController.text.trim(),
+      'username': _usernameController.text.trim().isEmpty? null : _usernameController.text.trim(),
+      'bio': _bioController.text.trim().isEmpty? null : _bioController.text.trim(),
+      'avatar_url': avatarUrl,
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', widget.user.id);
+
+    if (mounted) Navigator.pop(context, true);
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الحفظ: $e')));
+    }
+  } finally {
+    if (mounted) setState(() => _isSaving = false);
+  }
+}
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
   @override
