@@ -3,8 +3,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'models.dart';
-import 'private_chat.dart'; // مستورد بشكل صحيح
-import 'main.dart'; 
+import 'private_chat.dart';
+import 'main.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -40,7 +40,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_user == null) return;
     final updated = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(builder: (_) => PMaterialPageRoute: _user!)),
+      MaterialPageRoute(builder: (_) => ProfileSettingsScreen(user: _user!)), // كان PMaterialPageRoute - هذا الخطأ
     );
     if (updated == true) _loadUser();
   }
@@ -71,9 +71,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: Colors.transparent,
       appBar: AppBar(backgroundColor: Colors.transparent, title: const Text('الملف الشخصي'), centerTitle: true),
       body: _isLoading
-         ? const Center(child: CircularProgressIndicator())
+        ? const Center(child: CircularProgressIndicator())
           : _user == null
-             ? const Center(child: Text('المستخدم غير موجود'))
+            ? const Center(child: Text('المستخدم غير موجود'))
               : ListView(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
                   children: [
@@ -97,10 +97,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               child: CircleAvatar(
                                 radius: 54,
                                 backgroundColor: AppColors.button.withOpacity(0.2),
-                                backgroundImage: _user!.avatarUrl != null ? NetworkImage(_user!.avatarUrl!) : null,
+                                backgroundImage: _user!.avatarUrl!= null? NetworkImage(_user!.avatarUrl!) : null,
                                 child: _user!.avatarUrl == null
-                                   ? Text(
-                                        _user!.name.isNotEmpty ? _user!.name[0].toUpperCase() : 'U',
+                                  ? Text(
+                                        _user!.name.isNotEmpty? _user!.name[0].toUpperCase() : 'U',
                                         style: const TextStyle(fontSize: 42, color: Colors.white, fontWeight: FontWeight.bold),
                                       )
                                     : null,
@@ -110,11 +110,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         const SizedBox(height: 20),
                         Text(_user!.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textDark)),
-                        if (_user!.username != null)...[
+                        if (_user!.username!= null)...[
                           const SizedBox(height: 4),
                           Text('@${_user!.username}', style: TextStyle(fontSize: 15, color: AppColors.icon, fontWeight: FontWeight.w500)),
                         ],
-                        if (_user!.zodiac != null)...[
+                        if (_user!.zodiac!= null)...[
                           const SizedBox(height: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -132,7 +132,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                           ),
                         ],
-                        if (_user!.bio != null && _user!.bio!.isNotEmpty)...[
+                        if (_user!.bio!= null && _user!.bio!.isNotEmpty)...[
                           const SizedBox(height: 16),
                           Text(
                             _user!.bio!,
@@ -145,8 +145,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ]),
                     ),
                     const SizedBox(height: 16),
-                    // هنا تضع زر المراسلة إذا لم يكن هذا بروفايلك
-                    if (_user!.id != repo.supabase.auth.currentUser?.id)
+                    if (_user!.id!= repo.supabase.auth.currentUser?.id)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: GlassCard(
@@ -163,7 +162,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                       ),
-                    
+
                     GlassCard(
                       onTap: _openSettings,
                       child: const ListTile(
@@ -186,5 +185,153 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-// كود شاشة الإعدادات يبقى كما هو بالأسفل...
-// (بقية الكود الخاص بـ ProfileSettingsScreen يوضع هنا بدون زر المراسلة داخله)
+// ===== شاشة الإعدادات الناقصة =====
+class ProfileSettingsScreen extends StatefulWidget {
+  final UserModel user;
+  const ProfileSettingsScreen({super.key, required this.user});
+
+  @override
+  State<ProfileSettingsScreen> createState() => _ProfileSettingsScreenState();
+}
+
+class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final repo = SupabaseRepository();
+  late TextEditingController _nameController;
+  late TextEditingController _usernameController;
+  late TextEditingController _bioController;
+  File? _imageFile;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.user.name);
+    _usernameController = TextEditingController(text: widget.user.username?? '');
+    _bioController = TextEditingController(text: widget.user.bio?? '');
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _usernameController.dispose();
+    _bioController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
+    if (image!= null) {
+      setState(() => _imageFile = File(image.path));
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isSaving = true);
+
+    try {
+      String? avatarUrl = widget.user.avatarUrl;
+
+      // رفع الصورة لو اختار وحدة جديدة
+      if (_imageFile!= null) {
+        final bytes = await _imageFile!.readAsBytes();
+        final fileName = '${repo.supabase.auth.currentUser!.id}.jpg';
+        final path = 'avatars/$fileName';
+        await repo.supabase.storage.from('avatars').uploadBinary(path, bytes, fileOptions: const FileOptions(upsert: true));
+        avatarUrl = repo.supabase.storage.from('avatars').getPublicUrl(path);
+      }
+
+      await repo.supabase.from('profiles').update({
+        'name': _nameController.text.trim(),
+        'username': _usernameController.text.trim().isEmpty? null : _usernameController.text.trim(),
+        'bio': _bioController.text.trim().isEmpty? null : _bioController.text.trim(),
+        'avatar_url': avatarUrl,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', widget.user.id);
+
+      if (mounted) Navigator.pop(context, true); // رجع true عشان تحدث البروفايل
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الحفظ: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('تعديل الملف الشخصي'),
+        actions: [
+          TextButton(
+            onPressed: _isSaving? null : _saveProfile,
+            child: _isSaving
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Text('حفظ', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+      body: AppBackground(
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Center(
+                child: Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 60,
+                      backgroundColor: AppColors.button.withOpacity(0.2),
+                      backgroundImage: _imageFile!= null
+                        ? FileImage(_imageFile!)
+                          : (widget.user.avatarUrl!= null? NetworkImage(widget.user.avatarUrl!) : null) as ImageProvider?,
+                      child: (_imageFile == null && widget.user.avatarUrl == null)
+                        ? Text(
+                              widget.user.name.isNotEmpty? widget.user.name[0].toUpperCase() : 'U',
+                              style: const TextStyle(fontSize: 50, color: Colors.white),
+                            )
+                          : null,
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: GestureDetector(
+                        onTap: _pickImage,
+                        child: CircleAvatar(
+                          backgroundColor: AppColors.button,
+                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              TextFormField(
+                controller: _nameController,
+                decoration: const InputDecoration(labelText: 'الاسم', border: OutlineInputBorder()),
+                validator: (val) => val!.isEmpty? 'الاسم مطلوب' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _usernameController,
+                decoration: const InputDecoration(labelText: 'اسم المستخدم', prefixText: '@', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _bioController,
+                decoration: const InputDecoration(labelText: 'النبذة', border: OutlineInputBorder()),
+                maxLines: 3,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
