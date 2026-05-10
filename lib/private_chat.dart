@@ -70,14 +70,13 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                widget.receiver.name,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
+  child: StreamBuilder<List<Map<String, dynamic>>>(
+    stream: _messagesStream,
+    builder: (context, snapshot) {
+      //...
+    },
+  ),
+)
         backgroundColor: Colors.black.withOpacity(0.5),
         elevation: 0,
       ),
@@ -92,8 +91,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                     stream: supabase
                         .from('private_messages')
                         .stream(primaryKey: ['id'])
-                        .or('sender_id.eq.$myId,receiver_id.eq.${widget.receiver.id},sender_id.eq.${widget.receiver.id},receiver_id.eq.$myId'
-                        or('created_at', descending: true),
+                        .order('sender_id.eq.$myId,receiver_id.eq.${widget.receiver.id},sender_id.eq.${widget.receiver.id},receiver_id.eq.$myId'
+                       order r('created_at', descending: true),
                     builder: (context, snapshot) {
                       if (snapshot.hasError) return Center(child: Text("خطأ: ${snapshot.error}"));
                       if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
