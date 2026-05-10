@@ -1,8 +1,8 @@
-name: SeaChat Nuclear Force Build V6
+Name: Build Flutter APK Release
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
@@ -22,87 +22,28 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.3'
+          flutter-version: '3.22.0'
+          channel: 'stable'
           cache: true
 
-      - name: Hardcore Android Environment Injection
-        run: |
-          set +e
-          rm -rf android/
-          flutter create --platforms=android --org com.judea --project-name sea_chat .
-          
-          # 1. إعداد local.properties بدقة متناهية
-          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
-          echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
-          
-          # 2. حقن ملف settings.gradle (هذا هو مفتاح الحل لـ app_links)
-          cat > android/settings.gradle << 'EOF'
-          pluginManagement {
-              def flutterSdkPath = {
-                  def properties = new Properties()
-                  file("local.properties").withInputStream { properties.load(it) }
-                  def flutterSdkPath = properties.getProperty("flutter.sdk")
-                  assert flutterSdkPath != null, "flutter.sdk not set in local.properties"
-                  return flutterSdkPath
-              }()
-              includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
-              repositories {
-                  google()
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
-          }
-          plugins {
-              id "dev.flutter.flutter-gradle-plugin" version "1.0.0" apply false
-              id "com.android.application" version "8.1.0" apply false
-              id "org.jetbrains.kotlin.android" version "1.8.22" apply false
-          }
-          include ":app"
-          EOF
+      # تصحيح: لا تحذف المجلد بالكامل إذا كان يحتوي على ملفاتك المهمة
+      - name: Get dependencies
+        run: flutter pub get
 
-          # 3. تعديل ملف build.gradle الرئيسي لفرض الـ SDK على المكاتب الخارجية
-          cat > android/build.gradle << 'EOF'
-          allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          subprojects {
-              afterEvaluate { project ->
-                  if (project.hasProperty('android')) {
-                      project.android {
-                          compileSdkVersion 34
-                          buildToolsVersion "34.0.0"
-                          if (namespace == null) namespace = "com.judea.seachat.${project.name}"
-                      }
-                  }
-              }
-          }
-          EOF
+      # إضافة: التأكد من وجود ملف الخدمات إذا كنت قد رفعته كـ Secret (اختياري)
+      # إذا كنت ترفع الملف يدوياً في المستودع، تجاوز هذه الخطوة.
 
-          # 4. تفعيل تصاريح الإنترنت
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
+      - name: Build APK Release
+        run: flutter build apk --release --split-per-abi
 
-      - name: Build Nuclear APK
-        run: |
-          flutter pub get
-          # استخدام فلاج يتجاوز تدقيق الإصدارات الصارم
-          flutter build apk --debug --target-platform android-arm,android-arm64,android-x64 --no-version-check
-
-      - name: Final Size Check
-        run: |
-          APK_PATH="build/app/outputs/flutter-apk/app-debug.apk"
-          if [ -f "$APK_PATH" ]; then
-            echo "Success! APK Size: $(stat -c%s "$APK_PATH") bytes"
-          else
-            echo "Build failed to generate file."
-            exit 1
-          fi
-
-      - name: Upload APK
+      - name: Upload APK - arm64 (مناسب لأغلب هواتف الأندرويد الحديثة)
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Nuclear-V6
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          name: SeaChat-arm64-v8a
+          path: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+
+      - name: Upload APK - Universal
+        uses: actions/upload-artifact@v4
+        with:
+          name: SeaChat-Universal
+          path: build/app/outputs/flutter-apk/app-release.apk
