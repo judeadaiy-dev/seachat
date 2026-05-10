@@ -1,4 +1,4 @@
-Name: Build Flutter APK Release
+name: Build Flutter APK Release
 
 on:
   push:
@@ -47,3 +47,8 @@ jobs:
         with:
           name: SeaChat-Universal
           path: build/app/outputs/flutter-apk/app-release.apk
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build APK Release
+        run: flutter build apk --release --split-per-abi
