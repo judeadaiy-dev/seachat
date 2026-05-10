@@ -40,7 +40,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_user == null) return;
     final updated = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(builder: (_) => ProfileSettingsScreen(user: _user!)),
+      MaterialPageRoute(builder: (_) => PMaterialPageRoute: _user!)),
     );
     if (updated == true) _loadUser();
   }
