@@ -1,67 +1,102 @@
+import 'package:flutter/foundation.dart';
+
+@immutable
 class UserModel {
   final String id;
-  final String name;
-  final String? avatarUrl;
   final String email;
+  final String name;
+  final String? username;
+  final String? avatarUrl;
+  final String? bio;
+  final String? zodiac;
   final String role;
   final bool isBanned;
+  final DateTime? updatedAt;
 
   const UserModel({
     required this.id,
-    required this.name,
-    this.avatarUrl,
     required this.email,
+    required this.name,
+    this.username,
+    this.avatarUrl,
+    this.bio,
+    this.zodiac,
     this.role = 'user',
     this.isBanned = false,
+    this.updatedAt,
   });
 
-  factory UserModel.fromJson(Map<String, dynamic> json) {
+  factory UserModel.fromMap(Map<String, dynamic> map) {
     return UserModel(
-      id: json['id'] ?? '',
-      name: json['name'] ?? json['username'] ?? 'User',
-      avatarUrl: json['avatar_url'],
-      email: json['email'] ?? '',
-      role: json['role'] ?? 'user',
-      isBanned: json['is_banned'] ?? false,
+      id: map['id']?.toString() ?? '',
+      email: map['email']?.toString() ?? '',
+      name: map['name']?.toString() ?? map['username']?.toString() ?? 'مستخدم',
+      username: map['username']?.toString(),
+      avatarUrl: map['avatar_url']?.toString(),
+      bio: map['bio']?.toString(),
+      zodiac: map['zodiac']?.toString(),
+      role: map['role']?.toString() ?? 'user',
+      isBanned: map['is_banned'] == true,
+      updatedAt: map['updated_at'] != null ? DateTime.tryParse(map['updated_at'].toString()) : null,
     );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'email': email,
+      'name': name,
+      'username': username,
+      'avatar_url': avatarUrl,
+      'bio': bio,
+      'zodiac': zodiac,
+      'role': role,
+      'is_banned': isBanned,
+      'updated_at': updatedAt?.toIso8601String(),
+    };
   }
 }
 
+@immutable
 class RoomModel {
   final String id;
   final String roomName;
   final String? description;
   final String? imageUrl;
-  final String creatorId;
+  final String ownerId;
   final bool isPrivate;
-  final String roomType;
+  final String roomType; 
   final bool isPinned;
+  final DateTime createdAt;
 
   const RoomModel({
     required this.id,
     required this.roomName,
     this.description,
     this.imageUrl,
-    required this.creatorId,
+    required this.ownerId,
     this.isPrivate = false,
     this.roomType = 'user',
     this.isPinned = false,
+    required this.createdAt,
   });
 
-  factory RoomModel.fromJson(Map<String, dynamic> json) {
+  factory RoomModel.fromMap(Map<String, dynamic> map) {
     return RoomModel(
-      id: json['id'] ?? '',
-      roomName: json['room_name'] ?? json['name'] ?? '',
-      description: json['description'],
-      imageUrl: json['image_url'],
-      creatorId: json['creator_id'] ?? '',
-      isPrivate: json['is_private'] ?? false,
-      roomType: json['room_type'] ?? 'user',
-      isPinned: json['is_pinned'] ?? false,
+      id: map['id']?.toString() ?? '',
+      roomName: map['room_name']?.toString() ?? map['name']?.toString() ?? 'غرفة',
+      description: map['description']?.toString(),
+      imageUrl: map['image_url']?.toString(),
+      ownerId: map['owner_id']?.toString() ?? map['creator_id']?.toString() ?? '',
+      isPrivate: map['is_private'] == true,
+      roomType: map['room_type']?.toString() ?? 'user',
+      isPinned: map['is_pinned'] == true,
+      createdAt: DateTime.tryParse(map['created_at']?.toString() ?? '') ?? DateTime.now(),
     );
   }
 }
 
+@immutable
 class MessageModel {
   final String id;
   final String roomId;
@@ -80,27 +115,29 @@ class MessageModel {
     required this.createdAt,
     this.userName,
     this.userAvatar,
-    this.isMe = false,
+    required this.isMe,
   });
 
-  factory MessageModel.fromJson(Map<String, dynamic> json, String currentUserId) {
+  factory MessageModel.fromMap(Map<String, dynamic> map, String currentUserId) {
+    final profiles = map['profiles'] as Map<String, dynamic>?;
     return MessageModel(
-      id: json['id'] ?? '',
-      roomId: json['room_id'] ?? '',
-      userId: json['user_id'] ?? '',
-      text: json['content'] ?? json['text'] ?? '',
-      createdAt: DateTime.parse(json['created_at']),
-      userName: json['profiles']?['name'] ?? json['profiles']?['username'],
-      userAvatar: json['profiles']?['avatar_url'],
-      isMe: json['user_id'] == currentUserId,
+      id: map['id']?.toString() ?? '',
+      roomId: map['room_id']?.toString() ?? '',
+      userId: map['user_id']?.toString() ?? '',
+      text: map['message']?.toString() ?? map['content']?.toString() ?? '',
+      createdAt: DateTime.tryParse(map['created_at']?.toString() ?? '') ?? DateTime.now(),
+      userName: profiles?['name']?.toString() ?? profiles?['username']?.toString() ?? 'مجهول',
+      userAvatar: profiles?['avatar_url']?.toString(),
+      isMe: map['user_id']?.toString() == currentUserId,
     );
   }
 }
 
+@immutable
 class RoomMemberModel {
   final String userId;
   final String roomId;
-  final String role;
+  final String role; 
   final int points;
   final UserModel? user;
 
@@ -112,13 +149,15 @@ class RoomMemberModel {
     this.user,
   });
 
-  factory RoomMemberModel.fromJson(Map<String, dynamic> json, Map<String, dynamic>? profile) {
+  factory RoomMemberModel.fromMap(Map<String, dynamic> map) {
+    final profiles = map['profiles'] as Map<String, dynamic>?;
     return RoomMemberModel(
-      userId: json['user_id'] ?? '',
-      roomId: json['room_id'] ?? '',
-      role: json['role'] ?? 'member',
-      points: json['points'] ?? 0,
-      user: profile != null ? UserModel.fromJson(profile) : null,
+      userId: map['user_id']?.toString() ?? '',
+      roomId: map['room_id']?.toString() ?? '',
+      role: map['role']?.toString() ?? 'member',
+      points: map['points'] is int ? map['points'] : int.tryParse(map['points']?.toString() ?? '0') ?? 0,
+      user: profiles != null ? UserModel.fromMap(profiles) : null,
     );
   }
 }
+
