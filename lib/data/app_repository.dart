@@ -1,4 +1,7 @@
-// ===== الجسر بين الواجهة وقاعدة البيانات =====
+import 'dart:io';
+import 'models.dart';
+
+// ===== الجسر بين الواجهة وقاعدة البيانات (SeaChat Official) =====
 // كل دالة هنا = أمر بالواجهة
 // كل تعليق فوق الدالة = اسم الجدول المطلوب في SQL
 
@@ -6,73 +9,75 @@ abstract class AppRepository {
   
   // ========== جدول: profiles ==========
   
-  // يستدعى من: LoginScreen - زر تسجيل الدخول
+  // يستدعى من: LoginScreen - زر تسجيل الدخول (يدوي)
   Future<bool> signInWithEmail({required String email, required String password});
   
-  // يستدعى من: LoginScreen - زر Google
+  // يستدعى من: LoginScreen - زر Google (معطل مؤقتاً برمجياً)
   Future<void> signInWithGoogle();
   
-  // يستدعى من: ProfileScreen - تعديل البيانات
-  Future<bool> updateProfile({required String userId, required String username, String? avatarUrl});
+  // يستدعى من: ProfileSettingsScreen - حفظ التعديلات
+  // تم دمج (userId) مع الحقول المطلوبة لضمان دقة التحديث
+  Future<void> updateProfile({
+    required String name,
+    String? username,
+    String? bio,
+    String? zodiac,
+  });
+  
+  // يستدعى من: ProfileScreen & ProfileSettingsScreen - التعامل مع الصور
+  Future<String?> uploadAvatar(File file);
+  Future<void> deleteAvatar();
   
   // يستدعى من: ProfileScreen - جلب بيانات المستخدم الحالي
   Future<UserModel?> getCurrentUser();
 
   // ========== جدول: rooms ==========
   
-  // يستدعى من: HomeScreen - عرض قائمة الغرف
-  Future<List<RoomModel>> getAllActiveRooms();
+  // يستدعى من: HomeScreen - عرض قائمة الغرف (بث مباشر Stream)
+  Stream<List<RoomModel>> getRoomsStream();
   
-  // يستدعى من: AppDrawer - زر إنشاء غرفة - يحفظها مباشرة كـ room_type = 'user'
-  Future<bool> createRoom({required String roomName, String? description});
+  // يستدعى من: AppDrawer - زر إنشاء غرفة
+  Future<void> createRoom({required String roomName, String? description});
   
-  // يستدعى من: ChatScreen - حذف الغرفة - للـ owner فقط
-  Future<bool> deleteRoom({required String roomId});
+  // يستدعى من: ChatScreen - حذف الغرفة - للـ owner أو admin فقط
+  Future<void> deleteRoom({required String roomId});
 
   // ========== جدول: room_members ==========
-  
-  // يستدعى من: ChatScreen - دخول الغرفة
-  Future<bool> joinRoom({required String roomId});
-  
-  // يستدعى من: ChatScreen - خروج من الغرفة
-  Future<bool> leaveRoom({required String roomId});
   
   // يستدعى من: ChatScreen - عرض أعضاء الغرفة مع النقاط
   Future<List<RoomMemberModel>> getRoomMembers({required String roomId});
   
-  // يستدعى من: ChatScreen - إزالة عضو - للـ owner فقط
-  Future<bool> kickRoomMember({required String roomId, required String userId});
+  // يستدعى من: ChatScreen - إزالة عضو أو الخروج
+  Future<void> leaveRoom({required String roomId});
+  Future<void> kickRoomMember({required String roomId, required String userId});
   
   // يستدعى من: ChatScreen - زيادة نقاط العضو تلقائي بعد كل رسالة
   Future<void> incrementMemberPoints({required String roomId, required String userId});
 
   // ========== جدول: messages ==========
   
-  // يستدعى من: ChatScreen - تحميل رسائل الغرفة - Stream
+  // يستدعى من: ChatScreen - تحميل رسائل الغرفة - Stream (الرسائل الأحدث أولاً)
   Stream<List<MessageModel>> getRoomMessagesStream({required String roomId});
   
-  // يستدعى من: ChatScreen - زر إرسال نص
-  Future<bool> sendMessage({required String roomId, required String message});
+  // يستدعى من: ChatScreen - أزرار إرسال (نص، صورة، صوت)
+  Future<void> sendMessage({required String roomId, required String message});
+  Future<void> sendImageMessage({required String roomId, required File imageFile});
+  Future<void> sendVoiceMessage({required String roomId, required String voicePath});
   
-  // يستدعى من: ChatScreen - زر إرسال صورة
-  Future<bool> sendImageMessage({required String roomId, required File imageFile});
-  
-  // يستدعى من: ChatScreen - زر إرسال صوت
-  Future<bool> sendVoiceMessage({required String roomId, required String voiceUrl});
-  
-  // يستدعى من: ChatScreen - حذف رسالة - للـ owner أو صاحب الرسالة
-  Future<bool> deleteMessage({required String messageId});
+  // يستدعى من: ChatScreen - حذف رسالة
+  Future<void> deleteMessage({required String messageId});
 
-  // ========== جدول: bans ==========
+  // ========== جدول: profiles (الإدارة) ==========
   
-  // يستدعى من: ChatScreen - حظر عضو من التطبيق كله - للـ admin فقط
-  Future<bool> banUser({required String userId});
+  // يستدعى من: AdminPanel - حظر عضو من التطبيق نهائياً
+  Future<void> banUser({required String userId});
+  
+  // يستدعى من: AppDrawer - للتحقق من إظهار لوحة الإدارة
+  Future<bool> isCurrentUserAdmin();
 
   // ========== جدول: app_settings ==========
   
-  // يستدعى من: PrivacyPolicyScreen - تحميل النص
+  // يستدعى من: PrivacyPolicyScreen & ContactUsScreen
   Future<String> getPrivacyPolicy();
-  
-  // يستدعى من: ContactUsScreen - تحميل الإيميل
   Future<String> getSupportEmail();
 }
