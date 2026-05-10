@@ -228,42 +228,45 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   }
 
   Future<void> _saveProfile() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _isSaving = true);
+  if (!_formKey.currentState!.validate()) return;
+  setState(() => _isSaving = true);
 
-    try {
-      String? avatarUrl = widget.user.avatarUrl;
+  try {
+    String? avatarUrl = widget.user.avatarUrl;
 
-      // رفع الصورة لو اختار وحدة جديدة
-      if (_imageFile!= null) {
-        final bytes = await _imageFile!.readAsBytes();
-        final fileName = '${repo.supabase.auth.currentUser!.id}.jpg';
-        final path = 'avatars/$fileName';
-       await repo.supabase.storage.from('avatars').uploadBinary(
-  path,
-  bytes,
-  fileOptions: FileOptions(upsert: true) // شلت const
-);
-        avatarUrl = repo.supabase.storage.from('avatars').getPublicUrl(path);
-      }
-
-      await repo.supabase.from('profiles').update({
-        'name': _nameController.text.trim(),
-        'username': _usernameController.text.trim().isEmpty? null : _usernameController.text.trim(),
-        'bio': _bioController.text.trim().isEmpty? null : _bioController.text.trim(),
-        'avatar_url': avatarUrl,
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', widget.user.id);
-
-      if (mounted) Navigator.pop(context, true); // رجع true عشان تحدث البروفايل
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الحفظ: $e')));
-      }
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
+    // رفع الصورة لو اختار وحدة جديدة
+    if (_imageFile!= null) {
+      final bytes = await _imageFile!.readAsBytes();
+      final fileName = '${repo.supabase.auth.currentUser!.id}.jpg';
+      final path = 'avatars/$fileName';
+      
+      // هذا السطر المصحح
+      await repo.supabase.storage.from('avatars').uploadBinary(
+        path,
+        bytes,
+        upsert: true, // بدال fileOptions
+      );
+      
+      avatarUrl = repo.supabase.storage.from('avatars').getPublicUrl(path);
     }
+
+    await repo.supabase.from('profiles').update({
+      'name': _nameController.text.trim(),
+      'username': _usernameController.text.trim().isEmpty? null : _usernameController.text.trim(),
+      'bio': _bioController.text.trim().isEmpty? null : _bioController.text.trim(),
+      'avatar_url': avatarUrl,
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', widget.user.id);
+
+    if (mounted) Navigator.pop(context, true);
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الحفظ: $e')));
+    }
+  } finally {
+    if (mounted) setState(() => _isSaving = false);
   }
+}
 
   @override
   Widget build(BuildContext context) {
