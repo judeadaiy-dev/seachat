@@ -12,10 +12,10 @@ dependencies:
 
   cupertino_icons: ^1.0.8
 
-  # Backend - حدثتها
+  # Backend
   supabase_flutter: ^2.10.6
 
-  # Chat Features - حدثتها
+  # Chat Features
   image_picker: ^1.1.2
   record: ^6.0.0
   just_audio: ^0.9.42
@@ -41,12 +41,15 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  
   assets:
     - assets/icon.png
+  
   fonts:
     - family: Cairo
       fonts:
         - asset: fonts/Cairo-Regular.ttf
+          weight: 400
         - asset: fonts/Cairo-Bold.ttf
           weight: 700
 
