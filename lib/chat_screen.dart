@@ -16,24 +16,25 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _msgController = TextEditingController();
   final supabase = Supabase.instance.client;
   final ScrollController _scrollController = ScrollController();
+Future<void> _sendMessage() async {
+  final text = _msgController.text.trim();
+  if (text.isEmpty) return;
 
-  // إرسال رسالة باستخدام منطق حقل 'message' المعتمد
-  Future<void> _sendMessage() async {
-    final text = _msgController.text.trim();
-    if (text.isEmpty) return;
-
-    _msgController.clear();
-    try {
-      await supabase.from('messages').insert({
-        'room_id': widget.room.id,
-        'user_id': supabase.auth.currentUser!.id, // تم التعديل من sender_id إلى user_id
-        'message': text, // تم التعديل من content إلى message ليتطابق مع الـ Repository
-      });
-      _scrollToBottom();
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('فشل إرسال الرسالة')));
-    }
+  _msgController.clear();
+  try {
+    await supabase.from('messages').insert({
+      'room_id': widget.room.id,
+      'user_id': supabase.auth.currentUser!.id,
+      'content': text,           // ✅ بدلت message إلى content
+      'topic': 'general',        // ✅ ضفت هذا - حقل إجباري
+      'extension': 'txt',        // ✅ ضفت هذا - حقل إجباري
+    });
+    _scrollToBottom();
+  } catch (e) {
+    print('Error: $e'); // اطبع الخطأ عشان تشوفه
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل إرسال الرسالة: $e')));
   }
+}
 
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
