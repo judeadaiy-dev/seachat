@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 // ربط مع ملفاتك الأساسية لضمان عمل الموديلات والتصميم
-import 'models.dart'; 
-import 'main.dart'; 
+import 'models.dart';
+import 'main.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 class PrivateChatScreen extends StatefulWidget {
   final UserModel receiver; // المستخدم المستهدف (المستلم)
-  
+
   const PrivateChatScreen({super.key, required this.receiver});
 
   @override
@@ -44,7 +44,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
-      _scrollController.animateTo(0, 
+      _scrollController.animateTo(0,
           duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
     }
   }
@@ -61,11 +61,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           children: [
             CircleAvatar(
               radius: 18,
-              backgroundImage: (widget.receiver.avatarUrl != null && widget.receiver.avatarUrl!.isNotEmpty)
-                  ? NetworkImage(widget.receiver.avatarUrl!)
+              backgroundImage: (widget.receiver.avatarUrl!= null && widget.receiver.avatarUrl!.isNotEmpty)
+                 ? NetworkImage(widget.receiver.avatarUrl!)
                   : null,
               child: (widget.receiver.avatarUrl == null || widget.receiver.avatarUrl!.isEmpty)
-                  ? const Icon(Icons.person, size: 20)
+                 ? const Icon(Icons.person, size: 20)
                   : null,
             ),
             const SizedBox(width: 10),
@@ -85,19 +85,19 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         child: Column(
           children: [
             Expanded(
-              child: myId == null 
-                ? const Center(child: Text("يرجى تسجيل الدخول"))
+              child: myId == null
+               ? const Center(child: Text("يرجى تسجيل الدخول"))
                 : StreamBuilder<List<Map<String, dynamic>>>(
                     // استعلام جلب المحادثة المباشرة بين الطرفين فقط
                     stream: supabase
-                        .from('private_messages')
-                        .stream(primaryKey: ['id'])
-                        .or('and(sender_id.eq.$myId,receiver_id.eq.${widget.receiver.id}),and(sender_id.eq.${widget.receiver.id},receiver_id.eq.$myId)')
-                        .order('created_at', descending: true),
+                       .from('private_messages')
+                       .stream(primaryKey: ['id'])
+                       .or('sender_id.eq.$myId,receiver_id.eq.${widget.receiver.id},sender_id.eq.${widget.receiver.id},receiver_id.eq.$myId')
+                       .order('created_at', ascending: false),
                     builder: (context, snapshot) {
                       if (snapshot.hasError) return Center(child: Text("خطأ: ${snapshot.error}"));
                       if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                      
+
                       final messages = snapshot.data!;
 
                       return ListView.builder(
@@ -124,30 +124,30 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   // تصميم فقاعة الرسالة - متوافق مع نظام ألوان SeaChat
   Widget _buildMessageBox(Map<String, dynamic> msg, bool isMe) {
     return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: isMe? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 5),
         padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
         decoration: BoxDecoration(
-          color: isMe ? AppColors.button.withOpacity(0.8) : Colors.white.withOpacity(0.15),
+          color: isMe? AppColors.button.withOpacity(0.8) : Colors.white.withOpacity(0.15),
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(15),
             topRight: const Radius.circular(15),
-            bottomLeft: isMe ? const Radius.circular(15) : Radius.zero,
-            bottomRight: isMe ? Radius.zero : const Radius.circular(15),
+            bottomLeft: isMe? const Radius.circular(15) : Radius.zero,
+            bottomRight: isMe? Radius.zero : const Radius.circular(15),
           ),
         ),
         child: Column(
-          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment: isMe? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             Text(
-              msg['message'] ?? "",
+              msg['message']?? "",
               style: const TextStyle(color: Colors.white, fontSize: 15),
             ),
             const SizedBox(height: 4),
             Text(
-              msg['created_at'] != null 
-                  ? timeago.format(DateTime.parse(msg['created_at']), locale: 'ar') 
+              msg['created_at']!= null
+                 ? timeago.format(DateTime.parse(msg['created_at']), locale: 'ar')
                   : "",
               style: const TextStyle(color: Colors.white54, fontSize: 9),
             ),
@@ -198,4 +198,3 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
   }
 }
-
