@@ -20,13 +20,15 @@ dependencies:
   record: ^5.2.1
   just_audio: ^0.9.42
   permission_handler: ^11.3.1
-  
 
   # Utilities
   uuid: ^4.5.1
   path_provider: ^2.1.5
+  cached_network_image: ^3.3.1 # أضفتها لك (مهمة للبروفايل)
+  timeago: ^3.7.0              # أضفتها لك (مهمة للدردشة)
+  intl: ^0.19.0                 # أضفتها لك (مهمة للتاريخ)
   
-  # Fonts
+  # Fonts & UI
   google_fonts: ^6.2.1
 
   # App Icons
@@ -41,6 +43,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icon.png
+  # ملاحظة: تأكد من وجود هذه الملفات في مشروعك إذا كنت تستخدم الخطوط محلياً
   fonts:
     - family: Cairo
       fonts:
