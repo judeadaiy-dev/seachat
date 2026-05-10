@@ -52,7 +52,7 @@ class _ChatScreenState extends State<ChatScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(widget.room.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(widget.room.roomName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             Text(isOfficial ? 'غرفة رسمية للمسؤولين' : 'دردشة جماعية', 
                  style: const TextStyle(fontSize: 10, color: Colors.white70)),
           ],
@@ -71,7 +71,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     .from('messages')
                     .stream(primaryKey: ['id'])
                     .eq('room_id', widget.room.id)
-                    .order('created_at', descending: true),
+                    .order('created_at', ascending: false),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
                   final msgs = snapshot.data!;
@@ -123,7 +123,7 @@ class _ChatScreenState extends State<ChatScreen> {
             // سنحتاج لاحقاً لجلب اسم المرسل عبر join في السوبابيز
             if (!isMe) const Text('عضو الغرفة', 
                 style: TextStyle(fontSize: 10, color: Colors.amberAccent, fontWeight: FontWeight.bold)),
-            Text(msg.message, style: const TextStyle(color: Colors.white, fontSize: 15)),
+            Text(msg.text, style: const TextStyle(color: Colors.white, fontSize: 15)),
             const SizedBox(height: 4),
             Text(
               timeago.format(msg.createdAt, locale: 'ar'),
