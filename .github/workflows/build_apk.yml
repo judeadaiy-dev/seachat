@@ -22,19 +22,17 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
+          # تم تحديث الإصدار ليتوافق مع Dart 3.5.0 المطلوب في pubspec
+          flutter-version: '3.24.0' 
           channel: 'stable'
           cache: true
 
-      # 1. جلب المكتبات (بما فيها cached_network_image وغيرها)
       - name: Get dependencies
         run: flutter pub get
 
-      # 2. بناء الـ APK (سيستخدم ملف AndroidManifest.xml الخاص بك تلقائياً)
       - name: Build APK Release
         run: flutter build apk --release --split-per-abi
 
-      # 3. رفع ملفات الـ APK لتتمكن من تحميلها
       - name: Upload APK - arm64
         uses: actions/upload-artifact@v4
         with:
