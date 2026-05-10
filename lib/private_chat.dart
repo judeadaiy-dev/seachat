@@ -92,8 +92,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                     stream: supabase
                         .from('private_messages')
                         .stream(primaryKey: ['id'])
-                        .or('and(sender_id.eq.$myId,receiver_id.eq.${widget.receiver.id}),and(sender_id.eq.${widget.receiver.id},receiver_id.eq.$myId)')
-                        .order('created_at', descending: true),
+                        .or('sender_id.eq.$myId,receiver_id.eq.${widget.receiver.id},sender_id.eq.${widget.receiver.id},receiver_id.eq.$myId'
+                        or('created_at', descending: true),
                     builder: (context, snapshot) {
                       if (snapshot.hasError) return Center(child: Text("خطأ: ${snapshot.error}"));
                       if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
@@ -197,4 +197,4 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       ),
     );
   }
-}
+            }
