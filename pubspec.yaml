@@ -1,5 +1,5 @@
 name: sea_chat
-description: "A modern glassmorphism chat application powered by Supabase."
+description: "A modern chat application with glassmorphism design powered by Supabase."
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -10,12 +10,14 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # UI & Icons
   cupertino_icons: ^1.0.8
+  cached_network_image: ^3.3.1
 
   # Backend
   supabase_flutter: ^2.10.6
 
-  # Chat Features
+  # Chat Features - بس اللي نحتاجه فعلاً
   image_picker: ^1.1.2
   record: ^6.0.0
   just_audio: ^0.9.42
@@ -24,13 +26,9 @@ dependencies:
   # Utilities
   uuid: ^4.5.1
   path_provider: ^2.1.5
-  cached_network_image: ^3.3.1
   timeago: ^3.7.0
   intl: ^0.19.0
   
-  # Fonts & UI
-  google_fonts: ^6.2.1
-
   # App Icons
   flutter_launcher_icons: ^0.13.1
 
@@ -44,12 +42,17 @@ flutter:
   
   assets:
     - assets/icon.png
+    - assets/images/ # ضيف هذا اذا تريد صور ثابتة
   
   fonts:
     - family: Cairo
       fonts:
         - asset: fonts/Cairo-Regular.ttf
           weight: 400
+        - asset: fonts/Cairo-Medium.ttf
+          weight: 500
+        - asset: fonts/Cairo-SemiBold.ttf
+          weight: 600
         - asset: fonts/Cairo-Bold.ttf
           weight: 700
 
@@ -58,3 +61,5 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/icon.png"
   min_sdk_android: 21
+  adaptive_icon_background: "#2F45FF" # نفس لون الخلفية الموحدة
+  adaptive_icon_foreground: "assets/icon_foreground.png"
