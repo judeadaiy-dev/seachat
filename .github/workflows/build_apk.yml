@@ -1,4 +1,4 @@
-name: SeaChat Professional Build V5
+name: SeaChat Nuclear Force Build V6
 
 on:
   push:
@@ -25,20 +25,42 @@ jobs:
           flutter-version: '3.24.3'
           cache: true
 
-      - name: Reconstruct Modern Android Environment
+      - name: Hardcore Android Environment Injection
         run: |
-          # 1. حذف المجلد القديم لضمان عدم وجود ملفات مكسورة
+          set +e
           rm -rf android/
-          
-          # 2. إنشاء مشروع أندرويد جديد بأحدث المعايير (Declarative Support)
           flutter create --platforms=android --org com.judea --project-name sea_chat .
           
-          # 3. إعداد ملف local.properties بشكل صحيح وشامل
+          # 1. إعداد local.properties بدقة متناهية
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
           echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
           
-          # 4. حل مشكلة compileSdkVersion للمكتبات الخارجية (app_links وغيرها)
-          # نقوم بتعديل ملف build.gradle الرئيسي لفرض الإعدادات على المشاريع الفرعية
+          # 2. حقن ملف settings.gradle (هذا هو مفتاح الحل لـ app_links)
+          cat > android/settings.gradle << 'EOF'
+          pluginManagement {
+              def flutterSdkPath = {
+                  def properties = new Properties()
+                  file("local.properties").withInputStream { properties.load(it) }
+                  def flutterSdkPath = properties.getProperty("flutter.sdk")
+                  assert flutterSdkPath != null, "flutter.sdk not set in local.properties"
+                  return flutterSdkPath
+              }()
+              includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          plugins {
+              id "dev.flutter.flutter-gradle-plugin" version "1.0.0" apply false
+              id "com.android.application" version "8.1.0" apply false
+              id "org.jetbrains.kotlin.android" version "1.8.22" apply false
+          }
+          include ":app"
+          EOF
+
+          # 3. تعديل ملف build.gradle الرئيسي لفرض الـ SDK على المكاتب الخارجية
           cat > android/build.gradle << 'EOF'
           allprojects {
               repositories {
@@ -46,56 +68,41 @@ jobs:
                   mavenCentral()
               }
           }
-          rootProject.buildDir = '../build'
           subprojects {
-              project.buildDir = "${rootProject.buildDir}/${project.name}"
               afterEvaluate { project ->
                   if (project.hasProperty('android')) {
                       project.android {
-                          if (namespace == null) {
-                              namespace project.group
-                          }
                           compileSdkVersion 34
                           buildToolsVersion "34.0.0"
+                          if (namespace == null) namespace = "com.judea.seachat.${project.name}"
                       }
                   }
               }
           }
-          subprojects {
-              project.evaluationDependsOn(':app')
-          }
-          tasks.register("clean", Delete) {
-              delete rootProject.buildDir
-          }
           EOF
 
-          # 5. ضبط إعدادات تطبيقك (minSdkVersion) وتفعيل الإنترنت
-          sed -i 's/minSdkVersion .*/minSdkVersion 24/' android/app/build.gradle
+          # 4. تفعيل تصاريح الإنترنت
           MANIFEST="android/app/src/main/AndroidManifest.xml"
           sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
 
-      - name: Clean & Get Packages
+      - name: Build Nuclear APK
         run: |
-          flutter clean
           flutter pub get
+          # استخدام فلاج يتجاوز تدقيق الإصدارات الصارم
+          flutter build apk --debug --target-platform android-arm,android-arm64,android-x64 --no-version-check
 
-      - name: Build Actual APK
-        run: |
-          # بناء APK ديبيج شامل (Debug APK)
-          flutter build apk --debug --target-platform android-arm,android-arm64,android-x64
-
-      - name: Final Verification
+      - name: Final Size Check
         run: |
           APK_PATH="build/app/outputs/flutter-apk/app-debug.apk"
           if [ -f "$APK_PATH" ]; then
             echo "Success! APK Size: $(stat -c%s "$APK_PATH") bytes"
           else
-            echo "Error: Build process failed to create APK file."
+            echo "Build failed to generate file."
             exit 1
           fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Stable-V5
+          name: SeaChat-Nuclear-V6
           path: build/app/outputs/flutter-apk/app-debug.apk
