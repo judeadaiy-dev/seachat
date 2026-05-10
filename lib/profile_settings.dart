@@ -7,44 +7,8 @@ import 'package:storage_client/storage_client.dart';
 import 'models.dart';
 import 'private_chat.dart';
 import 'main.dart';
-Future<void> _saveProfile() async {
-  if (!_formKey.currentState!.validate()) return;
-  setState(() => _isSaving = true);
 
-  try {
-    String? avatarUrl = widget.user.avatarUrl;
-
-    if (_imageFile!= null) {
-      final bytes = await _imageFile!.readAsBytes();
-      final fileName = '${repo.supabase.auth.currentUser!.id}.jpg';
-      final path = 'avatars/$fileName';
-      
-      await repo.supabase.storage.from('avatars').uploadBinary(
-        path,
-        bytes,
-        fileOptions: FileOptions(upsert: true), // هذا الصح لنسختك
-      );
-      
-      avatarUrl = repo.supabase.storage.from('avatars').getPublicUrl(path);
-    }
-
-    await repo.supabase.from('profiles').update({
-      'name': _nameController.text.trim(),
-      'username': _usernameController.text.trim().isEmpty? null : _usernameController.text.trim(),
-      'bio': _bioController.text.trim().isEmpty? null : _bioController.text.trim(),
-      'avatar_url': avatarUrl,
-      'updated_at': DateTime.now().toIso8601String(),
-    }).eq('id', widget.user.id);
-
-    if (mounted) Navigator.pop(context, true);
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الحفظ: $e')));
-    }
-  } finally {
-    if (mounted) setState(() => _isSaving = false);
-  }
-}
+// ===== شاشة الملف الشخصي =====
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
   @override
@@ -79,7 +43,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_user == null) return;
     final updated = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(builder: (_) => ProfileSettingsScreen(user: _user!)), // كان PMaterialPageRoute - هذا الخطأ
+      MaterialPageRoute(builder: (_) => ProfileSettingsScreen(user: _user!)),
     );
     if (updated == true) _loadUser();
   }
@@ -110,9 +74,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: Colors.transparent,
       appBar: AppBar(backgroundColor: Colors.transparent, title: const Text('الملف الشخصي'), centerTitle: true),
       body: _isLoading
-        ? const Center(child: CircularProgressIndicator())
+         ? const Center(child: CircularProgressIndicator())
           : _user == null
-            ? const Center(child: Text('المستخدم غير موجود'))
+             ? const Center(child: Text('المستخدم غير موجود'))
               : ListView(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
                   children: [
@@ -138,7 +102,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 backgroundColor: AppColors.button.withOpacity(0.2),
                                 backgroundImage: _user!.avatarUrl!= null? NetworkImage(_user!.avatarUrl!) : null,
                                 child: _user!.avatarUrl == null
-                                  ? Text(
+                                   ? Text(
                                         _user!.name.isNotEmpty? _user!.name[0].toUpperCase() : 'U',
                                         style: const TextStyle(fontSize: 42, color: Colors.white, fontWeight: FontWeight.bold),
                                       )
@@ -201,7 +165,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                       ),
-
                     GlassCard(
                       onTap: _openSettings,
                       child: const ListTile(
@@ -224,7 +187,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-// ===== شاشة الإعدادات الناقصة =====
+// ===== شاشة الإعدادات =====
 class ProfileSettingsScreen extends StatefulWidget {
   final UserModel user;
   const ProfileSettingsScreen({super.key, required this.user});
@@ -267,45 +230,43 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   }
 
   Future<void> _saveProfile() async {
-  if (!_formKey.currentState!.validate()) return;
-  setState(() => _isSaving = true);
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isSaving = true);
 
-  try {
-    String? avatarUrl = widget.user.avatarUrl;
+    try {
+      String? avatarUrl = widget.user.avatarUrl;
 
-    // رفع الصورة لو اختار وحدة جديدة
-    if (_imageFile!= null) {
-      final bytes = await _imageFile!.readAsBytes();
-      final fileName = '${repo.supabase.auth.currentUser!.id}.jpg';
-      final path = 'avatars/$fileName';
-      
-      // هذا السطر المصحح
-      await repo.supabase.storage.from('avatars').uploadBinary(
-        path,
-        bytes,
-        upsert: true, // بدال fileOptions
-      );
-      
-      avatarUrl = repo.supabase.storage.from('avatars').getPublicUrl(path);
+      if (_imageFile!= null) {
+        final bytes = await _imageFile!.readAsBytes();
+        final fileName = '${repo.supabase.auth.currentUser!.id}.jpg';
+        final path = 'avatars/$fileName';
+
+        await repo.supabase.storage.from('avatars').uploadBinary(
+              path,
+              bytes,
+              fileOptions: FileOptions(upsert: true),
+            );
+
+        avatarUrl = repo.supabase.storage.from('avatars').getPublicUrl(path);
+      }
+
+      await repo.supabase.from('profiles').update({
+        'name': _nameController.text.trim(),
+        'username': _usernameController.text.trim().isEmpty? null : _usernameController.text.trim(),
+        'bio': _bioController.text.trim().isEmpty? null : _bioController.text.trim(),
+        'avatar_url': avatarUrl,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', widget.user.id);
+
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الحفظ: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
-
-    await repo.supabase.from('profiles').update({
-      'name': _nameController.text.trim(),
-      'username': _usernameController.text.trim().isEmpty? null : _usernameController.text.trim(),
-      'bio': _bioController.text.trim().isEmpty? null : _bioController.text.trim(),
-      'avatar_url': avatarUrl,
-      'updated_at': DateTime.now().toIso8601String(),
-    }).eq('id', widget.user.id);
-
-    if (mounted) Navigator.pop(context, true);
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الحفظ: $e')));
-    }
-  } finally {
-    if (mounted) setState(() => _isSaving = false);
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -316,7 +277,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           TextButton(
             onPressed: _isSaving? null : _saveProfile,
             child: _isSaving
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                 : const Text('حفظ', style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -334,10 +295,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                       radius: 60,
                       backgroundColor: AppColors.button.withOpacity(0.2),
                       backgroundImage: _imageFile!= null
-                        ? FileImage(_imageFile!)
+                         ? FileImage(_imageFile!)
                           : (widget.user.avatarUrl!= null? NetworkImage(widget.user.avatarUrl!) : null) as ImageProvider?,
                       child: (_imageFile == null && widget.user.avatarUrl == null)
-                        ? Text(
+                         ? Text(
                               widget.user.name.isNotEmpty? widget.user.name[0].toUpperCase() : 'U',
                               style: const TextStyle(fontSize: 50, color: Colors.white),
                             )
