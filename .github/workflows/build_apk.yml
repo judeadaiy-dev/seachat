@@ -10,10 +10,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4 # تحديث لـ v4
+      - uses: actions/checkout@v4
 
       - name: Setup Java
-        uses: actions/setup-java@v4 # تحديث لـ v4
+        uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
@@ -25,22 +25,28 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Reconstruct Project Environment
+      - name: Reconstruct Project & Install Dependencies
         run: |
+          # 1. احذف android القديم
           rm -rf android
-          flutter pub get
+          
+          # 2. انشئ android من جديد أول
           flutter create . --platforms android
           
-          # إضافة صلاحية الإنترنت للمانيفست
+          # 3. بعدين نزل الـ packages
+          flutter pub get
+          
+          # 4. أضف صلاحية الإنترنت
           sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
           
+          # 5. صلاحيات gradlew
           chmod +x android/gradlew
 
       - name: Build Debug APK
         run: flutter build apk --debug
 
       - name: Upload APK
-        uses: actions/upload-artifact@v4 # هذا هو الإصلاح المطلوب للخطأ في الصورة
+        uses: actions/upload-artifact@v4
         with:
           name: SeaChat-Fresh-Debug-APK
           path: build/app/outputs/flutter-apk/app-debug.apk
