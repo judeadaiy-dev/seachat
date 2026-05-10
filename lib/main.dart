@@ -82,16 +82,22 @@ class SupabaseRepository {
 }
 
   Future<void> deleteAvatar() async {
-    final userId = supabase.auth.currentUser!.id;
-    final oldAvatar = await supabase.from('profiles').select('avatar_url').eq('id', userId).maybeSingle();
-    if (oldAvatar?['avatar_url']!= null) {
-      try {
-        final oldPath = Uri.parse(oldAvatar['avatar_url']).pathSegments.last;
-        await supabase.storage.from('avatars').remove([oldPath]);
-      } catch (_) {}
-      await supabase.from('profiles').update({'avatar_url': null}).eq('id', userId);
+  final userId = supabase.auth.currentUser!.id;
+  final oldAvatar = await supabase.from('profiles').select('avatar_url').eq('id', userId).maybeSingle();
+
+  if (oldAvatar?['avatar_url']!= null && oldAvatar!['avatar_url'].toString().isNotEmpty) {
+    try {
+      final oldPath = Uri.parse(oldAvatar['avatar_url']).pathSegments.last;
+      // هذا السطر كان ناقص عندك - يحذف الملف من التخزين
+      await supabase.storage.from('avatars').remove([oldPath]);
+    } catch (e) {
+      debugPrint('Error deleting old avatar: $e');
     }
   }
+
+  // تحديث البروفايل بعد حذف الصورة
+  await supabase.from('profiles').update({'avatar_url': null}).eq('id', userId);
+}
 
   Stream<List<RoomModel>> getRoomsStream() {
     return supabase
