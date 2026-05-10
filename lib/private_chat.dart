@@ -206,3 +206,4 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
   }
 }
+
