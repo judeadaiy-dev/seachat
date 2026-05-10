@@ -139,7 +139,7 @@ class _AdminPanelState extends State<AdminPanel> {
                                   const PopupMenuItem(value: 'ban', child: Row(children: [Icon(Icons.block, color: Colors.red), SizedBox(width: 8), Text('حظر المستخدم')])),
                                 if (isBanned) 
                                   const PopupMenuItem(value: 'unban', child: Row(children: [Icon(Icons.check_circle, color: Colors.green), SizedBox(width: 8), Text('رفع الحظر')])),
-                                const Divider(),
+                                const PopupMenuDivider(),
                                 if (!isUserAdmin) 
                                   const PopupMenuItem(value: 'make_admin', child: Row(children: [Icon(Icons.admin_panel_settings, color: Colors.blue), SizedBox(width: 8), Text('ترقية لمشرف')])),
                                 if (isUserAdmin) 
@@ -157,4 +157,3 @@ class _AdminPanelState extends State<AdminPanel> {
     );
   }
 }
-
