@@ -239,7 +239,11 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         final bytes = await _imageFile!.readAsBytes();
         final fileName = '${repo.supabase.auth.currentUser!.id}.jpg';
         final path = 'avatars/$fileName';
-        await repo.supabase.storage.from('avatars').uploadBinary(path, bytes, fileOptions: const FileOptions(upsert: true));
+       await repo.supabase.storage.from('avatars').uploadBinary(
+  path,
+  bytes,
+  fileOptions: FileOptions(upsert: true) // شلت const
+);
         avatarUrl = repo.supabase.storage.from('avatars').getPublicUrl(path);
       }
 
