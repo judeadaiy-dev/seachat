@@ -1,51 +1,10 @@
-name: SeaChat Auto Build Clean APK
-
-on:
-  push:
-    branches: [ main, master ] # سيعمل عند كل رفع كود
-  pull_request:
-    branches: [ main, master ]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      # 1. جلب الكود من المستودع
-      - uses: actions/checkout@v3
-
-      # 2. إعداد جافا 17 (الإصدار الأحدث والمدعوم حالياً)
-      - name: Setup Java
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-
-      # 3. إعداد فلاتر (نسخة مستقرة)
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-
-      # 4. تنظيف الذاكرة وجلب الحزم من pubspec.yaml
-      - name: Install dependencies
-        run: flutter pub get
-
-      # 🔥 5. الخطوة الحاسمة: حذف الأندرويد القديم وبناء هيكل جديد 🔥
-      - name: Recreate Clean Android Structure
+      - name: Recreate & Fix Android
         run: |
           rm -rf android
           flutter create . --platforms android
-          # إعطاء صلاحيات لملف البناء الجديد
+          flutter pub run flutter_launcher_icons
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
           chmod +x android/gradlew
 
-      # 6. بناء ملف الـ APK (مقسم لتقليل الحجم وتحسين التوافق)
-      - name: Build APK
+       - name: Build APK
         run: flutter build apk --release --split-per-abi
-
-      # 7. رفع الملف الناتج لكي تستطيع تحميله
-      - name: Upload APK
-        uses: actions/upload-artifact@v3
-        with:
-          name: SeaChat-Release-APK
-          path: build/app/outputs/flutter-apk/*.apk
