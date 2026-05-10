@@ -1,10 +1,10 @@
-name: SeaChat Clean Build
+name: SeaChat Fresh Build
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
 
 jobs:
   build:
@@ -23,22 +23,29 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Install Dependencies
-        run: flutter pub get
-
-      - name: Recreate and Fix Android
+      - name: Reconstruct Project Environment
         run: |
+          # 1. تنظيف أي مخلفات قديمة
           rm -rf android
+          
+          # 2. تحميل الحزم أولاً لضمان وجودها
+          flutter pub get
+          
+          # 3. إنشاء مجلد أندرويد جديد متوافق مع نسخة فلاتر الحالية
           flutter create . --platforms android
-          flutter pub run flutter_launcher_icons
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
+          
+          # 4. إضافة الصلاحيات الضرورية للمانيفست الجديد
+          # سنستخدم 'sed' لإضافة صلاحية الإنترنت مباشرة بعد وسام المانيفست
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
+          
+          # 5. إعطاء صلاحية التنفيذ لـ Gradle
           chmod +x android/gradlew
 
-      - name: Build APK
-        run: flutter build apk --release --split-per-abi
+      - name: Build Debug APK
+        run: flutter build apk --debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v3
         with:
-          name: SeaChat-Release-APK
-          path: build/app/outputs/flutter-apk/*.apk
+          name: SeaChat-Fresh-Debug-APK
+          path: build/app/outputs/flutter-apk/app-debug.apk
