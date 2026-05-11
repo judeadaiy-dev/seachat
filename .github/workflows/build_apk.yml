@@ -47,6 +47,14 @@ jobs:
           # يتأكد أن عندك أيقونة في assets/icon.png
           # وينشئ كل الأحجام تلقائياً
           flutter pub run flutter_launcher_icons
+
+      - name: Fix const errors with AppColors
+        run: |
+          echo "Fixing const TextStyle, Text, Icon with AppColors..."
+          find lib -type f -name "*.dart" -exec sed -i 's/const TextStyle(/TextStyle(/g' {} +
+          find lib -type f -name "*.dart" -exec sed -i 's/const Text(/Text(/g' {} +
+          find lib -type f -name "*.dart" -exec sed -i 's/const Icon(/Icon(/g' {} +
+          echo "Done fixing const errors"
           
       - name: Build Debug APK
         run: flutter build apk --debug
