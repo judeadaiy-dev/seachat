@@ -1,26 +1,79 @@
 import 'widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-// ربط مع ملفاتك الأساسية لضمان عمل الموديلات والتصميم
 import 'models.dart';
 import 'main.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
+// 1. هاي شاشة قائمة المحادثات الخاصة - اللي يطلبها main.dart
 class PrivateChatsScreen extends StatelessWidget {
   const PrivateChatsScreen({super.key});
-  
+
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Center(
-        child: Text(
-          'المحادثات الخاصة - قريباً',
-          style: TextStyle(color: Colors.white, fontSize: 18),
-        ),
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: Supabase.instance.client
+           .from('profiles')
+           .stream(primaryKey: ['id'])
+           .neq('id', Supabase.instance.client.auth.currentUser?.id?? ''),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: Colors.white));
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('خطأ: ${snapshot.error}', style: const TextStyle(color: Colors.white)));
+          }
+          final users = snapshot.data?? [];
+          if (users.isEmpty) {
+            return const Center(child: Text('لا يوجد مستخدمين', style: TextStyle(color: Colors.white)));
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+            itemCount: users.length,
+            itemBuilder: (context, index) {
+              final user = UserModel.fromMap(users[index]);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Card(
+                  color: Colors.white.withOpacity(0.1),
+                  child: ListTile(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => PrivateChatScreen(receiver: user)),
+                    ),
+                    leading: CircleAvatar(
+                      backgroundImage: (user.avatarUrl!= null && user.avatarUrl!.isNotEmpty)
+                         ? NetworkImage(user.avatarUrl!)
+                          : null,
+                      child: (user.avatarUrl == null || user.avatarUrl!.isEmpty)
+                         ? const Icon(Icons.person)
+                          : null,
+                    ),
+                    title: Text(user.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                    subtitle: Text(user.username?? '', style: TextStyle(color: Colors.white.withOpacity(0.7))),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.white70),
+                  ),
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }
+}
+
+// 2. هاي شاشة المحادثة المفردة - الكود مالك القديم يبقى شغال
+class PrivateChatScreen extends StatefulWidget {
+  final UserModel receiver;
+
+  const PrivateChatScreen({super.key, required this.receiver});
+
+  @override
+  State<PrivateChatScreen> createState() => _PrivateChatScreenState();
 }
 
 class _PrivateChatScreenState extends State<PrivateChatScreen> {
@@ -28,7 +81,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   final supabase = Supabase.instance.client;
   final ScrollController _scrollController = ScrollController();
 
-  // دالة إرسال الرسالة - مرتبطة بجدول private_messages في سوبابيز
   Future<void> _sendPrivateMessage() async {
     final text = _msgController.text.trim();
     if (text.isEmpty) return;
@@ -65,7 +117,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        // ربط العنوان ببيانات المستخدم المستلم
         title: Row(
           children: [
             CircleAvatar(
@@ -90,55 +141,53 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         backgroundColor: Colors.black.withOpacity(0.5),
         elevation: 0,
       ),
-      body: AppBackground( // استخدام الخلفية الموحدة للتطبيق
+      body: AppBackground(
         child: Column(
           children: [
             Expanded(
               child: myId == null
-               ? const Center(child: Text("يرجى تسجيل الدخول"))
-                : StreamBuilder<List<Map<String, dynamic>>>(
-                    stream: supabase
-                     .from('private_messages')
-                     .stream(primaryKey: ['id'])
-                     .order('created_at', ascending: false),
-                    builder: (context, snapshot) {
-                      if (snapshot.hasError) {
-                        return Center(child: Text("خطأ: ${snapshot.error}"));
-                      }
-                      if (!snapshot.hasData) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
+                 ? const Center(child: Text("يرجى تسجيل الدخول"))
+                  : StreamBuilder<List<Map<String, dynamic>>>(
+                      stream: supabase
+                         .from('private_messages')
+                         .stream(primaryKey: ['id'])
+                         .order('created_at', ascending: false),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          return Center(child: Text("خطأ: ${snapshot.error}"));
+                        }
+                        if (!snapshot.hasData) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
 
-                      // فلترة الرسائل هنا بدل.or()
-                      final messages = snapshot.data!.where((msg) {
-                        final sender = msg['sender_id'];
-                        final receiver = msg['receiver_id'];
-                        return (sender == myId && receiver == widget.receiver.id) ||
-                               (sender == widget.receiver.id && receiver == myId);
-                      }).toList();
+                        final messages = snapshot.data!.where((msg) {
+                          final sender = msg['sender_id'];
+                          final receiver = msg['receiver_id'];
+                          return (sender == myId && receiver == widget.receiver.id) ||
+                              (sender == widget.receiver.id && receiver == myId);
+                        }).toList();
 
-                      return ListView.builder(
-                        controller: _scrollController,
-                        reverse: true,
-                        padding: const EdgeInsets.fromLTRB(16, 100, 16, 20),
-                        itemCount: messages.length,
-                        itemBuilder: (context, index) {
-                          final msg = messages[index];
-                          final bool isMe = msg['sender_id'] == myId;
-                          return _buildMessageBox(msg, isMe);
-                        },
-                      );
-                    },
-                  ),
+                        return ListView.builder(
+                          controller: _scrollController,
+                          reverse: true,
+                          padding: const EdgeInsets.fromLTRB(16, 100, 16, 20),
+                          itemCount: messages.length,
+                          itemBuilder: (context, index) {
+                            final msg = messages[index];
+                            final bool isMe = msg['sender_id'] == myId;
+                            return _buildMessageBox(msg, isMe);
+                          },
+                        );
+                      },
+                    ),
             ),
-            _buildInputArea(), // كان ناقص
-          ], // كان ناقص
-        ), // كان ناقص
-      ), // كان ناقص
-    ); // كان ناقص
-  } // كان ناقص
+            _buildInputArea(),
+          ],
+        ),
+      ),
+    );
+  }
 
-  // تصميم فقاعة الرسالة - متوافق مع نظام ألوان SeaChat
   Widget _buildMessageBox(Map<String, dynamic> msg, bool isMe) {
     return Align(
       alignment: isMe? Alignment.centerRight : Alignment.centerLeft,
@@ -215,4 +264,3 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
   }
 }
-
