@@ -14,18 +14,24 @@ import 'models.dart';
 
 // ========== الألوان مدموجة هنا ==========
 class AppColors {
-  static const Color button = Color(0xFFE9F056);
-  static const Color primaryBlue = Color(0xFF0F172A);
-  static const Color textDark = Color(0xFF1E293B);
-  static const Color textLight = Color(0xFFCBD5E1);
-  static const Color icon = Color(0xFFE9F056);
-  static const Color cardGlass = Color(0x1AFFFFFF);
-  static const Color success = Color(0xFF10B981);
-  static const Color error = Color(0xFFEF4444);
-  static const Color background = Color(0xFFAEBBA0); // ← صلحت اللون: ضفت 0 ناقص
-  static const Color card = Color(0xFF1B2A41);
-  static const Color text = Colors.white;
-  static const Color delete = Color(0xFFDC143C);
+  // === Pinterest 2026 Palette ===
+  static const Color button = Color(0xFFE9F056);      // Wasabi فسفوري - للازرار فقط
+  static const Color primaryBlue = Color(0xFFD7EFFF); // Cool Blue - خلفية التطبيق الرئيسية
+  static const Color background = Color(0xFFD7EFFF);  // Cool Blue - خلفية ثانوية
+  
+  static const Color icon = Color(0xFFAEB8A0);        // Vert Sauge - للايقونات اخضر فاتح
+  static const Color success = Color(0xFFAEB8A0);     // Vert Sauge - للنجاح
+  
+  static const Color cardGlass = Color(0xFFFFFFFF);   // ابيض - للكروت
+  static const Color card = Color(0xFFFFFFFF);        // ابيض - للكروت
+  
+  static const Color textDark = Color(0xFF2D3748);    // رمادي غامق - للنصوص الرئيسية
+  static const Color text = Color(0xFF2D3748);        // رمادي غامق - نص افتراضي
+  static const Color textLight = Color(0xFF718096);   // رمادي متوسط - للنصوص الثانوية
+  
+  static const Color error = Color(0xFFE53E3E);       // احمر - للاخطاء
+  static const Color delete = Color(0xFFE53E3E);      // احمر - للحذف
+  static const Color border = Color(0xFFCBD5E0);      // رمادي فاتح - للحدود
 }
 
 void main() async {
