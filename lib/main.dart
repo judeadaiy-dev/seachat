@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'models.dart';
+import 'models.dart'; // الموديلات مالتك
 import 'auth_screens.dart';
 import 'profile_settings.dart';
 import 'private_chat.dart';
@@ -11,133 +11,61 @@ import 'contact_us_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'dart:ui';
 
-class UserModel {
-  final String id;
-  final String? username;
-  final String? fullName;
-  final String? avatarUrl;
-  final DateTime? createdAt;
+// 1. دالة main - التطبيق يبدي من هنا
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
-  UserModel({
-    required this.id,
-    this.username,
-    this.fullName,
-    this.avatarUrl,
-    this.createdAt,
-  });
+  await Supabase.initialize(
+    url: 'https://xxxxxxxxxxxx.supabase.co', // بدله بالرابط مالتك
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...', // بدله بالكي مالتك
+  );
 
-  factory UserModel.fromMap(Map<String, dynamic> map) {
-    return UserModel(
-      id: map['id'],
-      username: map['username'],
-      fullName: map['full_name'],
-      avatarUrl: map['avatar_url'],
-      createdAt: map['created_at'] != null ? DateTime.parse(map['created_at']) : null,
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'username': username,
-      'full_name': fullName,
-      'avatar_url': avatarUrl,
-    };
-  }
+  runApp(const MyApp());
 }
 
-class RoomModel {
-  final String id;
-  final String roomName;
-  final String? description;
-  final DateTime createdAt;
-  final String? ownerId;
+// اختصار للوصول لـ supabase
+final supabase = Supabase.instance.client;
 
-  RoomModel({
-    required this.id,
-    required this.roomName,
-    this.description,
-    required this.createdAt,
-    this.ownerId,
-  });
+// 2. الويدجت الرئيسي
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
-  factory RoomModel.fromMap(Map<String, dynamic> map) {
-    return RoomModel(
-      id: map['id'],
-      roomName: map['name'], // التعديل المهم: room_name → name
-      description: map['description'],
-      createdAt: DateTime.parse(map['created_at']),
-      ownerId: map['owner_id'],
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'name': roomName,
-      'description': description,
-      'owner_id': ownerId,
-    };
-  }
-}
-
-class PrivateMessageModel {
-  final String id;
-  final String senderId;
-  final String receiverId;
-  final String content;
-  final DateTime createdAt;
-  final bool isRead;
-
-  PrivateMessageModel({
-    required this.id,
-    required this.senderId,
-    required this.receiverId,
-    required this.content,
-    required this.createdAt,
-    this.isRead = false,
-  });
-
-  factory PrivateMessageModel.fromMap(Map<String, dynamic> map) {
-    return PrivateMessageModel(
-      id: map['id'],
-      senderId: map['sender_id'],
-      receiverId: map['receiver_id'],
-      content: map['content'],
-      createdAt: DateTime.parse(map['created_at']),
-      isRead: map['is_read'] ?? false,
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Sea Chat',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        fontFamily: 'Cairo',
+        brightness: Brightness.dark,
+        useMaterial3: true,
+      ),
+      // 3. اول شاشة: يفحص اذا مسجل دخول لو لا
+      home: const AuthGate(),
     );
   }
 }
 
-class RoomMessageModel {
-  final String id;
-  final String roomId;
-  final String senderId;
-  final String content;
-  final DateTime createdAt;
-  final String? senderName;
-  final String? senderAvatar;
+// 4. هذا يقرر يوديك للتسجيل لو للشات
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
 
-  RoomMessageModel({
-    required this.id,
-    required this.roomId,
-    required this.senderId,
-    required this.content,
-    required this.createdAt,
-    this.senderName,
-    this.senderAvatar,
-  });
-
-  factory RoomMessageModel.fromMap(Map<String, dynamic> map) {
-    return RoomMessageModel(
-      id: map['id'],
-      roomId: map['room_id'],
-      senderId: map['sender_id'],
-      content: map['content'],
-      createdAt: DateTime.parse(map['created_at']),
-      senderName: map['profiles']?['full_name'],
-      senderAvatar: map['profiles']?['avatar_url'],
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<AuthState>(
+      stream: supabase.auth.onAuthStateChange,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+        
+        final session = snapshot.data?.session;
+        if (session != null) {
+          return const ChatScreen(); // اذا مسجل دخول
+        } else {
+          return const AuthScreen(); // اذا مو مسجل
+        }
+      },
     );
   }
 }
