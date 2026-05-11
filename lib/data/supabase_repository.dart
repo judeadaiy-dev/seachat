@@ -1,5 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'models.dart';
+import '../models.dart';  // ← غيرت هذا السطر بس: ضفت ../ علمود يصعد مجلد
 
 class SupabaseRepository {
   final supabase = Supabase.instance.client;
@@ -19,12 +19,7 @@ class SupabaseRepository {
 
   // تسجيل الدخول بجوجل (تم تعطيله مؤقتاً لتسريع التطوير)
   Future<void> signInWithGoogle() async {
-    // هذه الرسالة ستظهر للمستخدم عند محاولة الضغط على الزر
     throw Exception('ميزة تسجيل جوجل ستتوفر في التحديثات القادمة');
-    
-    /* ملاحظة للمستقبل: عند العودة لتفعيل جوجل، سنحتاج لملف google-services.json 
-    وضبط SHA-1 في Google Cloud Console لضمان عملها مع GitHub Actions.
-    */
   }
 
   // ==================== Rooms (الغرف) ====================
