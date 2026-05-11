@@ -10,7 +10,7 @@ import 'create_room_screen.dart';
 import 'contact_us_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'dart:ui';
-
+import 'models.dart';  // ← مباشرة لأن بنفس المجلد lib/
 // ========== الألوان مدموجة هنا ==========
 class AppColors {
   static const Color button = Color(0xFFE9F056);
