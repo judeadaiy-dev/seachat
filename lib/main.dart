@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'models.dart'; // الموديلات الجديدة مالتك
+import 'models.dart';
+import 'supabase_repository.dart';
 import 'auth_screens.dart';
 import 'profile_settings.dart';
 import 'private_chat.dart';
@@ -11,18 +12,30 @@ import 'contact_us_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'dart:ui';
 
+// ========== الألوان مدموجة هنا ==========
+class AppColors {
+  static const Color button = Color(0xFF00BCD4);
+  static const Color primaryBlue = Color(0xFF0F172A);
+  static const Color textDark = Color(0xFF1E293B);
+  static const Color textLight = Color(0xFFCBD5E1);
+  static const Color icon = Color(0xFF64748B);
+  static const Color cardGlass = Color(0x1AFFFFFF);
+  static const Color success = Color(0xFF10B981);
+  static const Color error = Color(0xFFEF4444);
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
-    url: 'https://jmsmrojtlstppnpwmkkk.supabase.co', // بدله
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos', // بدله
+    url: 'YOUR_SUPABASE_URL', // بدله
+    anonKey: 'YOUR_SUPABASE_ANON_KEY', // بدله
   );
 
   runApp(const SeaChatApp());
 }
 
-final supabase = Supabase.instance.client;
+final repo = SupabaseRepository();
 
 class SeaChatApp extends StatelessWidget {
   const SeaChatApp({super.key});
@@ -36,8 +49,9 @@ class SeaChatApp extends StatelessWidget {
         fontFamily: 'Cairo',
         brightness: Brightness.dark,
         useMaterial3: true,
+        scaffoldBackgroundColor: AppColors.primaryBlue,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF00BCD4),
+          seedColor: AppColors.button,
           brightness: Brightness.dark,
         ),
       ),
@@ -46,84 +60,76 @@ class SeaChatApp extends StatelessWidget {
   }
 }
 
-class AuthGate extends StatefulWidget {
+class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
   @override
-  State<AuthGate> createState() => _AuthGateState();
-}
-
-class _AuthGateState extends State<AuthGate> {
-  UserModel? _currentUser;
-
-  @override
-  void initState() {
-    super.initState();
-    _getCurrentUser();
-    
-    // استمع لتغيير حالة تسجيل الدخول
-    supabase.auth.onAuthStateChange.listen((data) {
-      _getCurrentUser();
-    });
-  }
-
-  Future<void> _getCurrentUser() async {
-    final user = supabase.auth.currentUser;
-    if (user != null) {
-      try {
-        final response = await supabase
-            .from('profiles')
-            .select()
-            .eq('id', user.id)
-            .single();
-        
-        setState(() {
-          _currentUser = UserModel.fromMap(response);
-        });
-      } catch (e) {
-        setState(() {
-          _currentUser = null;
-        });
-      }
-    } else {
-      setState(() {
-        _currentUser = null;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    // اذا مسجل دخول وجبنا بياناته
-    if (_currentUser != null) {
-      // اذا محظور
-      if (_currentUser!.isBanned) {
-        return const BannedScreen();
-      }
-      // اذا ادمن
-      if (_currentUser!.role == 'admin') {
-        return const AdminPanel();
-      }
-      // مستخدم عادي
-      return const ChatScreen();
-    }
-    
-    // اذا ما مسجل دخول
-    return const AuthScreen();
+    return StreamBuilder<AuthState>(
+      stream: Supabase.instance.client.auth.onAuthStateChange,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator(color: AppColors.button)),
+          );
+        }
+
+        final session = snapshot.data?.session;
+        if (session == null) {
+          return const AuthScreen();
+        }
+
+        return FutureBuilder<UserModel?>(
+          future: repo.getCurrentUser(),
+          builder: (context, userSnapshot) {
+            if (userSnapshot.connectionState == ConnectionState.waiting) {
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator(color: AppColors.button)),
+              );
+            }
+
+            final user = userSnapshot.data;
+            
+            if (user?.isBanned == true) {
+              return const BannedScreen();
+            }
+            
+            if (user?.role == 'admin') {
+              return const AdminPanel();
+            }
+            
+            return const ProfileSettings(); // مؤقتاً حتى نصلح ChatScreen
+          },
+        );
+      },
+    );
   }
 }
 
-// شاشة الحظر البسيطة
 class BannedScreen extends StatelessWidget {
   const BannedScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
+      backgroundColor: AppColors.primaryBlue,
       body: Center(
-        child: Text(
-          'تم حظر حسابك',
-          style: TextStyle(fontSize: 24, color: Colors.red),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.block, size: 80, color: AppColors.error),
+            const SizedBox(height: 20),
+            const Text(
+              'تم حظر حسابك',
+              style: TextStyle(fontSize: 24, color: AppColors.textLight, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () => repo.supabase.auth.signOut(),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.button),
+              child: const Text('تسجيل الخروج'),
+            ),
+          ],
         ),
       ),
     );
