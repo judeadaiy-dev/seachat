@@ -1,10 +1,10 @@
-import 'dart:io';
+import 'data/supabase_repository.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:storage_client/storage_client.dart';
-import 'models.dart';
+import 'models.dart';  // ← مباشرة لأن بنفس المجلد lib/
 import 'private_chat.dart';
 import 'main.dart';
 import 'widgets.dart';
