@@ -1,167 +1,79 @@
-name: SeaChat Auto Android Build - Fresh Project
+name: SeaChat Fresh Build
 
 on:
   push:
     branches: [ main, master ]
-  workflow_dispatch:
+  pull_request:
+    branches: [ main, master ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Java 17
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
           cache: 'gradle'
 
-      - name: Setup Flutter 3.24+
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.5'  # ← اصدار حديث جداً
+          flutter-version: '3.24.5'
           channel: 'stable'
           cache: true
 
-      - name: Delete Old Android + iOS Folders
+      - name: Reconstruct Project & Install Dependencies
         run: |
-          echo "حذف ملفات Android/iOS القديمة..."
-          rm -rf android ios macos linux windows web
-          rm -f pubspec.lock
-          echo "تم الحذف"
-
-      - name: Recreate Android Project - Modern 2026 Config
-        run: |
-          echo "انشاء مشروع Android جديد باعدادات حديثة..."
-          flutter create --platforms android --org com.seachat --project-name sea_chat .
-          echo "تم الانشاء - Kotlin 2.1.0 + Gradle 8.7.0 + SDK 35"
-
-      - name: Add Required Packages
-        run: |
-          flutter pub add supabase_flutter image_picker flutter_launcher_icons
-          flutter pub get
-
-      - name: Configure Android Manifest - Permissions
-        run: |
-          cat > android/app/src/main/AndroidManifest.xml << 'EOF'
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <uses-permission android:name="android.permission.INTERNET"/>
-              <uses-permission android:name="android.permission.CAMERA"/>
-              <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
-              <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-              <application
-                  android:label="Sea Chat"
-                  android:name="${applicationName}"
-                  android:icon="@mipmap/ic_launcher">
-                  <activity
-                      android:name=".MainActivity"
-                      android:exported="true"
-                      android:launchMode="singleTop"
-                      android:theme="@style/LaunchTheme"
-                      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
-                      android:hardwareAccelerated="true"
-                      android:windowSoftInputMode="adjustResize">
-                      <meta-data
-                        android:name="io.flutter.embedding.android.NormalTheme"
-                        android:resource="@style/NormalTheme"
-                        />
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN"/>
-                          <category android:name="android.intent.category.LAUNCHER"/>
-                      </intent-filter>
-                  </activity>
-                  <meta-data
-                      android:name="flutterEmbedding"
-                      android:value="2" />
-              </application>
-          </manifest>
-          EOF
-
-      - name: Create Wasabi Icons - No Blue Frame
-        run: |
-          mkdir -p assets
-          cat > assets/app_icon.svg << 'EOF'
-          <svg width="512" height="512" xmlns="http://www.w3.org/2000/svg">
-            <rect width="512" height="512" rx="120" fill="#D7EFFF"/>
-            <circle cx="256" cy="256" r="140" fill="#E9F056"/>
-            <path d="M256 150 L350 256 L256 362 L162 256 Z" fill="#AEB8A0"/>
-          </svg>
-          EOF
+          # 1. احذف android القديم
+          rm -rf android
           
-          sudo apt-get install -y imagemagick
-          for res in "mipmap-mdpi:48" "mipmap-hdpi:72" "mipmap-xhdpi:96" "mipmap-xxhdpi:144" "mipmap-xxxhdpi:192"; do
-            IFS=':' read -r folder size <<< "$res"
-            mkdir -p android/app/src/main/res/$folder
-            convert -background none assets/app_icon.svg -resize ${size}x${size} android/app/src/main/res/$folder/ic_launcher.png
-          done
+          # 2. انشئ android من جديد أول
+          flutter create --platforms android --org com.seachat --project-name sea_chat .
+          
+          # 3. بعدين نزل الـ packages
+          flutter pub get
+          
+          # 4. أضف صلاحية الإنترنت
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
+          
+          # 5. صلاحيات gradlew
+          chmod +x android/gradlew
 
-      - name: Apply Wasabi Theme + Fix All Dart Errors
+      - name: Fix Gradle for app_links
         run: |
-          # 1. الوان Pinterest 2026
-          cat > lib/theme_colors.dart << 'EOF'
-          import 'package:flutter/material.dart';
-          class AppColors {
-            static const Color button = Color(0xFFE9F056);      // Wasabi فسفوري
-            static const Color primaryBlue = Color(0xFFD7EFFF); // Cool Blue خلفية
-            static const Color background = Color(0xFFD7EFFF);  // Cool Blue
-            static const Color icon = Color(0xFFAEB8A0);        // Vert Sauge ايقونات
-            static const Color success = Color(0xFFAEB8A0);     // Vert Sauge
-            static const Color cardGlass = Color(0xFFFFFFFF);   // ابيض
-            static const Color card = Color(0xFFFFFFFF);        // ابيض
-            static const Color textDark = Color(0xFF2D3748);    // رمادي غامق
-            static const Color text = Color(0xFF2D3748);        // رمادي غامق
-            static const Color textLight = Color(0xFF718096);   // رمادي متوسط
-            static const Color error = Color(0xFFE53E3E);       // احمر
-            static const Color delete = Color(0xFFE53E3E);      // احمر
-            static const Color border = Color(0xFFCBD5E0);      // رمادي فاتح
+          cat > android/build.gradle << 'EOF'
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          subprojects {
+              afterEvaluate { project ->
+                  if (project.hasProperty('android')) {
+                      project.android {
+                          compileSdkVersion 35
+                      }
+                  }
+              }
           }
           EOF
           
-          # 2. صلح كل الاخطاء
-          find lib -type f -name "*.dart" -exec sed -i 's/const //g' {} +
-          find lib/data -type f -name "*.dart" -exec sed -i 's|import "models.dart"|import "../models.dart"|g' {} +
-          sed -i '1i import "dart:io";' lib/profile_settings.dart || true
-          sed -i 's/0xFFAEBBA/0xFFAEBBA0/g' lib/main.dart || true
+          echo "sdk.dir=$ANDROID_HOME" > android/local.properties
 
-      - name: Print All DB Tables + Columns Used
+      - name: Generate App Icons
         run: |
-          echo "═══════════════════════════════════════════"
-          echo "جداول Supabase المستخدمة في كل الكود:"
-          echo "═══════════════════════════════════════════"
-          grep -rho "from('[^']*" lib/ | sort | uniq | sed 's/from(//g' | sed 's/^/  📦 /'
-          echo ""
-          echo "═══════════════════════════════════════════"
-          echo "عمليات INSERT - مع اسماء الحقول:"
-          echo "═══════════════════════════════════════════"
-          grep -r "\.insert(" lib/ -A 8 | grep -E "from\('.*'\)|\s+'.*':" | sed 's/^/  /'
-          echo ""
-          echo "═══════════════════════════════════════════"
-          echo "عمليات UPDATE - مع اسماء الحقول:"
-          echo "═══════════════════════════════════════════"
-          grep -r "\.update(" lib/ -A 8 | grep -E "from\('.*'\)|\s+'.*':" | sed 's/^/  /'
-          echo ""
-          echo "═══════════════════════════════════════════"
-          echo "عمليات DELETE:"
-          echo "═══════════════════════════════════════════"
-          grep -rh "\.delete()" lib/ -B 1 | grep "from(" | sed 's/.*from(/  - /' | sed 's/).*//' | sort | uniq
-          echo "═══════════════════════════════════════════"
-
-      - name: Build Release APK + AAB
-        run: |
-          flutter build apk --release
-          flutter build appbundle --release
+          flutter pub run flutter_launcher_icons
+          
+      - name: Build Debug APK
+        run: flutter build apk --debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Wasabi-v1.0
-          path: build/app/outputs/flutter-apk/app-release.apk
-
-      - name: Upload AAB for Play Store
-        uses: actions/upload-artifact@v4
-        with:
-          name: SeaChat-Wasabi-Bundle
-          path: build/app/outputs/bundle/release/app-release.aab
+          name: SeaChat-Fresh-Debug-APK
+          path: build/app/outputs/flutter-apk/app-debug.apk
