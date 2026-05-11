@@ -22,7 +22,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.5'
+          flutter-version: '3.24.5'  # احدث اصدار
           channel: 'stable'
           cache: true
 
@@ -35,49 +35,20 @@ jobs:
           sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
           chmod +x android/gradlew
 
-      - name: Fix Gradle - No afterEvaluate
+      - name: Patch app_links 6.4.1 - Fix compileSdkVersion
         run: |
-          # 1. صلح android/app/build.gradle مباشر
-          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle
-          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 35/g' android/app/build.gradle
-          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/g' android/app/build.gradle
+          # 1. صلح android/app/build.gradle
+          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/' android/app/build.gradle
+          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 35/' android/app/build.gradle
+          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/' android/app/build.gradle
           
-          # 2. صلح android/build.gradle الرئيسي - بدون afterEvaluate
-          cat > android/build.gradle << 'EOF'
-          allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          
-          rootProject.buildDir = "../build"
-          
-          subprojects {
-              project.buildDir = "${rootProject.buildDir}/${project.name}"
-          }
-          
-          subprojects {
-              project.evaluationDependsOn(":app")
-          }
-          
-          tasks.register("clean", Delete) {
-              delete rootProject.buildDir
-          }
-          
-          // هذا السطر يحل مشكلة app_links
-          gradle.projectsEvaluated {
-              subprojects {
-                  if (it.hasProperty('android')) {
-                      it.android.compileSdkVersion 35
-                  }
-              }
-          }
-          EOF
+          # 2. صلح android/build.gradle الرئيسي - نضيف ext.flutter علمود app_links
+          sed -i '/allprojects {/i \ext {\n    flutter = [\n        compileSdkVersion: 35\n    ]\n}\n' android/build.gradle
           
           # 3. local.properties
           echo "sdk.dir=$ANDROID_HOME" > android/local.properties
           echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
+          echo "flutter.compileSdkVersion=35" >> android/local.properties
 
       - name: Generate App Icons
         run: |
