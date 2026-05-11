@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'models.dart';
+import '../models.dart';  // ← غيرت هذا السطر بس: ضفت ../ 
 
 // ===== الجسر بين الواجهة وقاعدة البيانات (SeaChat Official) =====
 // كل دالة هنا = أمر بالواجهة
