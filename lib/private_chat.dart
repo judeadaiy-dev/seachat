@@ -6,13 +6,21 @@ import 'models.dart';
 import 'main.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
-class PrivateChatScreen extends StatefulWidget {
-  final UserModel receiver; // المستخدم المستهدف (المستلم)
-
-  const PrivateChatScreen({super.key, required this.receiver});
-
+class PrivateChatsScreen extends StatelessWidget {
+  const PrivateChatsScreen({super.key});
+  
   @override
-  State<PrivateChatScreen> createState() => _PrivateChatScreenState();
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Center(
+        child: Text(
+          'المحادثات الخاصة - قريباً',
+          style: TextStyle(color: Colors.white, fontSize: 18),
+        ),
+      ),
+    );
+  }
 }
 
 class _PrivateChatScreenState extends State<PrivateChatScreen> {
