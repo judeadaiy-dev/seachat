@@ -64,7 +64,7 @@ class RoomModel {
   final String roomName;
   final String? description;
   final String? imageUrl;
-  final String ownerId;
+  final String ownerId; // غيرناه من owner_id لـ ownerId عشان Dart conventions
   final bool isPrivate;
   final String roomType; 
   final bool isPinned;
@@ -158,31 +158,6 @@ class RoomMemberModel {
       role: map['role']?.toString() ?? 'member',
       points: map['points'] is int ? map['points'] : int.tryParse(map['points']?.toString() ?? '0') ?? 0,
       user: profiles != null ? UserModel.fromMap(profiles) : null,
-    );
-  }
-}
-class RoomModel {
-  final String id;
-  final String roomName;
-  final String? description;
-  final String owner_id; // هذا جديد
-  final DateTime created_at;
-
-  RoomModel({
-    required this.id,
-    required this.roomName,
-    this.description,
-    required this.owner_id,
-    required this.created_at,
-  });
-
-  factory RoomModel.fromMap(Map<String, dynamic> map) {
-    return RoomModel(
-      id: map['id'],
-      roomName: map['room_name'],
-      description: map['description'],
-      owner_id: map['owner_id']?? '',
-      created_at: DateTime.parse(map['created_at']),
     );
   }
 }
