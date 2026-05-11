@@ -27,34 +27,131 @@ jobs:
 
       - name: Reconstruct Project & Install Dependencies
         run: |
-          # 1. احذف android القديم
           rm -rf android
-          
-          # 2. انشئ android من جديد أول
           flutter create . --platforms android
-          
-          # 3. بعدين نزل الـ packages
           flutter pub get
-          
-          # 4. أضف صلاحية الإنترنت
           sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
-          
-          # 5. صلاحيات gradlew
           chmod +x android/gradlew
 
-      - name: Generate App Icons
+      - name: Force Create supabase_repository.dart
         run: |
-          # يتأكد أن عندك أيقونة في assets/icon.png
-          # وينشئ كل الأحجام تلقائياً
-          flutter pub run flutter_launcher_icons
+          mkdir -p lib
+          cat > lib/supabase_repository.dart << 'EOF'
+          import 'package:supabase_flutter/supabase_flutter.dart';
+          import 'models.dart';
+          
+          class SupabaseRepository {
+            final supabase = Supabase.instance.client;
+          
+            Future<UserModel?> getCurrentUser() async {
+              final user = supabase.auth.currentUser;
+              if (user == null) return null;
+              try {
+                final data = await supabase.from('profiles').select().eq('id', user.id).maybeSingle();
+                if (data == null) return null;
+                return UserModel.fromMap(data);
+              } catch (e) {
+                return null;
+              }
+            }
+          
+            Future<void> signInWithGoogle() async {
+              throw Exception('ميزة تسجيل جوجل ستتوفر في التحديثات القادمة');
+            }
+          
+            Stream<List<RoomModel>> getRoomsStream() {
+              return supabase
+                  .from('rooms')
+                  .stream(primaryKey: ['id'])
+                  .order('is_pinned', ascending: false) 
+                  .order('created_at', ascending: true)
+                  .map((list) => list.map((e) => RoomModel.fromMap(e)).toList());
+            }
+          
+            Future<void> deleteRoom(String roomId) async {
+              await supabase.from('messages').delete().eq('room_id', roomId);
+              await supabase.from('room_members').delete().eq('room_id', roomId);
+              await supabase.from('rooms').delete().eq('id', roomId);
+            }
+          
+            Stream<List<MessageModel>> getRoomMessagesStream({required String roomId}) {
+              final currentUserId = supabase.auth.currentUser!.id;
+              return supabase
+                  .from('messages')
+                  .stream(primaryKey: ['id'])
+                  .eq('room_id', roomId)
+                  .order('created_at', ascending: false)
+                  .map((list) => list.map((e) => MessageModel.fromMap(e, currentUserId)).toList());
+            }
+          
+            Future<void> sendMessage({required String roomId, required String message}) async {
+              final userId = supabase.auth.currentUser!.id;
+              await supabase.from('messages').insert({
+                'room_id': roomId,
+                'user_id': userId,
+                'message': message, 
+              });
+            }
+          
+            Future<bool> isCurrentUserAdmin() async {
+              final user = supabase.auth.currentUser;
+              if (user == null) return false;
+              final res = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+              return res?['role'] == 'admin';
+            }
+          
+            Future<void> banUser(String userId) async {
+              await supabase.from('profiles').update({'is_banned': true}).eq('id', userId);
+              await supabase.from('room_members').delete().eq('user_id', userId);
+            }
+          
+            Future<void> updateProfile({
+              required String name,
+              String? username,
+              String? bio,
+              String? zodiac,
+            }) async {
+              final userId = supabase.auth.currentUser!.id;
+              await supabase.from('profiles').update({
+                'name': name,
+                'username': username,
+                'bio': bio,
+                'zodiac': zodiac,
+                'updated_at': DateTime.now().toIso8601String(),
+              }).eq('id', userId);
+            }
+          
+            Future<List<RoomMemberModel>> getRoomMembers(String roomId) async {
+              final res = await supabase
+                  .from('room_members')
+                  .select('*, profiles(*)') 
+                  .eq('room_id', roomId)
+                  .order('points', ascending: false);
+              return (res as List).map((m) => RoomMemberModel.fromMap(m)).toList();
+            }
+          }
+          EOF
+          echo "=== Checking file exists ==="
+          ls -la lib/supabase_repository.dart
+          echo "=== File content first 5 lines ==="
+          head -5 lib/supabase_repository.dart
 
-      - name: Fix const errors with AppColors
+      - name: Fix const errors
         run: |
-          echo "Fixing const TextStyle, Text, Icon with AppColors..."
+          echo "Fixing const errors..."
+          sed -i 's/const AuthScreen()/AuthScreen()/g' lib/main.dart
+          sed -i 's/const ProfileSettings()/ProfileSettings()/g' lib/main.dart
+          sed -i 's/const ChatScreen(/ChatScreen(/g' lib/*.dart
+          sed -i 's/const AdminPanel()/AdminPanel()/g' lib/*.dart
+          sed -i 's/const BannedScreen()/BannedScreen()/g' lib/*.dart
           find lib -type f -name "*.dart" -exec sed -i 's/const TextStyle(/TextStyle(/g' {} +
           find lib -type f -name "*.dart" -exec sed -i 's/const Text(/Text(/g' {} +
           find lib -type f -name "*.dart" -exec sed -i 's/const Icon(/Icon(/g' {} +
-          echo "Done fixing const errors"
+          find lib -type f -name "*.dart" -exec sed -i 's/const SizedBox(/SizedBox(/g' {} +
+          echo "Done fixing const"
+
+      - name: Generate App Icons
+        run: flutter pub run flutter_launcher_icons
           
       - name: Build Debug APK
         run: flutter build apk --debug
