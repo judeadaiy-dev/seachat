@@ -21,7 +21,7 @@ class AppColors {
   static const Color cardGlass = Color(0x1AFFFFFF);
   static const Color success = Color(0xFF10B981);
   static const Color error = Color(0xFFEF4444);
-  static const Color background = Color(0xFFAEBBAO);
+  static const Color background = Color(0xFFAEBBA);
   static const Color card = Color(0xFF1B2A41);
   static const Color text = Colors.white;
   static const Color delete = Color(0xFFDC143C);
