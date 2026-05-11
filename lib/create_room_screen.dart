@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'main.dart';
-import 'widgets.dart';
+import 'main.dart'; // ← هذا السطر مهم جداً عشان AppColors
+
 class CreateRoomRequestScreen extends StatefulWidget {
   const CreateRoomRequestScreen({super.key});
 
@@ -17,10 +17,7 @@ class _CreateRoomRequestScreenState extends State<CreateRoomRequestScreen> {
   bool _loading = false;
 
   Future<void> _createRoom() async {
-    // 1. إخفاء الكيبورد
     FocusScope.of(context).unfocus();
-    
-    // 2. تحقق من الفورم
     if (!_formKey.currentState!.validate()) return;
 
     final name = _nameController.text.trim();
@@ -28,7 +25,6 @@ class _CreateRoomRequestScreenState extends State<CreateRoomRequestScreen> {
 
     setState(() => _loading = true);
     try {
-      // 3. تحقق منطقي: هل عنده طلب معلق بنفس الاسم؟
       final existing = await supabase
           .from('rooms')
           .select()
@@ -40,16 +36,12 @@ class _CreateRoomRequestScreenState extends State<CreateRoomRequestScreen> {
       if (existing != null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('لديك طلب معلق بنفس الاسم مسبقاً'),
-              backgroundColor: Colors.orange,
-            ),
+            const SnackBar(content: Text('لديك طلب معلق بنفس الاسم مسبقاً'), backgroundColor: Colors.orange),
           );
         }
         return;
       }
 
-      // 4. إرسال الطلب
       await supabase.from('rooms').insert({
         'name': name,
         'description': desc.isEmpty ? null : desc,
@@ -61,30 +53,19 @@ class _CreateRoomRequestScreenState extends State<CreateRoomRequestScreen> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم إرسال الطلب بنجاح، بانتظار موافقة المشرف'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
-          ),
+          const SnackBar(content: Text('تم إرسال الطلب بنجاح، بانتظار موافقة المشرف'), backgroundColor: Colors.green),
         );
       }
     } on PostgrestException catch (e) {
-      // 5. معالجة أخطاء Supabase بشكل واضح
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('فشل الإرسال: ${e.message}'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('فشل الإرسال: ${e.message}'), backgroundColor: Colors.red),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('حدث خطأ غير متوقع، حاول مرة أخرى'),
-            backgroundColor: Colors.red,
-          ),
+          const SnackBar(content: Text('حدث خطأ غير متوقع، حاول مرة أخرى'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -102,7 +83,7 @@ class _CreateRoomRequestScreenState extends State<CreateRoomRequestScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primaryBlue,
+      backgroundColor: AppColors.primaryBlue, // ← هسه يشوفه
       appBar: AppBar(
         title: const Text('طلب إنشاء غرفة جديدة'),
         backgroundColor: Colors.transparent,
@@ -120,44 +101,20 @@ class _CreateRoomRequestScreenState extends State<CreateRoomRequestScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'سيتم مراجعة طلبك من قبل المشرف',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white.withOpacity(0.7)),
-            ),
             const SizedBox(height: 32),
             TextFormField(
               controller: _nameController,
               style: const TextStyle(color: Colors.white),
-              textInputAction: TextInputAction.next,
               decoration: InputDecoration(
                 labelText: 'اسم الغرفة *',
-                hintText: 'مثال: غرفة محبي التقنية',
                 labelStyle: const TextStyle(color: Colors.white70),
-                hintStyle: const TextStyle(color: Colors.white38),
-                prefixIcon: const Icon(Icons.meeting_room, color: Colors.white70),
                 filled: true,
                 fillColor: Colors.white.withOpacity(0.1),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Colors.white, width: 1.5),
-                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
               ),
               validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'الرجاء إدخال اسم الغرفة';
-                }
-                if (value.trim().length < 3) {
-                  return 'اسم الغرفة يجب أن يكون 3 أحرف على الأقل';
-                }
-                if (value.trim().length > 50) {
-                  return 'اسم الغرفة طويل جداً';
-                }
+                if (value == null || value.trim().isEmpty) return 'الرجاء إدخال اسم الغرفة';
+                if (value.trim().length < 3) return 'اسم الغرفة يجب أن يكون 3 أحرف على الأقل';
                 return null;
               },
             ),
@@ -169,20 +126,10 @@ class _CreateRoomRequestScreenState extends State<CreateRoomRequestScreen> {
               maxLength: 200,
               decoration: InputDecoration(
                 labelText: 'وصف الغرفة',
-                hintText: 'اكتب وصف مختصر للغرفة...',
                 labelStyle: const TextStyle(color: Colors.white70),
-                hintStyle: const TextStyle(color: Colors.white38),
-                prefixIcon: const Icon(Icons.description, color: Colors.white70),
                 filled: true,
                 fillColor: Colors.white.withOpacity(0.1),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Colors.white, width: 1.5),
-                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                 counterStyle: const TextStyle(color: Colors.white54),
               ),
             ),
@@ -197,11 +144,7 @@ class _CreateRoomRequestScreenState extends State<CreateRoomRequestScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               child: _loading 
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-                  )
+                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
                 : const Text('إرسال الطلب', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
           ],
