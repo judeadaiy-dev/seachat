@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'main.dart'; // لاستخدام AppColors
 
 class AdminPanel extends StatefulWidget {
-  const AdminPanel({super.key});
+  AdminPanel({super.key});
   @override
   State<AdminPanel> createState() => _AdminPanelState();
 }
@@ -54,7 +54,7 @@ class _AdminPanelState extends State<AdminPanel> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تمت الموافقة على الغرفة'), backgroundColor: Colors.green),
+          SnackBar(content: Text('تمت الموافقة على الغرفة'), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
@@ -72,7 +72,7 @@ class _AdminPanelState extends State<AdminPanel> {
       await supabase.from('rooms').delete().eq('id', roomId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تم رفض الطلب'), backgroundColor: Colors.orange),
+          SnackBar(content: Text('تم رفض الطلب'), backgroundColor: Colors.orange),
         );
       }
     } catch (e) {
@@ -86,13 +86,13 @@ class _AdminPanelState extends State<AdminPanel> {
 
   @override
   Widget build(BuildContext context) {
-    if (loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    if (!isAdmin) return const Scaffold(body: Center(child: Text('غير مصرح لك بدخول هذه المنطقة')));
+    if (loading) return Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (!isAdmin) return Scaffold(body: Center(child: Text('غير مصرح لك بدخول هذه المنطقة')));
 
     return Scaffold(
       backgroundColor: AppColors.primaryBlue,
       appBar: AppBar(
-        title: const Text('طلبات إنشاء الغرف'),
+        title: Text('طلبات إنشاء الغرف'),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -104,13 +104,13 @@ class _AdminPanelState extends State<AdminPanel> {
             .eq('status', 'pending')
             .order('created_at'),
         builder: (context, snapshot) {
-          if (snapshot.hasError) return Center(child: Text('خطأ: ${snapshot.error}', style: const TextStyle(color: Colors.white)));
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: Colors.white));
+          if (snapshot.hasError) return Center(child: Text('خطأ: ${snapshot.error}', style: TextStyle(color: Colors.white)));
+          if (!snapshot.hasData) return Center(child: CircularProgressIndicator(color: Colors.white));
 
           final requests = snapshot.data!;
           
           if (requests.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -123,36 +123,36 @@ class _AdminPanelState extends State<AdminPanel> {
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(16),
             itemCount: requests.length,
             itemBuilder: (context, i) {
               final room = requests[i];
               return Card(
                 color: Colors.white.withOpacity(0.1),
-                margin: const EdgeInsets.only(bottom: 12),
+                margin: EdgeInsets.only(bottom: 12),
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.meeting_room, color: Colors.white),
-                          const SizedBox(width: 8),
+                          Icon(Icons.meeting_room, color: Colors.white),
+                          SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               room['name'] ?? 'بدون اسم',
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
+                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: 8),
                       Text(
                         room['description'] ?? 'لا يوجد وصف',
                         style: TextStyle(color: Colors.white.withOpacity(0.8)),
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: 4),
                       FutureBuilder(
                         future: supabase.from('profiles').select('name').eq('id', room['creator_id']).single(),
                         builder: (context, userSnap) {
@@ -162,26 +162,26 @@ class _AdminPanelState extends State<AdminPanel> {
                           );
                         },
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16),
                       Row(
                         children: [
                           Expanded(
                             child: ElevatedButton.icon(
                               onPressed: () => _approveRoom(room['id'], room['creator_id']),
-                              icon: const Icon(Icons.check, size: 18),
-                              label: const Text('قبول'),
+                              icon: Icon(Icons.check, size: 18),
+                              label: Text('قبول'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.green,
                                 foregroundColor: Colors.white,
                               ),
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          SizedBox(width: 8),
                           Expanded(
                             child: ElevatedButton.icon(
                               onPressed: () => _rejectRoom(room['id']),
-                              icon: const Icon(Icons.close, size: 18),
-                              label: const Text('رفض'),
+                              icon: Icon(Icons.close, size: 18),
+                              label: Text('رفض'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.red,
                                 foregroundColor: Colors.white,
