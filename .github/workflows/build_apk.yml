@@ -1,4 +1,4 @@
-name: SeaChat Full Build + DB Check
+name: SeaChat Wasabi Theme Build
 
 on:
   push:
@@ -25,48 +25,41 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Reconstruct Android Project - Modern Config
+      - name: Reconstruct Android Project
         run: |
           rm -rf android
           flutter create . --platforms android --org com.seachat
           flutter pub add flutter_launcher_icons image_picker supabase_flutter
           flutter pub get
 
-      - name: Fix Android Manifest + Permissions
+      - name: Fix Android Manifest
         run: |
           sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
           sed -i '/<manifest/a \    <uses-permission android:name="android.permission.CAMERA"/>' android/app/src/main/AndroidManifest.xml
           sed -i '/<manifest/a \    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>' android/app/src/main/AndroidManifest.xml
-          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.RECORD_AUDIO"/>' android/app/src/main/AndroidManifest.xml
 
-      - name: Update Gradle + Kotlin - Latest
+      - name: Update Android Config - Safe Method
         run: |
-          sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "2.1.0"/' android/build.gradle
-          sed -i 's/com.android.tools.build:gradle:.*/com.android.tools.build:gradle:8.7.0/' android/build.gradle
+          # Kotlin + Gradle - طريقة آمنة
+          sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "2.1.0"/' android/build.gradle || true
+          sed -i 's/com.android.tools.build:gradle:.*/com.android.tools.build:gradle:8.7.0/' android/build.gradle || true
+          
+          # SDK Versions - مضمونة
           sed -i 's/compileSdkVersion .*/compileSdkVersion 35/' android/app/build.gradle
           sed -i 's/targetSdkVersion .*/targetSdkVersion 35/' android/app/build.gradle
           sed -i 's/minSdkVersion .*/minSdkVersion 21/' android/app/build.gradle
 
-      - name: Create Modern App Icons - No Blue Frame
+      - name: Create Wasabi App Icons
         run: |
           mkdir -p assets
-          # نصنع ايقونة SVG حديثة بدون اطار ازرق
           cat > assets/app_icon.svg << 'EOF'
           <svg width="512" height="512" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" style="stop-color:#0F172A;stop-opacity:1" />
-                <stop offset="100%" style="stop-color:#1E293B;stop-opacity:1" />
-              </linearGradient>
-            </defs>
-            <rect width="512" height="512" rx="120" fill="url(#grad)"/>
-            <circle cx="256" cy="256" r="140" fill="#E9F056" opacity="0.9"/>
-            <path d="M256 150 L350 256 L256 362 L162 256 Z" fill="#0F172A"/>
-            <circle cx="256" cy="256" r="30" fill="#E9F056"/>
+            <rect width="512" height="512" rx="120" fill="#D7EFFF"/>
+            <circle cx="256" cy="256" r="140" fill="#E9F056"/>
+            <path d="M256 150 L350 256 L256 362 L162 256 Z" fill="#AEB8A0"/>
           </svg>
           EOF
           
-          # نحول SVG الى PNG بكل الاحجام
           sudo apt-get update && sudo apt-get install -y imagemagick
           convert -background none assets/app_icon.svg -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
           convert -background none assets/app_icon.svg -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
@@ -74,44 +67,47 @@ jobs:
           convert -background none assets/app_icon.svg -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher.png
           convert -background none assets/app_icon.svg -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher.png
 
-      - name: Fix All Dart Errors
+      - name: Apply Wasabi Theme + Fix Errors
         run: |
-          # 1. صلح اللون الناقص
-          sed -i 's/0xFFAEBBA/0xFFAEBBA0/g' lib/main.dart
-          # 2. شيل كل const
-          find lib -type f -name "*.dart" -exec sed -i 's/const //g' {} +
-          # 3. صلح imports
-          find lib/data -type f -name "*.dart" -exec sed -i 's|import "models.dart"|import "../models.dart"|g' {} +
-          # 4. ضيف dart:io للصور
-          sed -i '1i import "dart:io";' lib/profile_settings.dart
+          # 1. الوان Pinterest 2026
+          cat > lib/theme_colors.dart << 'EOF'
+          import 'package:flutter/material.dart';
+          class AppColors {
+            static const Color button = Color(0xFFE9F056);      // Wasabi
+            static const Color primaryBlue = Color(0xFFD7EFFF); // Cool Blue
+            static const Color background = Color(0xFFD7EFFF);  // Cool Blue
+            static const Color icon = Color(0xFFAEB8A0);        // Vert Sauge
+            static const Color success = Color(0xFFAEB8A0);     // Vert Sauge
+            static const Color cardGlass = Color(0xFFFFFFFF);   // ابيض
+            static const Color card = Color(0xFFFFFFFF);        // ابيض
+            static const Color textDark = Color(0xFF2D3748);    // رمادي غامق
+            static const Color text = Color(0xFF2D3748);        // رمادي غامق
+            static const Color textLight = Color(0xFF718096);   // رمادي متوسط
+            static const Color error = Color(0xFFE53E3E);       // احمر
+            static const Color delete = Color(0xFFE53E3E);      // احمر
+            static const Color border = Color(0xFFCBD5E0);      // رمادي فاتح
+          }
+          EOF
+          
+          # 2. صلح الاخطاء
+          sed -i 's/0xFFAEBBA/0xFFAEBBA0/g' lib/main.dart || true
+          find lib -type f -name "*.dart" -exec sed -i 's/const //g' {} + || true
+          find lib/data -type f -name "*.dart" -exec sed -i 's|import "models.dart"|import "../models.dart"|g' {} + || true
+          sed -i '1i import "dart:io";' lib/profile_settings.dart || true
 
-      - name: Print DB Tables Used - للمطابقة
+      - name: Print DB Tables Used
         run: |
-          echo "=========================================="
-          echo "جداول Supabase المستخدمة في الكود:"
-          echo "=========================================="
+          echo "=== جداول Supabase المستخدمة ==="
           grep -r "from('" lib/ | grep -o "from('[^']*" | sort | uniq | sed 's/from(//' | sed 's/^/  - /'
           echo ""
-          echo "=========================================="
-          echo "جداول الارسال تحديداً:"
-          echo "=========================================="
+          echo "=== جداول الارسال insert/update ==="
           grep -r "insert\|update" lib/ | grep "from(" | sed 's/.*from(/  - /' | sed 's/).*//' | sort | uniq
-          echo "=========================================="
 
       - name: Build Release APK
         run: flutter build apk --release
 
-      - name: Build App Bundle AAB
-        run: flutter build appbundle --release
-
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Release-APK
+          name: SeaChat-Wasabi-APK
           path: build/app/outputs/flutter-apk/app-release.apk
-
-      - name: Upload AAB
-        uses: actions/upload-artifact@v4
-        with:
-          name: SeaChat-Release-AAB
-          path: build/app/outputs/bundle/release/app-release.aab
