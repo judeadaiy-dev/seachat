@@ -7,7 +7,7 @@ import 'package:storage_client/storage_client.dart';
 import 'models.dart';
 import 'private_chat.dart';
 import 'main.dart';
-
+import 'widgets.dart';
 // ===== شاشة الملف الشخصي =====
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
