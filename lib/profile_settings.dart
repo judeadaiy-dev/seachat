@@ -1,13 +1,14 @@
-import 'data/supabase_repository.dart';
+import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:storage_client/storage_client.dart';
-import 'models.dart';  // ← مباشرة لأن بنفس المجلد lib/
+import 'data/supabase_repository.dart';
+import 'models.dart';
 import 'private_chat.dart';
 import 'main.dart';
 import 'widgets.dart';
+
 // ===== شاشة الملف الشخصي =====
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -52,15 +53,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('تسجيل الخروج'),
-        content: const Text('هل أنت متأكد من تسجيل الخروج؟'),
+        title: Text('تسجيل الخروج'),
+        content: Text('هل أنت متأكد من تسجيل الخروج؟'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('خروج', style: TextStyle(color: Colors.red))),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: Text('خروج', style: TextStyle(color: Colors.red))),
         ],
       ),
     );
-    if (confirm == true) await SupabaseRepository().supabase.auth.signOut();
+    if (confirm == true) await repo.supabase.auth.signOut();
   }
 
   void _showSnackBar(String message) {
@@ -72,16 +73,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(backgroundColor: Colors.transparent, title: const Text('الملف الشخصي'), centerTitle: true),
+      appBar: AppBar(backgroundColor: Colors.transparent, title: Text('الملف الشخصي'), centerTitle: true),
       body: _isLoading
-         ? const Center(child: CircularProgressIndicator())
+        ? Center(child: CircularProgressIndicator())
           : _user == null
-             ? const Center(child: Text('المستخدم غير موجود'))
+            ? Center(child: Text('المستخدم غير موجود'))
               : ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                  padding: EdgeInsets.fromLTRB(16, 8, 16, 100),
                   children: [
                     GlassCard(
-                      padding: const EdgeInsets.all(24),
+                      padding: EdgeInsets.all(24),
                       child: Column(children: [
                         Stack(
                           alignment: Alignment.center,
@@ -102,25 +103,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 backgroundColor: AppColors.button.withOpacity(0.2),
                                 backgroundImage: _user!.avatarUrl!= null? NetworkImage(_user!.avatarUrl!) : null,
                                 child: _user!.avatarUrl == null
-                                   ? Text(
+                                  ? Text(
                                         _user!.name.isNotEmpty? _user!.name[0].toUpperCase() : 'U',
-                                        style: const TextStyle(fontSize: 42, color: Colors.white, fontWeight: FontWeight.bold),
+                                        style: TextStyle(fontSize: 42, color: Colors.white, fontWeight: FontWeight.bold),
                                       )
                                     : null,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 20),
-                        Text(_user!.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textDark)),
+                        SizedBox(height: 20),
+                        Text(_user!.name, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textDark)),
                         if (_user!.username!= null)...[
-                          const SizedBox(height: 4),
+                          SizedBox(height: 4),
                           Text('@${_user!.username}', style: TextStyle(fontSize: 15, color: AppColors.icon, fontWeight: FontWeight.w500)),
                         ],
                         if (_user!.zodiac!= null)...[
-                          const SizedBox(height: 8),
+                          SizedBox(height: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
                               color: AppColors.button.withOpacity(0.15),
                               borderRadius: BorderRadius.circular(12),
@@ -128,29 +129,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.auto_awesome, size: 16, color: AppColors.button),
-                                const SizedBox(width: 6),
-                                Text(_user!.zodiac!, style: const TextStyle(color: AppColors.button, fontWeight: FontWeight.w600)),
+                                Icon(Icons.auto_awesome, size: 16, color: AppColors.button),
+                                SizedBox(width: 6),
+                                Text(_user!.zodiac!, style: TextStyle(color: AppColors.button, fontWeight: FontWeight.w600)),
                               ],
                             ),
                           ),
                         ],
                         if (_user!.bio!= null && _user!.bio!.isNotEmpty)...[
-                          const SizedBox(height: 16),
+                          SizedBox(height: 16),
                           Text(
                             _user!.bio!,
                             textAlign: TextAlign.center,
                             style: TextStyle(fontSize: 14, color: AppColors.textDark.withOpacity(0.7), height: 1.5),
                           ),
                         ],
-                        const SizedBox(height: 12),
+                        SizedBox(height: 12),
                         Text(_user!.email, style: TextStyle(fontSize: 13, color: AppColors.icon)),
                       ]),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16),
                     if (_user!.id!= repo.supabase.auth.currentUser?.id)
                       Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
+                        padding: EdgeInsets.only(bottom: 12),
                         child: GlassCard(
                           onTap: () {
                             Navigator.push(
@@ -158,7 +159,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               MaterialPageRoute(builder: (context) => PrivateChatScreen(receiver: _user!)),
                             );
                           },
-                          child: const ListTile(
+                          child: ListTile(
                             leading: Icon(Icons.chat_bubble_outline, color: AppColors.button),
                             title: Text('بدء محادثة خاصة', style: TextStyle(fontWeight: FontWeight.w600)),
                             trailing: Icon(Icons.send_rounded, size: 16, color: AppColors.button),
@@ -167,16 +168,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     GlassCard(
                       onTap: _openSettings,
-                      child: const ListTile(
+                      child: ListTile(
                         leading: Icon(Icons.edit_rounded, color: AppColors.button),
                         title: Text('تعديل الملف الشخصي', style: TextStyle(fontWeight: FontWeight.w600)),
                         trailing: Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.icon),
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
                     GlassCard(
                       onTap: _signOut,
-                      child: const ListTile(
+                      child: ListTile(
                         leading: Icon(Icons.logout_rounded, color: Colors.red),
                         title: Text('تسجيل الخروج', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
                       ),
@@ -272,13 +273,13 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('تعديل الملف الشخصي'),
+        title: Text('تعديل الملف الشخصي'),
         actions: [
           TextButton(
             onPressed: _isSaving? null : _saveProfile,
             child: _isSaving
-               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('حفظ', style: TextStyle(color: Colors.white)),
+              ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                : Text('حفظ', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -286,7 +287,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         child: Form(
           key: _formKey,
           child: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(16),
             children: [
               Center(
                 child: Stack(
@@ -295,12 +296,12 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                       radius: 60,
                       backgroundColor: AppColors.button.withOpacity(0.2),
                       backgroundImage: _imageFile!= null
-                         ? FileImage(_imageFile!)
+                        ? FileImage(_imageFile!)
                           : (widget.user.avatarUrl!= null? NetworkImage(widget.user.avatarUrl!) : null) as ImageProvider?,
                       child: (_imageFile == null && widget.user.avatarUrl == null)
-                         ? Text(
+                        ? Text(
                               widget.user.name.isNotEmpty? widget.user.name[0].toUpperCase() : 'U',
-                              style: const TextStyle(fontSize: 50, color: Colors.white),
+                              style: TextStyle(fontSize: 50, color: Colors.white),
                             )
                           : null,
                     ),
@@ -311,28 +312,28 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                         onTap: _pickImage,
                         child: CircleAvatar(
                           backgroundColor: AppColors.button,
-                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                          child: Icon(Icons.camera_alt, color: Colors.white, size: 20),
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: 24),
               TextFormField(
                 controller: _nameController,
-                decoration: const InputDecoration(labelText: 'الاسم', border: OutlineInputBorder()),
+                decoration: InputDecoration(labelText: 'الاسم', border: OutlineInputBorder()),
                 validator: (val) => val!.isEmpty? 'الاسم مطلوب' : null,
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               TextFormField(
                 controller: _usernameController,
-                decoration: const InputDecoration(labelText: 'اسم المستخدم', prefixText: '@', border: OutlineInputBorder()),
+                decoration: InputDecoration(labelText: 'اسم المستخدم', prefixText: '@', border: OutlineInputBorder()),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               TextFormField(
                 controller: _bioController,
-                decoration: const InputDecoration(labelText: 'النبذة', border: OutlineInputBorder()),
+                decoration: InputDecoration(labelText: 'النبذة', border: OutlineInputBorder()),
                 maxLines: 3,
               ),
             ],
