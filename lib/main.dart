@@ -42,12 +42,12 @@ class SupabaseRepository {
   }
 
   Future<bool> isCurrentUserAdmin() async {
-  final user = supabase.auth.currentUser;
-  if (user == null) return false;
-  
-  // حطيت ايميلك هنا عشان تصير أدمن
-  const adminEmails = ['barqaday@gmail.com']; 
-  return adminEmails.contains(user.email);
+    final user = supabase.auth.currentUser;
+    if (user == null) return false;
+
+    // حطيت ايميلك هنا عشان تصير أدمن - ما نستخدم role بعد
+    const adminEmails = ['barqaday@gmail.com'];
+    return adminEmails.contains(user.email);
   }
 
   Future<bool> userHasCreatedRoom() async {
@@ -59,20 +59,20 @@ class SupabaseRepository {
 
   Stream<List<RoomModel>> getRoomsStream() {
     return supabase
-       .from('rooms')
-       .stream(primaryKey: ['id'])
-       .order('created_at', ascending: false)
-       .map((maps) => maps.map((m) => RoomModel.fromMap(m)).toList());
+      .from('rooms')
+      .stream(primaryKey: ['id'])
+      .order('created_at', ascending: false)
+      .map((maps) => maps.map((m) => RoomModel.fromMap(m)).toList());
   }
 
   Stream<List<RoomModel>> getMyRoomsStream() {
     final userId = supabase.auth.currentUser!.id;
     return supabase
-       .from('rooms')
-       .stream(primaryKey: ['id'])
-       .eq('owner_id', userId)
-       .order('created_at', ascending: false)
-       .map((maps) => maps.map((m) => RoomModel.fromMap(m)).toList());
+      .from('rooms')
+      .stream(primaryKey: ['id'])
+      .eq('owner_id', userId)
+      .order('created_at', ascending: false)
+      .map((maps) => maps.map((m) => RoomModel.fromMap(m)).toList());
   }
 
   Future<void> joinRoom(String roomId) async {
@@ -219,15 +219,15 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     final List<Widget> screens = hasRoom
-       ? [const MyRoomsScreen(), const AllRoomsScreen(), const PrivateChatsScreen(), const ProfileScreen()]
+      ? [const MyRoomsScreen(), const AllRoomsScreen(), const PrivateChatsScreen(), const ProfileScreen()]
         : [const AllRoomsScreen(), const PrivateChatsScreen(), const ProfileScreen()];
 
     final List<String> titles = hasRoom
-       ? ['غرفتي', 'غرف', 'محادثة', 'حسابي']
+      ? ['غرفتي', 'غرف', 'محادثة', 'حسابي']
         : ['غرف', 'محادثة', 'حسابي'];
 
     final List<IconData> icons = hasRoom
-       ? [Icons.meeting_room_rounded, Icons.groups_rounded, Icons.chat_bubble_rounded, Icons.person_rounded]
+      ? [Icons.meeting_room_rounded, Icons.groups_rounded, Icons.chat_bubble_rounded, Icons.person_rounded]
         : [Icons.groups_rounded, Icons.chat_bubble_rounded, Icons.person_rounded];
 
     return Scaffold(
@@ -292,7 +292,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
 }
 
 // ============= DRAWER صلب مع لوحتي =============
-تمام class AppDrawer extends StatelessWidget {
+class AppDrawer extends StatelessWidget {
   final bool isAdmin;
   const AppDrawer({super.key, required this.isAdmin});
 
@@ -359,7 +359,6 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     );
   }
 }
-
 
 // ============= ROOMS SCREEN كل الغرف =============
 class AllRoomsScreen extends StatelessWidget {
