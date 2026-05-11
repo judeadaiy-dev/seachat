@@ -22,11 +22,11 @@ class AppConfig {
 
 // ============= COLORS فيروزي جديد =============
 class AppColors {
-  static const Color primaryBlue = Color(0xFFE0F7FA); // خلفية فيروزي فاتح جداً
-  static const Color button = Color(0xFF00BCD4); // فيروزي للأزرار
-  static const Color icon = Color(0xFF4DD0E1); // فيروزي فاتح للأيقونات
-  static const Color cardGlass = Color(0xFFFFFFFF); // كروت بيضة صلبة
-  static const Color textDark = Color(0xFF1A1821); // نص أسود
+  static const Color primaryBlue = Color(0xFFE0F7FA);
+  static const Color button = Color(0xFF00BCD4);
+  static const Color icon = Color(0xFF4DD0E1);
+  static const Color cardGlass = Color(0xFFFFFFFF);
+  static const Color textDark = Color(0xFF1A1821);
   static const Color textLight = Color(0xFFFFFFFF);
 }
 
@@ -48,7 +48,6 @@ class SupabaseRepository {
     return res?['role'] == 'admin';
   }
 
-  // يشوف اذا اليوزر عنده غرفة منشأة
   Future<bool> userHasCreatedRoom() async {
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) return false;
@@ -64,7 +63,6 @@ class SupabaseRepository {
        .map((maps) => maps.map((m) => RoomModel.fromMap(m)).toList());
   }
 
-  // غرفي بس
   Stream<List<RoomModel>> getMyRoomsStream() {
     final userId = supabase.auth.currentUser!.id;
     return supabase
@@ -122,12 +120,11 @@ class MyApp extends StatelessWidget {
             fontFamily: 'Cairo',
           ),
         ),
-        // حل الهمبرغر الشفاف
         drawerTheme: const DrawerThemeData(
           backgroundColor: Colors.white,
           scrimColor: Colors.black54,
         ),
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           color: AppColors.cardGlass,
           elevation: 3,
           shadowColor: Colors.black12,
@@ -219,7 +216,6 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
-    // الأقسام: اذا عنده غرفة = 4 أقسام، اذا ما عنده = 3 أقسام
     final List<Widget> screens = hasRoom
        ? [const MyRoomsScreen(), const AllRoomsScreen(), const PrivateChatsScreen(), const ProfileScreen()]
         : [const AllRoomsScreen(), const PrivateChatsScreen(), const ProfileScreen()];
@@ -244,7 +240,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
       ),
       bottomNavigationBar: Container(
         color: Colors.transparent,
-        child: SafeArea( // يرفع الشريط فوق أزرار الهاتف
+        child: SafeArea(
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             height: 60,
@@ -301,7 +297,7 @@ class AppDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Drawer(
-      backgroundColor: Colors.white, // مو شفاف
+      backgroundColor: Colors.white,
       child: SafeArea(
         child: ListView(
           padding: EdgeInsets.zero,
