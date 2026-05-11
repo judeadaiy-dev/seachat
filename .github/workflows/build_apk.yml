@@ -32,57 +32,132 @@ jobs:
           sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
           chmod +x android/gradlew
 
+      - name: Create missing models.dart
+        run: |
+          echo ">> Creating lib/data/models.dart"
+          mkdir -p lib/data
+          cat > lib/data/models.dart << 'EOF'
+          class UserModel {
+            final String id;
+            final String? name;
+            final String? username;
+            final String? bio;
+            final String? zodiac;
+            final String role;
+            final bool isBanned;
+            
+            UserModel({
+              required this.id,
+              this.name,
+              this.username,
+              this.bio,
+              this.zodiac,
+              this.role = 'user',
+              this.isBanned = false,
+            });
+            
+            factory UserModel.fromMap(Map<String, dynamic> map) {
+              return UserModel(
+                id: map['id'] ?? '',
+                name: map['name'],
+                username: map['username'],
+                bio: map['bio'],
+                zodiac: map['zodiac'],
+                role: map['role'] ?? 'user',
+                isBanned: map['is_banned'] ?? false,
+              );
+            }
+          }
+          
+          class RoomModel {
+            final String id;
+            final DateTime createdAt;
+            final bool isPinned;
+            
+            RoomModel({
+              required this.id,
+              required this.createdAt,
+              this.isPinned = false,
+            });
+            
+            factory RoomModel.fromMap(Map<String, dynamic> map) {
+              return RoomModel(
+                id: map['id'] ?? '',
+                createdAt: DateTime.parse(map['created_at']),
+                isPinned: map['is_pinned'] ?? false,
+              );
+            }
+          }
+          
+          class MessageModel {
+            final String id;
+            final String roomId;
+            final String userId;
+            final String message;
+            final DateTime createdAt;
+            final bool isMe;
+            
+            MessageModel({
+              required this.id,
+              required this.roomId,
+              required this.userId,
+              required this.message,
+              required this.createdAt,
+              required this.isMe,
+            });
+            
+            factory MessageModel.fromMap(Map<String, dynamic> map, String currentUserId) {
+              return MessageModel(
+                id: map['id'] ?? '',
+                roomId: map['room_id'] ?? '',
+                userId: map['user_id'] ?? '',
+                message: map['message'] ?? '',
+                createdAt: DateTime.parse(map['created_at']),
+                isMe: map['user_id'] == currentUserId,
+              );
+            }
+          }
+          
+          class RoomMemberModel {
+            final String roomId;
+            final String userId;
+            final int points;
+            final UserModel? profile;
+            
+            RoomMemberModel({
+              required this.roomId,
+              required this.userId,
+              this.points = 0,
+              this.profile,
+            });
+            
+            factory RoomMemberModel.fromMap(Map<String, dynamic> map) {
+              return RoomMemberModel(
+                roomId: map['room_id'] ?? '',
+                userId: map['user_id'] ?? '',
+                points: map['points'] ?? 0,
+                profile: map['profiles'] != null ? UserModel.fromMap(map['profiles']) : null,
+              );
+            }
+          }
+          EOF
+          echo "✅ models.dart created"
+
+      - name: Fix Color O typo in main.dart
+        run: |
+          echo ">> Fixing Color typo: O to 0"
+          sed -i 's/0xFFAEBBAO/0xFFAEBBA0/g' lib/main.dart
+          echo ">> VERIFY:"
+          grep "background" lib/main.dart
+
       - name: Fix import path in main.dart
         run: |
-          echo ">> Fixing import path in main.dart"
           sed -i "s|import 'supabase_repository.dart'|import 'data/supabase_repository.dart'|g" lib/main.dart
-          echo ">> VERIFY: Import line in main.dart"
-          grep "supabase_repository" lib/main.dart
 
       - name: Fix Supabase credentials
         run: |
-          echo ">> Replacing Supabase placeholders"
           sed -i "s|YOUR_SUPABASE_URL|${{ secrets.SUPABASE_URL }}|g" lib/main.dart
           sed -i "s|YOUR_SUPABASE_ANON_KEY|${{ secrets.SUPABASE_ANON_KEY }}|g" lib/main.dart
-          echo ">> VERIFY: Supabase URL replaced"
-          grep "supabase.co" lib/main.dart || echo "WARNING: URL not found"
-
-      - name: Verify Admin & Send Functions
-        run: |
-          echo "========== فحص دوال الأدمن =========="
-          echo ">> 1. فحص isCurrentUserAdmin موجودة:"
-          grep -n "isCurrentUserAdmin" lib/data/supabase_repository.dart && echo "✅ موجودة" || echo "❌ غير موجودة"
-          
-          echo ">> 2. فحص AdminPanel يظهر للأدمن فقط:"
-          grep -n "user?.role == 'admin'" lib/main.dart && echo "✅ الشرط موجود" || echo "❌ الشرط غير موجود"
-          
-          echo "========== فحص دوال الإرسال =========="
-          echo ">> 3. فحص sendMessage موجودة:"
-          grep -n "Future<void> sendMessage" lib/data/supabase_repository.dart && echo "✅ موجودة" || echo "❌ غير موجودة"
-          
-          echo ">> 4. فحص الجداول المستخدمة بالإرسال:"
-          echo "--- جدول messages:"
-          grep -n ".from('messages')" lib/data/supabase_repository.dart
-          echo "--- جدول rooms:"
-          grep -n ".from('rooms')" lib/data/supabase_repository.dart
-          echo "--- جدول room_members:"
-          grep -n ".from('room_members')" lib/data/supabase_repository.dart
-          echo "--- جدول profiles:"
-          grep -n ".from('profiles')" lib/data/supabase_repository.dart
-          
-          echo "========== فحص أنواع البيانات المرسلة =========="
-          echo ">> 5. إرسال مفرد - message:"
-          grep -A 3 "sendMessage" lib/data/supabase_repository.dart
-          
-          echo ">> 6. إنشاء غرفة - insert rooms:"
-          grep -A 2 ".from('rooms').insert" lib/data/supabase_repository.dart || echo "⚠️ لا توجد دالة إنشاء غرف"
-          
-          echo ">> 7. إرسال شكاوي - complaints:"
-          grep -n ".from('complaints')" lib/data/supabase_repository.dart || echo "⚠️ جدول complaints غير مستخدم"
-          
-          echo "========== فحص صلاحيات الحذف للأدمن =========="
-          grep -n "deleteRoom" lib/data/supabase_repository.dart && echo "✅ دالة حذف الغرف موجودة" || echo "❌ غير موجودة"
-          grep -n "banUser" lib/data/supabase_repository.dart && echo "✅ دالة حظر المستخدم موجودة" || echo "❌ غير موجودة"
 
       - name: Fix ALL const errors
         run: |
@@ -91,27 +166,38 @@ jobs:
           sed -i 's/const ProfileSettings()/ProfileSettings()/g' lib/main.dart
           sed -i 's/const BannedScreen()/BannedScreen()/g' lib/main.dart
           sed -i 's/const AdminPanel()/AdminPanel()/g' lib/main.dart
-          sed -i 's/const ChatScreen(/ChatScreen(/g' lib/*.dart
+          sed -i 's/const AuthGate()/AuthGate()/g' lib/main.dart
+          sed -i 's/const SeaChatApp()/SeaChatApp()/g' lib/main.dart
+          
+          echo ">> Fixing EdgeInsets in widgets.dart"
+          sed -i 's/this.padding = EdgeInsets.all(16)/this.padding = const EdgeInsets.all(16)/g' lib/widgets.dart || echo "widgets.dart not found"
           
           echo ">> Removing const from all files"
           find lib -type f -name "*.dart" -exec sed -i 's/const TextStyle(/TextStyle(/g' {} +
           find lib -type f -name "*.dart" -exec sed -i 's/const Text(/Text(/g' {} +
           find lib -type f -name "*.dart" -exec sed -i 's/const Icon(/Icon(/g' {} +
           find lib -type f -name "*.dart" -exec sed -i 's/const SizedBox(/SizedBox(/g' {} +
-          find lib -type f -name "*.dart" -exec sed -i 's/const EdgeInsets/EdgeInsets/g' {} +
           find lib -type f -name "*.dart" -exec sed -i 's/const Center(/Center(/g' {} +
           find lib -type f -name "*.dart" -exec sed -i 's/const Column(/Column(/g' {} +
           find lib -type f -name "*.dart" -exec sed -i 's/const Row(/Row(/g' {} +
           find lib -type f -name "*.dart" -exec sed -i 's/const Container(/Container(/g' {} +
           find lib -type f -name "*.dart" -exec sed -i 's/const Padding(/Padding(/g' {} +
-          
-          echo ">> VERIFY: const removed"
-          grep "const AuthScreen" lib/main.dart && echo "ERROR: const still exists" || echo "SUCCESS: const removed"
 
-      - name: Flutter Analyze - فحص الأخطاء
+      - name: Verify Admin & Send Functions
         run: |
-          echo "========== تشغيل flutter analyze =========="
-          flutter analyze || echo "⚠️ يوجد تحذيرات لكن نكمل البناء"
+          echo "========== فحص دوال الأدمن =========="
+          grep -n "isCurrentUserAdmin" lib/data/supabase_repository.dart && echo "✅ موجودة" || echo "❌ غير موجودة"
+          grep -n "user?.role == 'admin'" lib/main.dart && echo "✅ الشرط موجود" || echo "❌ الشرط غير موجود"
+          
+          echo "========== فحص دوال الإرسال =========="
+          grep -n "Future<void> sendMessage" lib/data/supabase_repository.dart && echo "✅ موجودة" || echo "❌ غير موجودة"
+          echo "--- جدول messages:"
+          grep -n ".from('messages')" lib/data/supabase_repository.dart
+          echo "--- جدول rooms:"
+          grep -n ".from('rooms')" lib/data/supabase_repository.dart
+
+      - name: Flutter Analyze
+        run: flutter analyze || echo "⚠️ يوجد تحذيرات لكن نكمل البناء"
 
       - name: Generate App Icons
         run: flutter pub run flutter_launcher_icons
@@ -124,14 +210,3 @@ jobs:
         with:
           name: SeaChat-Fresh-Debug-APK
           path: build/app/outputs/flutter-apk/app-debug.apk
-
-      - name: Print Database Schema Required
-        run: |
-          echo "========== الجداول المطلوبة في Supabase =========="
-          echo "1. جدول profiles: id, name, username, bio, zodiac, role, is_banned, updated_at"
-          echo "2. جدول rooms: id, created_at, is_pinned"
-          echo "3. جدول messages: id, room_id, user_id, message, created_at"
-          echo "4. جدول room_members: room_id, user_id, points"
-          echo "5. جدول complaints: id, user_id, message, created_at - لازم تضيفه اذا تريد شكاوي"
-          echo "=================================================="
-          echo "✅ تأكد من RLS Policies مفعلة للسماح بالإرسال"
