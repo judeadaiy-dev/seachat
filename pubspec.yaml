@@ -10,6 +10,11 @@ dependencies:
   flutter:
     sdk: flutter
 
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_launcher_icons: ^0.13.1
+  
   # UI & Icons
   cupertino_icons: ^1.0.8
   cached_network_image: ^3.3.1
@@ -63,3 +68,4 @@ flutter_launcher_icons:
   min_sdk_android: 21
   adaptive_icon_background: "#2F45FF" # نفس لون الخلفية الموحدة
   adaptive_icon_foreground: "assets/icon_foreground.png"
+
