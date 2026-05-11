@@ -40,20 +40,16 @@ flutter:
   
   assets:
     - assets/icon.png
-    - assets/icon_foreground.png
   
   fonts:
     - family: Cairo
       fonts:
         - asset: fonts/Cairo-Regular.ttf
           weight: 400
-        - asset: fonts/Cairo-Medium.ttf
-          weight: 500
-        - asset: fonts/Cairo-SemiBold.ttf
-          weight: 600
         - asset: fonts/Cairo-Bold.ttf
           weight: 700
-
+  
+  
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: false
