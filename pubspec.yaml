@@ -46,8 +46,8 @@ flutter:
         - asset: fonts/Cairo-Regular.ttf
           weight: 400
         - asset: fonts/Cairo-Bold.ttf
-       weight: 700
-       
+          weight: 700
+
 flutter_launcher_icons:
   android: true
   ios: false
