@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models.dart';
-import 'supabase_repository.dart';
+// lib/main.dart  
+import 'data/supabase_repository.dart';  // ← صح، هسه يشوفه
 import 'auth_screens.dart';
 import 'profile_settings.dart';
 import 'private_chat.dart';
@@ -12,6 +13,16 @@ import 'contact_us_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'dart:ui';
 
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  await Supabase.initialize(
+    url: 'https://jmsmrojtlstppnpwmkkk.supabase.co',  // ← الرابط من Supabase Dashboard
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos...',  // ← المفتاح من Supabase Dashboard
+  );
+  
+  runApp(MyApp());
+}
 // ========== الألوان مدموجة هنا ==========
 class AppColors {
   static const Color button = Color(0xFF00BCD4);
