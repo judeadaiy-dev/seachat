@@ -42,10 +42,12 @@ class SupabaseRepository {
   }
 
   Future<bool> isCurrentUserAdmin() async {
-    final user = supabase.auth.currentUser;
-    if (user == null) return false;
-    final res = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
-    return res?['role'] == 'admin';
+  final user = supabase.auth.currentUser;
+  if (user == null) return false;
+  
+  // حطيت ايميلك هنا عشان تصير أدمن
+  const adminEmails = ['barqaday@gmail.com']; 
+  return adminEmails.contains(user.email);
   }
 
   Future<bool> userHasCreatedRoom() async {
