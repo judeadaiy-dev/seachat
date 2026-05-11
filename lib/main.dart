@@ -290,7 +290,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
 }
 
 // ============= DRAWER صلب مع لوحتي =============
-class AppDrawer extends StatelessWidget {
+تمام class AppDrawer extends StatelessWidget {
   final bool isAdmin;
   const AppDrawer({super.key, required this.isAdmin});
 
@@ -312,32 +312,21 @@ class AppDrawer extends StatelessWidget {
                 children: [
                   Icon(Icons.chat_bubble, size: 40, color: Colors.white),
                   SizedBox(height: 8),
-                  Text(
-                    'دردشاتي',
-                    style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
-                  ),
+                  Text('دردشاتي', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
-            ListTile(
-              leading: const Icon(Icons.dashboard_rounded, color: AppColors.button),
-              title: const Text('لوحتي', style: TextStyle(color: AppColors.textDark, fontWeight: FontWeight.w600)),
-              subtitle: const Text('إدارة الغرف والشكاوي', style: TextStyle(fontSize: 12)),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPanel()));
-              },
-            ),
-            const Divider(),
-            if (isAdmin)
+            if (isAdmin) // هذا بس للأدمن
               ListTile(
-                leading: const Icon(Icons.admin_panel_settings_rounded, color: AppColors.button),
-                title: const Text('لوحة التحكم', style: TextStyle(color: AppColors.textDark)),
+                leading: const Icon(Icons.dashboard_rounded, color: AppColors.button),
+                title: const Text('لوحتي', style: TextStyle(color: AppColors.textDark, fontWeight: FontWeight.w600)),
+                subtitle: const Text('إدارة الغرف والشكاوي', style: TextStyle(fontSize: 12)),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPanel()));
                 },
               ),
+            if (isAdmin) const Divider(),
             ListTile(
               leading: const Icon(Icons.add_home_work_outlined, color: AppColors.button),
               title: const Text('إنشاء غرفة', style: TextStyle(color: AppColors.textDark)),
@@ -368,6 +357,7 @@ class AppDrawer extends StatelessWidget {
     );
   }
 }
+
 
 // ============= ROOMS SCREEN كل الغرف =============
 class AllRoomsScreen extends StatelessWidget {
