@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models.dart';
-import 'main.dart'; // عشان AppColors
+import 'main.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
-// 1. شاشة قائمة المحادثات الخاصة - اللي يستدعيها main.dart
+// 1. شاشة قائمة المحادثات الخاصة - main.dart يستدعيها بهذا الاسم
 class PrivateChatsScreen extends StatelessWidget {
   const PrivateChatsScreen({super.key});
 
@@ -14,9 +14,9 @@ class PrivateChatsScreen extends StatelessWidget {
       backgroundColor: Colors.transparent,
       body: StreamBuilder<List<Map<String, dynamic>>>(
         stream: Supabase.instance.client
-         .from('profiles')
-         .stream(primaryKey: ['id'])
-         .neq('id', Supabase.instance.client.auth.currentUser?.id?? ''),
+        .from('profiles')
+        .stream(primaryKey: ['id'])
+        .neq('id', Supabase.instance.client.auth.currentUser?.id?? ''),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator(color: AppColors.button));
@@ -45,10 +45,10 @@ class PrivateChatsScreen extends StatelessWidget {
                     leading: CircleAvatar(
                       backgroundColor: AppColors.icon,
                       backgroundImage: (user.avatarUrl!= null && user.avatarUrl!.isNotEmpty)
-                       ? NetworkImage(user.avatarUrl!)
+                      ? NetworkImage(user.avatarUrl!)
                         : null,
                       child: (user.avatarUrl == null || user.avatarUrl!.isEmpty)
-                       ? const Icon(Icons.person, color: Colors.white)
+                      ? const Icon(Icons.person, color: Colors.white)
                         : null,
                     ),
                     title: Text(user.name, style: const TextStyle(color: AppColors.textDark, fontWeight: FontWeight.w600)),
@@ -122,10 +122,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
               radius: 18,
               backgroundColor: AppColors.icon,
               backgroundImage: (widget.receiver.avatarUrl!= null && widget.receiver.avatarUrl!.isNotEmpty)
-               ? NetworkImage(widget.receiver.avatarUrl!)
+              ? NetworkImage(widget.receiver.avatarUrl!)
                 : null,
               child: (widget.receiver.avatarUrl == null || widget.receiver.avatarUrl!.isEmpty)
-               ? const Icon(Icons.person, size: 20, color: Colors.white)
+              ? const Icon(Icons.person, size: 20, color: Colors.white)
                 : null,
             ),
             const SizedBox(width: 10),
@@ -138,21 +138,21 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             ),
           ],
         ),
-        backgroundColor: const Color(0xFF4DD0E1).withOpacity(0.95), // فيروزي
+        backgroundColor: const Color(0xFF4DD0E1), // فيروزي
         elevation: 0,
       ),
-      body: Container( // شلت AppBackground لأنه ما معرف
+      body: Container(
         color: AppColors.primaryBlue,
         child: Column(
           children: [
             Expanded(
               child: myId == null
-               ? const Center(child: Text("يرجى تسجيل الدخول", style: TextStyle(color: AppColors.textDark)))
+              ? const Center(child: Text("يرجى تسجيل الدخول", style: TextStyle(color: AppColors.textDark)))
                 : StreamBuilder<List<Map<String, dynamic>>>(
                     stream: supabase
-                     .from('private_messages')
-                     .stream(primaryKey: ['id'])
-                     .order('created_at', ascending: false),
+                    .from('private_messages')
+                    .stream(primaryKey: ['id'])
+                    .order('created_at', ascending: false),
                     builder: (context, snapshot) {
                       if (snapshot.hasError) {
                         return Center(child: Text("خطأ: ${snapshot.error}", style: const TextStyle(color: AppColors.textDark)));
@@ -215,7 +215,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             const SizedBox(height: 4),
             Text(
               msg['created_at']!= null
-               ? timeago.format(DateTime.parse(msg['created_at']), locale: 'ar')
+              ? timeago.format(DateTime.parse(msg['created_at']), locale: 'ar')
                 : "",
               style: TextStyle(color: isMe? Colors.white70 : Colors.grey, fontSize: 9),
             ),
