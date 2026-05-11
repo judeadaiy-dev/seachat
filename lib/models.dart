@@ -161,27 +161,3 @@ class RoomMemberModel {
     );
   }
 }
-// ضيفها في نهاية lib/models.dart
-
-@immutable
-class PrivateChatsScreen extends StatelessWidget {
-  const PrivateChatsScreen({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: Text('المحادثات الخاصة - قريباً')),
-    );
-  }
-}
-
-@immutable  
-class ContactUsScreen extends StatelessWidget {
-  const ContactUsScreen({super.key}); // لازم const عشان تحل خطأ main.dart:405
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('تواصل معنا')),
-      body: const Center(child: Text('صفحة التواصل')),
-    );
-  }
-}
