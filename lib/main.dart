@@ -9,6 +9,7 @@ import 'chat_screen.dart';
 import 'create_room_screen.dart';
 import 'contact_us_screen.dart';
 import 'privacy_policy_screen.dart';
+import 'dart:ui';
 
 // ============= CONFIG =============
 class AppConfig {
@@ -19,13 +20,13 @@ class AppConfig {
   static const String copyrightName = 'دردشاتي';
 }
 
-// ============= COLORS =============
+// ============= COLORS فيروزي جديد =============
 class AppColors {
-  static const Color primaryBlue = Color(0x90830080);
-  static const Color button = Color(0xFF8199FF);
-  static const Color icon = Color(0xFFA1D4CC);
-  static const Color cardGlass = Color(0x40FFFFFF);
-  static const Color textDark = Color(0xFF1A1821);
+  static const Color primaryBlue = Color(0xFFE0F7FA); // خلفية فيروزي فاتح جداً
+  static const Color button = Color(0xFF00BCD4); // فيروزي للأزرار
+  static const Color icon = Color(0xFF4DD0E1); // فيروزي فاتح للأيقونات
+  static const Color cardGlass = Color(0xFFFFFFFF); // كروت بيضة صلبة
+  static const Color textDark = Color(0xFF1A1821); // نص أسود
   static const Color textLight = Color(0xFFFFFFFF);
 }
 
@@ -47,13 +48,31 @@ class SupabaseRepository {
     return res?['role'] == 'admin';
   }
 
+  // يشوف اذا اليوزر عنده غرفة منشأة
+  Future<bool> userHasCreatedRoom() async {
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) return false;
+    final res = await supabase.from('rooms').select('id').eq('owner_id', userId).limit(1);
+    return res.isNotEmpty;
+  }
+
   Stream<List<RoomModel>> getRoomsStream() {
     return supabase
-      .from('rooms')
-      .stream(primaryKey: ['id'])
-      .eq('status', 'approved')
-      .order('created_at', ascending: false)
-      .map((maps) => maps.map((m) => RoomModel.fromMap(m)).toList());
+       .from('rooms')
+       .stream(primaryKey: ['id'])
+       .order('created_at', ascending: false)
+       .map((maps) => maps.map((m) => RoomModel.fromMap(m)).toList());
+  }
+
+  // غرفي بس
+  Stream<List<RoomModel>> getMyRoomsStream() {
+    final userId = supabase.auth.currentUser!.id;
+    return supabase
+       .from('rooms')
+       .stream(primaryKey: ['id'])
+       .eq('owner_id', userId)
+       .order('created_at', ascending: false)
+       .map((maps) => maps.map((m) => RoomModel.fromMap(m)).toList());
   }
 
   Future<void> joinRoom(String roomId) async {
@@ -80,24 +99,51 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SeaChat',
+      title: 'دردشاتي',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        brightness: Brightness.dark,
+        useMaterial3: true,
+        fontFamily: 'Cairo',
         scaffoldBackgroundColor: AppColors.primaryBlue,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppColors.button,
+          background: AppColors.primaryBlue,
+          surface: AppColors.cardGlass,
+        ),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.transparent,
+          backgroundColor: Color(0xFF4DD0E1),
           elevation: 0,
           centerTitle: true,
-          iconTheme: IconThemeData(color: Colors.white),
+          iconTheme: IconThemeData(color: AppColors.textDark),
           titleTextStyle: TextStyle(
-            color: Colors.white,
+            color: AppColors.textDark,
             fontSize: 22,
             fontWeight: FontWeight.bold,
             fontFamily: 'Cairo',
           ),
         ),
-        fontFamily: 'Cairo',
+        // حل الهمبرغر الشفاف
+        drawerTheme: const DrawerThemeData(
+          backgroundColor: Colors.white,
+          scrimColor: Colors.black54,
+        ),
+        cardTheme: CardTheme(
+          color: AppColors.cardGlass,
+          elevation: 3,
+          shadowColor: Colors.black12,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        ),
+        snackBarTheme: SnackBarThemeData(
+          backgroundColor: AppColors.button,
+          contentTextStyle: const TextStyle(
+            color: Colors.white,
+            fontFamily: 'Cairo',
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+          ),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
       ),
       home: const AuthGate(),
     );
@@ -126,7 +172,7 @@ class AuthGate extends StatelessWidget {
   }
 }
 
-// ============= MAIN SCREEN =============
+// ============= MAIN SCREEN جديد =============
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
   @override
@@ -137,39 +183,17 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   int _currentIndex = 0;
   final repo = SupabaseRepository();
   bool isAdmin = false;
+  bool hasRoom = false;
   late AnimationController _controller;
   late Animation<double> _animation;
-
-  final List<Widget> _screens = const [
-    RoomsScreen(),
-    ExploreScreen(),
-    PrivateChatsScreen(),
-    ProfileScreen(),
-  ];
-
-  final List<IconData> _icons = [
-    Icons.home_outlined,
-    Icons.explore_outlined,
-    Icons.chat_bubble_outline,
-    Icons.person_outline,
-  ];
-
-  final List<IconData> _activeIcons = [
-    Icons.home_rounded,
-    Icons.explore_rounded,
-    Icons.chat_bubble_rounded,
-    Icons.person_rounded,
-  ];
-
-  final List<String> _titles = ['دردشاتي', 'استكشاف', 'الخاص', 'البروفايل'];
 
   @override
   void initState() {
     super.initState();
     _checkAdmin();
+    _checkUserRoom();
     _controller = AnimationController(duration: const Duration(milliseconds: 400), vsync: this);
     _animation = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
-    _controller.forward();
   }
 
   @override
@@ -183,78 +207,164 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     if (mounted) setState(() => isAdmin = admin);
   }
 
+  Future<void> _checkUserRoom() async {
+    final result = await repo.userHasCreatedRoom();
+    if (mounted) setState(() => hasRoom = result);
+  }
+
   void _onTap(int index) {
-    if (_currentIndex == index) return;
     setState(() => _currentIndex = index);
     _controller.forward(from: 0);
   }
 
   @override
   Widget build(BuildContext context) {
+    // الأقسام: اذا عنده غرفة = 4 أقسام، اذا ما عنده = 3 أقسام
+    final List<Widget> screens = hasRoom
+       ? [const MyRoomsScreen(), const AllRoomsScreen(), const PrivateChatsScreen(), const ProfileScreen()]
+        : [const AllRoomsScreen(), const PrivateChatsScreen(), const ProfileScreen()];
+
+    final List<String> titles = hasRoom
+       ? ['غرفتي', 'غرف', 'محادثة', 'حسابي']
+        : ['غرف', 'محادثة', 'حسابي'];
+
+    final List<IconData> icons = hasRoom
+       ? [Icons.meeting_room_rounded, Icons.groups_rounded, Icons.chat_bubble_rounded, Icons.person_rounded]
+        : [Icons.groups_rounded, Icons.chat_bubble_rounded, Icons.person_rounded];
+
     return Scaffold(
       extendBody: true,
       drawer: AppDrawer(isAdmin: isAdmin),
       appBar: AppBar(
-        title: Text(_titles[_currentIndex]),
+        title: Text(titles[_currentIndex]),
       ),
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 250),
-        child: _screens[_currentIndex],
+        child: screens[_currentIndex],
       ),
       bottomNavigationBar: Container(
-        height: 80,
         color: Colors.transparent,
-        child: Stack(
-          alignment: Alignment.center,
+        child: SafeArea( // يرفع الشريط فوق أزرار الهاتف
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            height: 60,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 5))],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: List.generate(screens.length, (index) {
+                final isActive = _currentIndex == index;
+                return GestureDetector(
+                  onTap: () => _onTap(index),
+                  child: Container(
+                    width: 60,
+                    height: 60,
+                    color: Colors.transparent,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          icons[index],
+                          color: isActive? AppColors.button : Colors.grey.shade600,
+                          size: 26,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          titles[index],
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: isActive? AppColors.button : Colors.grey.shade600,
+                            fontWeight: isActive? FontWeight.w600 : FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============= DRAWER صلب مع لوحتي =============
+class AppDrawer extends StatelessWidget {
+  final bool isAdmin;
+  const AppDrawer({super.key, required this.isAdmin});
+
+  @override
+  Widget build(BuildContext context) {
+    return Drawer(
+      backgroundColor: Colors.white, // مو شفاف
+      child: SafeArea(
+        child: ListView(
+          padding: EdgeInsets.zero,
           children: [
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              height: 60,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 5))],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: List.generate(4, (index) {
-                  final isActive = _currentIndex == index;
-                  return GestureDetector(
-                    onTap: () => _onTap(index),
-                    child: Container(
-                      width: 60,
-                      height: 60,
-                      color: Colors.transparent,
-                      child: AnimatedScale(
-                        duration: const Duration(milliseconds: 200),
-                        scale: isActive? 1.1 : 1.0,
-                        child: Icon(
-                          isActive? _activeIcons[index] : _icons[index],
-                          color: AppColors.button,
-                          size: 28,
-                        ),
-                      ),
-                    ),
-                  );
-                }),
+              height: 120,
+              decoration: const BoxDecoration(color: Color(0xFF4DD0E1)),
+              padding: const EdgeInsets.all(16),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Icon(Icons.chat_bubble, size: 40, color: Colors.white),
+                  SizedBox(height: 8),
+                  Text(
+                    'دردشاتي',
+                    style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
+                ],
               ),
             ),
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeOutCubic,
-              bottom: 6,
-              left: _currentIndex * (MediaQuery.of(context).size.width - 48) / 4 + 24 + 22,
-              child: ScaleTransition(
-                scale: _animation,
-                child: Container(
-                  width: 16,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: AppColors.button,
-                    borderRadius: const BorderRadius.only(topLeft: Radius.circular(8), topRight: Radius.circular(8)),
-                  ),
-                ),
+            ListTile(
+              leading: const Icon(Icons.dashboard_rounded, color: AppColors.button),
+              title: const Text('لوحتي', style: TextStyle(color: AppColors.textDark, fontWeight: FontWeight.w600)),
+              subtitle: const Text('إدارة الغرف والشكاوي', style: TextStyle(fontSize: 12)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPanel()));
+              },
+            ),
+            const Divider(),
+            if (isAdmin)
+              ListTile(
+                leading: const Icon(Icons.admin_panel_settings_rounded, color: AppColors.button),
+                title: const Text('لوحة التحكم', style: TextStyle(color: AppColors.textDark)),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPanel()));
+                },
               ),
+            ListTile(
+              leading: const Icon(Icons.add_home_work_outlined, color: AppColors.button),
+              title: const Text('إنشاء غرفة', style: TextStyle(color: AppColors.textDark)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateRoomRequestScreen()));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.privacy_tip_outlined, color: AppColors.button),
+              title: const Text('سياسة الخصوصية', style: TextStyle(color: AppColors.textDark)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.mail_outline_rounded, color: AppColors.button),
+              title: const Text('تواصل معنا', style: TextStyle(color: AppColors.textDark)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactUsScreen()));
+              },
             ),
           ],
         ),
@@ -263,67 +373,9 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   }
 }
 
-// ============= DRAWER =============
-class AppDrawer extends StatelessWidget {
-  final bool isAdmin;
-  const AppDrawer({super.key, required this.isAdmin});
-
-  @override
-  Widget build(BuildContext context) {
-    return Drawer(
-      backgroundColor: AppColors.primaryBlue,
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          DrawerHeader(
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              const Icon(Icons.forum_rounded, size: 40, color: Colors.white),
-              const SizedBox(height: 12),
-              Text(AppConfig.appName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-            ]),
-          ),
-          if (isAdmin)
-            ListTile(
-              leading: const Icon(Icons.admin_panel_settings_rounded, color: Colors.white),
-              title: const Text('لوحة التحكم', style: TextStyle(color: Colors.white)),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPanel()));
-              },
-            ),
-          ListTile(
-            leading: const Icon(Icons.add_home_work_outlined, color: Colors.white70),
-            title: const Text('إنشاء غرفة', style: TextStyle(color: Colors.white)),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateRoomRequestScreen()));
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.privacy_tip_outlined, color: Colors.white70),
-            title: const Text('سياسة الخصوصية', style: TextStyle(color: Colors.white)),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()));
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.mail_outline_rounded, color: Colors.white70),
-            title: const Text('تواصل معنا', style: TextStyle(color: Colors.white)),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactUsScreen()));
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ============= ROOMS SCREEN =============
-class RoomsScreen extends StatelessWidget {
-  const RoomsScreen({super.key});
+// ============= ROOMS SCREEN كل الغرف =============
+class AllRoomsScreen extends StatelessWidget {
+  const AllRoomsScreen({super.key});
   @override
   Widget build(BuildContext context) {
     final repo = SupabaseRepository();
@@ -331,11 +383,11 @@ class RoomsScreen extends StatelessWidget {
       stream: repo.getRoomsStream(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: Colors.white));
+          return const Center(child: CircularProgressIndicator(color: AppColors.button));
         }
-        if (snapshot.hasError) return Center(child: Text('خطأ: ${snapshot.error}', style: const TextStyle(color: Colors.white)));
+        if (snapshot.hasError) return Center(child: Text('خطأ: ${snapshot.error}', style: const TextStyle(color: AppColors.textDark)));
         final rooms = snapshot.data?? [];
-        if (rooms.isEmpty) return const Center(child: Text('لا توجد غرف حالياً', style: TextStyle(color: Colors.white)));
+        if (rooms.isEmpty) return const Center(child: Text('لا توجد غرف حالياً', style: TextStyle(color: AppColors.textDark)));
 
         return ListView.builder(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
@@ -345,13 +397,12 @@ class RoomsScreen extends StatelessWidget {
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: Card(
-                color: Colors.white.withOpacity(0.1),
                 child: ListTile(
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(room: room))),
-                  leading: const Icon(Icons.groups_2_rounded, color: Colors.white),
-                  title: Text(room.roomName, style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
-                  subtitle: Text(room.description?? 'غرفة جماعية', style: TextStyle(color: Colors.white.withOpacity(0.7))),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.white70),
+                  leading: const Icon(Icons.groups_2_rounded, color: AppColors.button),
+                  title: Text(room.roomName, style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.textDark)),
+                  subtitle: Text(room.description?? 'غرفة جماعية', style: TextStyle(color: AppColors.textDark.withOpacity(0.7))),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.button),
                 ),
               ),
             );
@@ -362,11 +413,58 @@ class RoomsScreen extends StatelessWidget {
   }
 }
 
-// ============= شاشات مؤقتة =============
-class ExploreScreen extends StatelessWidget {
-  const ExploreScreen({super.key});
+// ============= MY ROOMS غرفتي =============
+class MyRoomsScreen extends StatelessWidget {
+  const MyRoomsScreen({super.key});
   @override
   Widget build(BuildContext context) {
-    return const Center(child: Text('استكشاف', style: TextStyle(color: Colors.white, fontSize: 24)));
+    final repo = SupabaseRepository();
+    return StreamBuilder<List<RoomModel>>(
+      stream: repo.getMyRoomsStream(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: AppColors.button));
+        }
+        final rooms = snapshot.data?? [];
+        if (rooms.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.meeting_room_outlined, size: 80, color: Colors.grey),
+                const SizedBox(height: 16),
+                const Text('ما عندك غرف بعد', style: TextStyle(color: AppColors.textDark, fontSize: 18)),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateRoomRequestScreen())),
+                  icon: const Icon(Icons.add),
+                  label: const Text('أنشئ غرفتك الأولى'),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+          itemCount: rooms.length,
+          itemBuilder: (context, index) {
+            final room = rooms[index];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Card(
+                child: ListTile(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(room: room))),
+                  leading: const Icon(Icons.meeting_room_rounded, color: AppColors.button),
+                  title: Text(room.roomName, style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.textDark)),
+                  subtitle: Text('غرفتك', style: TextStyle(color: AppColors.button, fontWeight: FontWeight.w500)),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.button),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 }
