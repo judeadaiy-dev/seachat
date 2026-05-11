@@ -28,42 +28,25 @@ jobs:
 
       - name: Reconstruct Project & Install Dependencies
         run: |
-          # 1. احذف android القديم
           rm -rf android
-          
-          # 2. انشئ android من جديد أول
           flutter create --platforms android --org com.seachat --project-name sea_chat .
-          
-          # 3. بعدين نزل الـ packages
           flutter pub get
           
-          # 4. أضف صلاحية الإنترنت
           sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
-          
-          # 5. صلاحيات gradlew
           chmod +x android/gradlew
 
-      - name: Fix Gradle for app_links
+      - name: Fix Gradle for app_links - مهم جداً
         run: |
-          cat > android/build.gradle << 'EOF'
-          allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          subprojects {
-              afterEvaluate { project ->
-                  if (project.hasProperty('android')) {
-                      project.android {
-                          compileSdkVersion 35
-                      }
-                  }
-              }
-          }
-          EOF
+          # هذا يحل مشكلة app_links نهائياً
+          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/' android/app/build.gradle
+          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 35/' android/app/build.gradle
+          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/' android/app/build.gradle
           
           echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+          echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
+          
+          # هذا السطر يحل مشكلة كل المكتبات ومنها app_links
+          echo 'subprojects { afterEvaluate { project -> if (project.hasProperty("android")) { project.android.compileSdkVersion 35 } } }' >> android/build.gradle
 
       - name: Generate App Icons
         run: |
