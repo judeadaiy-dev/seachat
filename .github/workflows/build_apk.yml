@@ -1,9 +1,7 @@
-name: SeaChat Fresh Build
+name: SeaChat Build
 
 on:
   push:
-    branches: [ main, master ]
-  pull_request:
     branches: [ main, master ]
 
 jobs:
@@ -16,7 +14,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: '17'  # ← Java صح
+          java-version: '17'
           cache: 'gradle'
 
       - name: Setup Flutter
@@ -30,38 +28,24 @@ jobs:
         run: |
           rm -rf android
           flutter create --platforms android --org com.seachat --project-name sea_chat .
-          echo "محتويات lib مالتك قبل البناء:"
-          ls -la lib/
 
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Add Permissions & SDK 35
+      - name: Add Permissions & Fix SDK 35
         run: |
-          # صلاحيات
           sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
           sed -i '/<manifest/a \    <uses-permission android:name="android.permission.CAMERA"/>' android/app/src/main/AndroidManifest.xml
           sed -i '/<manifest/a \    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>' android/app/src/main/AndroidManifest.xml
           chmod +x android/gradlew
           
-          # SDK 35 علمود app_links + record_android
           sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/' android/app/build.gradle
           sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 35/' android/app/build.gradle
           sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/' android/app/build.gradle
           
-          # حل مشكلة app_links
           sed -i '/allprojects {/i \ext {\n    flutter = [\n        compileSdkVersion: 35\n    ]\n}\n' android/build.gradle
           
           echo "sdk.dir=$ANDROID_HOME" > android/local.properties
-          echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
-
-      - name: Verify Dart Code
-        run: |
-          echo "نتأكد AuthScreen موجود:"
-          cat lib/auth_screens.dart | grep "class AuthScreen"
-          echo "نتأكد ProfileSettings موجود:"
-          cat lib/profile_settings.dart | grep "class ProfileSettings"
-          flutter analyze
 
       - name: Generate App Icons
         run: flutter pub run flutter_launcher_icons
