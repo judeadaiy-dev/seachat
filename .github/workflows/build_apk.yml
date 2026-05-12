@@ -1,4 +1,4 @@
-name: SeaChat Build
+name: SeaChat Build - Tank Mode
 
 on:
   push:
@@ -8,66 +8,96 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
     steps:
-      - uses: actions/checkout@v4
+      - name: 1. Checkout Code
+        uses: actions/checkout@v4
 
-      - name: Setup Java 17
+      - name: 2. Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
-          cache: 'gradle'
 
-      - name: Setup Flutter
+      - name: 3. Setup Flutter 3.24.5
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.5'
           channel: 'stable'
           cache: true
 
-      - name: Disable Flutter Analytics
+      - name: 4. Disable Flutter Analytics
         run: flutter config --no-analytics
 
-      - name: Recreate Android Project
+      - name: 5. Nuke Old Project Files
         run: |
-          rm -rf android
+          echo "=== حذف كل المجلدات القديمة ==="
+          rm -rf android ios linux macos windows web .dart_tool build
+          ls -la
+          
+      - name: 6. Create Fresh Android Project
+        run: |
+          echo "=== انشاء مشروع اندرويد جديد نظيف ==="
           flutter create --platforms android --org com.seachat --project-name sea_chat .
+          ls -la android/
 
-      - name: Install Dependencies
-        run: flutter pub get
-
-      - name: Force SDK 35 + Permissions
+      - name: 7. Install Dependencies
         run: |
-          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
-          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.CAMERA"/>' android/app/src/main/AndroidManifest.xml
-          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>' android/app/src/main/AndroidManifest.xml
-          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.RECORD_AUDIO"/>' android/app/src/main/AndroidManifest.xml
-          chmod +x android/gradlew
-          
-          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/' android/app/build.gradle
-          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 35/' android/app/build.gradle
-          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/' android/app/build.gradle
-          
-          cat >> android/build.gradle << 'EOF'
+          echo "=== تثبيت البكجات ==="
+          flutter pub get
 
-          subprojects {
-              afterEvaluate { project ->
-                  if (project.hasProperty("android")) {
-                      android {
-                          compileSdkVersion 35
-                      }
+      - name: 8. Force SDK 35 + Permissions
+        run: |
+          echo "=== فرض SDK 35 وكل الاصلاحات ==="
+          
+          # A. صلاحيات AndroidManifest
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.CAMERA" />' $MANIFEST
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.RECORD_AUDIO" />' $MANIFEST
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />' $MANIFEST
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />' $MANIFEST
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />' $MANIFEST
+          
+          # B. فرض SDK 35 بملف app/build.gradle
+          APP_GRADLE="android/app/build.gradle"
+          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' $APP_GRADLE
+          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 35/g' $APP_GRADLE
+          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/g' $APP_GRADLE
+          
+          # C. فرض SDK 35 على كل المكتبات - الحل الصحيح
+          SETTINGS="android/settings.gradle"
+          cat >> $SETTINGS << 'EOF'
+
+          gradle.beforeProject { project ->
+              if (project.hasProperty("android")) {
+                  project.android {
+                      compileSdkVersion 35
+                      buildToolsVersion "35.0.0"
                   }
               }
           }
           EOF
           
+          # D. صلاحيات gradlew
+          chmod +x android/gradlew
           echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+          echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
           
-      - name: Build Debug APK
-        run: flutter build apk --debug
+          echo "=== فحص الملفات بعد التعديل ==="
+          cat $APP_GRADLE | grep -E "minSdk|targetSdk|compileSdk"
+          cat $SETTINGS | tail -10
+          
+      - name: 9. Build Debug APK
+        run: |
+          echo "=== بدء البناء ==="
+          flutter build apk --debug --no-tree-shake-icons
 
-      - name: Upload APK
+      - name: 10. Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: SeaChat-Debug-APK
           path: build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 14
+          if-no-files-found: error
