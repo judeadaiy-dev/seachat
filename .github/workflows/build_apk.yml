@@ -1,103 +1,43 @@
-name: SeaChat Ultimate Auto-Build
+name: Mobile Test Build
 
 on:
   push:
-    branches: [ main, master ]
-  workflow_dispatch:
+    branches: [ "main", "master" ] # سيعمل الكود عند الدفع لهذه الفروع
+  workflow_dispatch: # يتيح لك تشغيل البناء يدوياً من موقع غيت هب
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
-    steps:
-      - name: 1. Checkout code
-        uses: actions/checkout@v4
 
-      - name: 2. Setup Java 17
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
-          java-version: '17'
+          java-version: '17' # إصدار حديث ومستقر
+          distribution: 'temurin'
 
-      - name: 3. Setup Flutter 3.24.5
+      - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.5'
           channel: 'stable'
-          cache: true
 
-      - name: 4. Build Environment From Scratch
+      - name: Recreate Android Project
+        # هذا الأمر هو المفتاح: ينشئ ملفات أندرويد متوافقة مع الإصدار الحالي
         run: |
-          rm -rf android .dart_tool build
-          flutter create --platforms=android --org com.seachat --project-name sea_chat .
-          flutter pub get
+          rm -rf android
+          flutter create . --platforms android
 
-      - name: 5. The Magic Fix (Injecting Flutter to Gradle)
-        run: |
-          # إعداد ملف الخصائص
-          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
-          echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
-          echo "flutter.compileSdkVersion=35" >> android/local.properties
-          echo "flutter.targetSdkVersion=35" >> android/local.properties
-          echo "flutter.minSdkVersion=21" >> android/local.properties
+      - name: Get Dependencies
+        run: flutter pub get
 
-          # تعديل ملف build.gradle الرئيسي لحل مشكلة 'unknown property flutter'
-          # هذا الكود يضمن أن كل مكتبة خارجية ترى إعدادات فلاتر رغماً عنها
-          cat > android/build.gradle << 'EOF'
-          buildscript {
-              ext.kotlin_version = '1.9.10'
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-              dependencies {
-                  classpath 'com.android.tools.build:gradle:8.1.0'
-                  classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-              }
-          }
-          allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-              // حقن إجباري للـ compileSdkVersion لكل المشاريع الفرعية (المكتبات)
-              afterEvaluate { project ->
-                  if (project.hasProperty('android')) {
-                      project.android {
-                          if (it.hasProperty('compileSdkVersion')) {
-                              compileSdkVersion 35
-                          }
-                      }
-                  }
-              }
-          }
-          rootProject.buildDir = '../build'
-          subprojects {
-              project.buildDir = "${rootProject.buildDir}/${project.name}"
-          }
-          subprojects {
-              project.evaluationDependsOn(':app')
-          }
-          tasks.register("clean", Delete) {
-              delete rootProject.buildDir
-          }
-          EOF
+      - name: Build Debug APK
+        # بناء نسخة Debug أسرع وتعمل مباشرة على الهواتف للتجربة
+        run: flutter build apk --debug
 
-      - name: 6. Manifest & Network Patch
-        run: |
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          # إضافة تصاريح الإنترنت والشبكة
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />' $MANIFEST
-          # دعم الروابط والدردشة
-          sed -i 's/<application/<application android:usesCleartextTraffic="true"/' $MANIFEST
-
-      - name: 7. Execution of Auto-Build
-        run: |
-          flutter build apk --release --no-tree-shake-icons
-
-      - name: 8. Deliver APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Final-APK
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: Mobile-Test-App
+          path: build/app/outputs/flutter-apk/app-debug.apk
