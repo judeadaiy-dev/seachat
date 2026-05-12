@@ -1,47 +1,72 @@
-name: sea_chat
-description: "A modern chat application with glassmorphism design powered by Supabase."
-publish_to: 'none'
-version: 1.0.0+1
+name: Auto-Build SeaChat APK
 
-environment:
-  sdk: ^3.5.0
+# هذا الجزء يضمن أن يبني السكربت نفسه تلقائياً عند كل "رفع" للكود
+on:
+  push:
+    branches: [ main, master ] # سيبدأ العمل فوراً عند الرفع على هذه الفروع
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch: # يترك لك خيار التشغيل اليدوي أيضاً للطوارئ
 
-dependencies:
-  flutter:
-    sdk: flutter
-  cupertino_icons: ^1.0.8
-  
-  # مكاتب التصميم والدردشة (التصميم الزجاجي)
-  cached_network_image: ^3.4.1
-  supabase_flutter: ^2.11.0 # تدعم التسجيل المباشر
-  app_links: ^6.4.1
-  
-  # الملحقات (أندرويد فقط)
-  image_picker: ^1.1.2
-  record: ^6.1.1
-  just_audio: ^0.9.42
-  permission_handler: ^11.3.1
-  
-  # أدوات مساعدة
-  uuid: ^4.5.1
-  path_provider: ^2.1.5
-  timeago: ^3.7.0
-  intl: ^0.19.0
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 1. Checkout code
+        uses: actions/checkout@v4
 
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_lints: ^4.0.0
+      - name: 2. Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
 
-flutter:
-  uses-material-design: true
-  assets:
-    - assets/icon/
-  fonts:
-    - family: Cairo
-      fonts:
-        - asset: fonts/Cairo-Regular.ttf
-          weight: 400
-        - asset: fonts/Cairo-Bold.ttf
-          weight: 700
+      - name: 3. Setup Flutter 3.24.5
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          channel: 'stable'
+          cache: true
 
+      - name: 4. Auto-Prepare Environment
+        run: |
+          # تنظيف وبناء بيئة الأندرويد من الصفر لضمان عدم وجود أخطاء سابقة
+          rm -rf android .dart_tool build
+          flutter create --platforms=android --org com.seachat --project-name sea_chat .
+          flutter pub get
+
+      - name: 5. Forced SDK 35 & Permissions Injection
+        run: |
+          # إجبار السيرفر على استخدام SDK 35 ليتوافق مع مكاتب الروابط الحديثة
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+          echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
+          echo "flutter.compileSdkVersion=35" >> android/local.properties
+          echo "flutter.targetSdkVersion=35" >> android/local.properties
+          echo "flutter.minSdkVersion=21" >> android/local.properties
+
+          # حقن تصاريح الإنترنت (مهم للـ Supabase والدردشة)
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />' $MANIFEST
+          
+          # تفعيل مرور البيانات لروابط الدردشة
+          sed -i 's/<application/<application android:usesCleartextTraffic="true"/' $MANIFEST
+
+      - name: 6. Automated Gradle Patch
+        run: |
+          # تعديل ملف البناء الداخلي ليتطابق مع SDK 35
+          APP_GRADLE="android/app/build.gradle"
+          sed -i 's/compileSdk .*/compileSdk 35/' $APP_GRADLE
+          sed -i 's/targetSdk .*/targetSdk 35/' $APP_GRADLE
+
+      - name: 7. THE BUILD COMMAND (The Missing Link)
+        run: |
+          # هذا هو الأمر الذي كان يفتقده السكربت ليبني من تلقاء نفسه
+          flutter build apk --release --no-tree-shake-icons
+
+      - name: 8. Deliver APK to User
+        uses: actions/upload-artifact@v4
+        with:
+          name: SeaChat-Auto-Build
+          path: build/app/outputs/flutter-apk/app-release.apk
