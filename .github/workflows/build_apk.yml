@@ -1,4 +1,4 @@
-name: SeaChat Build - Tank V3
+name: SeaChat Build - Tank V4 (Direct Android Build)
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20 # تقليل الوقت لسرعة التنفيذ
     
     steps:
       - name: 1. Checkout Code
@@ -27,49 +27,40 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: 4. Disable Flutter Analytics
-        run: flutter config --no-analytics
-
-      - name: 5. Nuke Old Project Files
+      - name: 4. Clean and Create Fresh Project
         run: |
-          rm -rf android ios linux macos windows web .dart_tool build
-          
-      - name: 6. Create Fresh Android Project
-        run: |
+          # حذف أي مجلدات منصات قديمة لضمان نظافة البيئة
+          rm -rf android ios linux macos windows web
+          # إنشاء مجلد أندرويد فقط من جديد
           flutter create --platforms android --org com.seachat --project-name sea_chat .
 
-      - name: 7. Install Dependencies
-        run: flutter pub get
-
-      - name: 8. Fix Flutter Gradle Properties
+      - name: 5. Install Dependencies
         run: |
-          # اهم خطوة: نعرف ext.flutter قبل اي شي
-          BUILD_GRADLE="android/build.gradle"
-          
-          # احذف السطر القديم اذا موجود
-          sed -i '/ext {/,/}/d' $BUILD_GRADLE
-          
-          # ضيف تعريف flutter SDK versions ببداية الملف
-          cat > temp_gradle << 'EOF'
+          flutter pub get
+          # تحديث المكتبات لتجنب تعارض record_linux الذي ظهر سابقاً
+          flutter pub upgrade record_platform_interface
+
+      - name: 6. Configure Android SDK and Permissions
+        run: |
+          # ضبط ملف build.gradle الرئيسي
+          cat > android/build.gradle << 'EOF'
           buildscript {
-              ext.kotlin_version = '1.7.10'
+              ext.kotlin_version = '1.9.0'
               repositories {
                   google()
                   mavenCentral()
               }
               dependencies {
-                  classpath 'com.android.tools.build:gradle:7.3.0'
+                  classpath 'com.android.tools.build:gradle:8.1.0'
                   classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
               }
           }
-
           allprojects {
               repositories {
                   google()
                   mavenCentral()
               }
           }
-
           rootProject.buildDir = '../build'
           subprojects {
               project.buildDir = "${rootProject.buildDir}/${project.name}"
@@ -77,47 +68,30 @@ jobs:
           subprojects {
               project.evaluationDependsOn(':app')
           }
-
-          ext {
-              flutter = [
-                  compileSdkVersion: 35,
-                  targetSdkVersion: 35,
-                  minSdkVersion: 21
-              ]
-          }
-
           tasks.register("clean", Delete) {
               delete rootProject.buildDir
           }
           EOF
-          
-          mv temp_gradle $BUILD_GRADLE
-          
-      - name: 9. Add Permissions + Fix App Gradle
-        run: |
-          # صلاحيات
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
-          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.CAMERA" />' $MANIFEST
-          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.RECORD_AUDIO" />' $MANIFEST
-          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />' $MANIFEST
-          
-          # تعديل app/build.gradle ليستخدم ext.flutter
-          APP_GRADLE="android/app/build.gradle"
-          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion flutter.compileSdkVersion/g' $APP_GRADLE
-          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion flutter.minSdkVersion/g' $APP_GRADLE
-          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion flutter.targetSdkVersion/g' $APP_GRADLE
-          
-          chmod +x android/gradlew
-          echo "sdk.dir=$ANDROID_HOME" > android/local.properties
-          echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
-          
-      - name: 10. Build Debug APK
-        run: flutter build apk --debug
 
-      - name: 11. Upload APK
+          # ضبط ملف app/build.gradle ليدعم SDK 35 مباشرة
+          APP_GRADLE="android/app/build.gradle"
+          sed -i 's/compileSdk = .*/compileSdk = 35/' $APP_GRADLE
+          sed -i 's/targetSdk = .*/targetSdk = 35/' $APP_GRADLE
+          sed -i 's/minSdk = .*/minSdk = 21/' $APP_GRADLE
+
+          # إضافة تصاريح الإنترنت والكاميرا والصوت في الـ Manifest
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' $MANIFEST
+
+      - name: 7. Build Debug APK
+        run: |
+          # استخدام --no-pub لأننا قمنا بـ get بالفعل، و --debug للسرعة
+          flutter build apk --debug --no-pub
+
+      - name: 8. Upload APK Result
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Debug-APK
+          name: SeaChat-Fresh-Debug
           path: build/app/outputs/flutter-apk/app-debug.apk
-          retention-days: 14
+          retention-days: 7
+
