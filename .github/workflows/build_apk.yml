@@ -1,4 +1,4 @@
-name: Build SeaChat APK - Ultimate Beast V2
+name: Build SeaChat APK - Ultimate Beast V3 (The Fix)
 
 on:
   push:
@@ -22,62 +22,71 @@ jobs:
       - name: 3. Setup Flutter 3.24.5
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.5' # نسخة مستقرة وحديثة
+          flutter-version: '3.24.5'
           channel: 'stable'
           cache: true
 
-      - name: 4. Nuke and Rebuild Android - Sync with Pubspec
+      - name: 4. Nuke and Rebuild Android
         run: |
-          # مسح المجلدات القديمة
           rm -rf android .dart_tool build
-          
-          # إنشاء الأندرويد من جديد ليتطابق مع اسم المشروع sea_chat
           flutter create --platforms=android --org com.seachat --project-name sea_chat .
-          
-          # حقن التجاوزات (Overrides) مباشرة في الملف لضمان عدم تعارض record_linux
-          # السكربت سيقوم بتحديث pubspec.yaml تلقائياً
           flutter pub get
 
-      - name: 5. Hard-Fix Gradle & SDK 35
+      - name: 5. CRITICAL FIX - Global Gradle Injection
         run: |
-          # إنشاء ملف local.properties لتعريف الـ SDK يدوياً
-          cat > android/local.properties << EOF
-          sdk.dir=$ANDROID_SDK_ROOT
-          flutter.sdk=$FLUTTER_ROOT
-          flutter.compileSdkVersion=35
-          flutter.targetSdkVersion=35
-          flutter.minSdkVersion=21
-          EOF
-          
-          # تعديل app/build.gradle ليتعرف على المتغيرات الجديدة
-          APP_GRADLE="android/app/build.gradle"
-          sed -i 's/compileSdk = .*/compileSdk = 35/' $APP_GRADLE
-          sed -i 's/targetSdk = .*/targetSdk = 35/' $APP_GRADLE
-          sed -i 's/minSdk = .*/minSdk = 21/' $APP_GRADLE
+          # 1. إعداد local.properties بمسارات واضحة للسيرفر
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+          echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
+          echo "flutter.compileSdkVersion=35" >> android/local.properties
+          echo "flutter.targetSdkVersion=35" >> android/local.properties
+          echo "flutter.minSdkVersion=21" >> android/local.properties
 
-      - name: 6. Inject All Permissions (Camera, Mic, Storage)
+          # 2. حقن القيم في settings.gradle لتراها كل المكتبات الخارجية (مثل app_links)
+          # هذا الجزء يحل مشكلة "unknown property flutter" و "compileSdkVersion not specified"
+          cat > android/settings.gradle << 'EOF'
+          include ':app'
+
+          def localProperties = new Properties()
+          def localPropertiesFile = new File(settingsDir, "local.properties")
+          if (localPropertiesFile.exists()) {
+              localPropertiesFile.withReader('UTF-8') { reader -> localProperties.load(reader) }
+          }
+
+          // تحميل نسخة فلاتر لكل المشروع
+          def flutterSdkPath = localProperties.getProperty('flutter.sdk')
+          if (flutterSdkPath == null) throw new GradleException("flutter.sdk not set in local.properties")
+          apply from: "$flutterSdkPath/packages/flutter_tools/gradle/app_plugin_loader.gradle"
+
+          // إجبار الإصدارات على 35 لكل المكتبات
+          gradle.beforeProject { project ->
+              if (project.hasProperty('android')) {
+                  project.android {
+                      compileSdkVersion 35
+                  }
+              }
+          }
+          EOF
+
+      - name: 6. Patch App Build Gradle
+        run: |
+          # تعديل ملف التطبيق الداخلي ليتوافق مع الحقن العالمي
+          APP_GRADLE="android/app/build.gradle"
+          sed -i 's/compileSdk .*/compileSdk 35/' $APP_GRADLE
+          sed -i 's/targetSdk .*/targetSdk 35/' $APP_GRADLE
+
+      - name: 7. Permissions & Cleartext
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
-          # إضافة التصاريح المطلوبة للمكتبات (record, image_picker)
           sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
           sed -i '/<application/i \    <uses-permission android:name="android.permission.RECORD_AUDIO" />' $MANIFEST
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.CAMERA" />' $MANIFEST
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />' $MANIFEST
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />' $MANIFEST
-          
-          # دعم الروابط (App Links) والشبكة
           sed -i 's/<application/<application android:usesCleartextTraffic="true"/' $MANIFEST
 
-      - name: 7. Build Release APK - Beast Mode
+      - name: 8. Build Release APK
         run: |
-          # تنظيف نهائي وبناء
-          flutter clean
-          flutter pub get
           flutter build apk --release --no-tree-shake-icons
 
-      - name: 8. Upload SeaChat APK
+      - name: 9. Upload Result
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Official-Release
+          name: SeaChat-Final-Build
           path: build/app/outputs/flutter-apk/app-release.apk
-
