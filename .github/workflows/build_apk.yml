@@ -28,19 +28,27 @@ jobs:
       - name: Disable Flutter Analytics
         run: flutter config --no-analytics
 
+      - name: Recreate Android Project
+        run: |
+          rm -rf android
+          flutter create --platforms android --org com.seachat --project-name sea_chat .
+
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Force SDK 35
+      - name: Force SDK 35 + Permissions
         run: |
-          if [ -f "android/app/build.gradle" ]; then
-            sed -i 's/compileSdkVersion [0-9]*/compileSdkVersion 35/g' android/app/build.gradle
-            sed -i 's/targetSdkVersion [0-9]*/targetSdkVersion 35/g' android/app/build.gradle
-            sed -i 's/minSdkVersion [0-9]*/minSdkVersion 21/g' android/app/build.gradle
-          fi
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.CAMERA"/>' android/app/src/main/AndroidManifest.xml
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>' android/app/src/main/AndroidManifest.xml
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.RECORD_AUDIO"/>' android/app/src/main/AndroidManifest.xml
+          chmod +x android/gradlew
           
-          if [ -f "android/build.gradle" ]; then
-            cat >> android/build.gradle << 'EOF'
+          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/' android/app/build.gradle
+          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 35/' android/app/build.gradle
+          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/' android/app/build.gradle
+          
+          cat >> android/build.gradle << 'EOF'
 
           subprojects {
               afterEvaluate { project ->
@@ -52,7 +60,8 @@ jobs:
               }
           }
           EOF
-          fi
+          
+          echo "sdk.dir=$ANDROID_HOME" > android/local.properties
           
       - name: Build Debug APK
         run: flutter build apk --debug
