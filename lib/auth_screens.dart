@@ -3,6 +3,17 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models.dart';
 import 'main.dart';
 import 'widgets.dart';
+
+// شاشة المصادقة الرئيسية - هذا اللي يناديه main.dart
+class AuthScreen extends StatelessWidget {
+  const AuthScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const WelcomeScreen();
+  }
+}
+
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
 
@@ -12,7 +23,7 @@ class WelcomeScreen extends StatelessWidget {
       body: AppBackground(
         child: SafeArea(
           child: Center(
-            child: SingleChildScrollView( // لضمان عدم حدوث Overflow
+            child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: GlassCard(
                 padding: const EdgeInsets.all(40),
@@ -209,6 +220,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool isLoading = false;
   bool obscurePassword = true;
 
+  @override
+  void dispose() {
+    nameController.dispose();
+    emailController.dispose();
+    passController.dispose();
+    confirmPassController.dispose();
+    super.dispose();
+  }
+
   Future<void> _handleSignUp() async {
     final name = nameController.text.trim();
     final email = emailController.text.trim();
@@ -226,7 +246,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     setState(() => isLoading = true);
     try {
-      // تمرير الاسم في الـ data لضمان وصوله لجدول البروفايل عبر الـ Trigger في قاعدة البيانات
       await Supabase.instance.client.auth.signUp(
         email: email, 
         password: password, 
@@ -244,6 +263,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   void _showSnackBar(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), behavior: SnackBarBehavior.floating));
   }
 
