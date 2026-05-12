@@ -1,4 +1,4 @@
-name: Build SeaChat APK - Ultimate Beast V3 (The Fix)
+name: Build SeaChat APK - Ultimate Beast V5
 
 on:
   push:
@@ -26,67 +26,81 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: 4. Nuke and Rebuild Android
+      - name: 4. Nuke and Rebuild Android Structure
         run: |
           rm -rf android .dart_tool build
           flutter create --platforms=android --org com.seachat --project-name sea_chat .
           flutter pub get
 
-      - name: 5. CRITICAL FIX - Global Gradle Injection
+      - name: 5. Fix BuildScript & Plugin Repositories
         run: |
-          # 1. إعداد local.properties بمسارات واضحة للسيرفر
+          # تعديل الملف الرئيسي لضمان تعريف مستودعات الإضافات
+          cat > android/build.gradle << 'EOF'
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.buildDir = '../build'
+          subprojects {
+              project.buildDir = "${rootProject.buildDir}/${project.name}"
+          }
+          subprojects {
+              project.evaluationDependsOn(':app')
+          }
+          tasks.register("clean", Delete) {
+              delete rootProject.buildDir
+          }
+          EOF
+
+      - name: 6. Patch Settings Gradle (The Modern Way)
+        run: |
+          # إعادة هيكلة ملف الإعدادات ليتوافق مع فلاتر 3.24.5 ويحل مشكلة Plugin Not Found
+          cat > android/settings.gradle << 'EOF'
+          pluginManagement {
+              def flutterSdkPath = {
+                  def properties = new Properties()
+                  file("local.properties").withInputStream { properties.load(it) }
+                  def flutterSdkPath = properties.getProperty("flutter.sdk")
+                  if (flutterSdkPath == null) throw new GradleException("flutter.sdk not set in local.properties")
+                  return flutterSdkPath
+              }()
+
+              includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
+
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+
+          plugins {
+              id "dev.flutter.flutter-gradle-plugin" version "1.0.0" apply false
+              id "com.android.application" version "8.1.0" apply false
+              id "org.jetbrains.kotlin.android" version "1.8.22" apply false
+          }
+
+          include ":app"
+          EOF
+
+      - name: 7. Force SDK 35 in local.properties
+        run: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
           echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
           echo "flutter.compileSdkVersion=35" >> android/local.properties
           echo "flutter.targetSdkVersion=35" >> android/local.properties
           echo "flutter.minSdkVersion=21" >> android/local.properties
 
-          # 2. حقن القيم في settings.gradle لتراها كل المكتبات الخارجية (مثل app_links)
-          # هذا الجزء يحل مشكلة "unknown property flutter" و "compileSdkVersion not specified"
-          cat > android/settings.gradle << 'EOF'
-          include ':app'
-
-          def localProperties = new Properties()
-          def localPropertiesFile = new File(settingsDir, "local.properties")
-          if (localPropertiesFile.exists()) {
-              localPropertiesFile.withReader('UTF-8') { reader -> localProperties.load(reader) }
-          }
-
-          // تحميل نسخة فلاتر لكل المشروع
-          def flutterSdkPath = localProperties.getProperty('flutter.sdk')
-          if (flutterSdkPath == null) throw new GradleException("flutter.sdk not set in local.properties")
-          apply from: "$flutterSdkPath/packages/flutter_tools/gradle/app_plugin_loader.gradle"
-
-          // إجبار الإصدارات على 35 لكل المكتبات
-          gradle.beforeProject { project ->
-              if (project.hasProperty('android')) {
-                  project.android {
-                      compileSdkVersion 35
-                  }
-              }
-          }
-          EOF
-
-      - name: 6. Patch App Build Gradle
-        run: |
-          # تعديل ملف التطبيق الداخلي ليتوافق مع الحقن العالمي
-          APP_GRADLE="android/app/build.gradle"
-          sed -i 's/compileSdk .*/compileSdk 35/' $APP_GRADLE
-          sed -i 's/targetSdk .*/targetSdk 35/' $APP_GRADLE
-
-      - name: 7. Permissions & Cleartext
-        run: |
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.RECORD_AUDIO" />' $MANIFEST
-          sed -i 's/<application/<application android:usesCleartextTraffic="true"/' $MANIFEST
-
       - name: 8. Build Release APK
         run: |
+          flutter clean
+          flutter pub get
           flutter build apk --release --no-tree-shake-icons
 
-      - name: 9. Upload Result
+      - name: 9. Upload APK Result
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Final-Build
+          name: SeaChat-Beast-V5
           path: build/app/outputs/flutter-apk/app-release.apk
