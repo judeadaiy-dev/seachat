@@ -19,11 +19,16 @@ dependencies:
 
   # Chat Features
   image_picker: ^1.1.2
-  record: 5.1.2              # نزلنا من 6.0.0 عشان minSdk 21
+  record: 5.1.2              # متوافق مع minSdk 21
   just_audio: ^0.9.42
   permission_handler: ^11.3.1
-  app_links: 3.4.0           # ضفناها عشان ما يطلب compileSdk 35
-  flutter_plugin_android_lifecycle: 2.0.17  # ضفناها عشان ما يطلب compileSdk 35
+  
+  # تم تحديث app_links عشان يتوافق مع supabase_flutter
+  app_links: ^6.4.1
+  
+  # لو بعدك محتاج تثبت compileSdk، خلي flutter_plugin_android_lifecycle
+  # لكن غالباً ما تحتاجه بعد تحديث app_links
+  # flutter_plugin_android_lifecycle: 2.0.17
 
   # Utilities
   uuid: ^4.5.1
