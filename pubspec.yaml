@@ -1,59 +1,105 @@
-name: sea_chat
-description: "A modern chat application with glassmorphism design powered by Supabase."
-publish_to: 'none'
-version: 1.0.0+1
+name: SeaChat Build
 
-environment:
-  sdk: ^3.5.0
+on:
+  push:
+    branches: [ main, master ]
 
-dependencies:
-  flutter:
-    sdk: flutter
-  
-  # UI & Icons
-  cupertino_icons: ^1.0.8
-  cached_network_image: ^3.3.1
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-  # Backend
-  supabase_flutter: ^2.10.6
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+          cache: 'gradle'
 
-  # Chat Features
-  image_picker: ^1.1.2
-  record: 5.1.2              # متوافق مع minSdk 21
-  just_audio: ^0.9.42
-  permission_handler: ^11.3.1
-  
-  # تم تحديث app_links عشان يتوافق مع supabase_flutter
-  app_links: ^6.4.1
-  
-  # لو بعدك محتاج تثبت compileSdk، خلي flutter_plugin_android_lifecycle
-  # لكن غالباً ما تحتاجه بعد تحديث app_links
-  # flutter_plugin_android_lifecycle: 2.0.17
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          channel: 'stable'
+          cache: true
 
-  # Utilities
-  uuid: ^4.5.1
-  path_provider: ^2.1.5
-  timeago: ^3.7.0
-  intl: ^0.19.0
+      - name: Create Android Only
+        run: |
+          rm -rf android
+          flutter create --platforms android --org com.seachat --project-name sea_chat .
 
-flutter:
-  uses-material-design: true
-  
-  assets:
-    - assets/icon/
-  
-  fonts:
-    - family: Cairo
-      fonts:
-        - asset: fonts/Cairo-Regular.ttf
-          weight: 400
-        - asset: fonts/Cairo-Bold.ttf
-          weight: 700
+      - name: Install Dependencies
+        run: flutter pub get
 
-flutter_launcher_icons:
-  android: true
-  ios: false
-  image_path: "assets/icon/icon.png"
-  adaptive_icon_background: "#00BCD4"
-  adaptive_icon_foreground: "assets/icon/icon_foreground.png"
-  min_sdk_android: 21
+      - name: Force SDK 35 for All Plugins
+        run: |
+          # صلاحيات
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.CAMERA"/>' android/app/src/main/AndroidManifest.xml
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>' android/app/src/main/AndroidManifest.xml
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.RECORD_AUDIO"/>' android/app/src/main/AndroidManifest.xml
+          chmod +x android/gradlew
+          
+          # اجبار SDK 35 بكل مكان
+          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/' android/app/build.gradle
+          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 35/' android/app/build.gradle
+          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/' android/app/build.gradle
+          
+          # هذا السطر يحل مشكلة app_links + record_android + lifecycle
+          cat > android/app/build.gradle.tmp << 'EOF'
+          android {
+              namespace "com.seachat.sea_chat"
+              compileSdk 35
+              ndkVersion flutter.ndkVersion
+
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_1_8
+                  targetCompatibility JavaVersion.VERSION_1_8
+              }
+
+              defaultConfig {
+                  applicationId "com.seachat.sea_chat"
+                  minSdkVersion 21
+                  targetSdkVersion 35
+                  versionCode flutterVersionCode.toInteger()
+                  versionName flutterVersionName
+              }
+
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.debug
+                  }
+              }
+          }
+          EOF
+          
+          # استبدل android block كامل
+          sed -i '/^android {/,/^}/c\ ' android/app/build.gradle
+          sed -i '/apply plugin: "com.android.application"/r android/app/build.gradle.tmp' android/app/build.gradle
+          rm android/app/build.gradle.tmp
+          
+          # اجبار كل المكتبات على SDK 35
+          cat >> android/build.gradle << 'EOF'
+
+          subprojects {
+              afterEvaluate { project ->
+                  if (project.hasProperty("android")) {
+                      android {
+                          compileSdkVersion 35
+                      }
+                  }
+              }
+          }
+          EOF
+          
+          echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+          
+      - name: Build Debug APK
+        run: flutter build apk --debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SeaChat-Debug-APK
+          path: build/app/outputs/flutter-apk/app-debug.apk
