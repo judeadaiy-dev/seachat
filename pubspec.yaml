@@ -16,9 +16,9 @@ dependencies:
   supabase_flutter: ^2.11.0
   app_links: ^6.4.1
   
-  # الوسائط المتعددة (إصدارات متوافقة تمنع تعارض الـ Interface)
+  # الوسائط المتعددة
   image_picker: ^1.1.2
-  record: ^5.1.0               # تم التثبيت على إصدار مستقر يحل مشكلة الصورة السابقة
+  record: ^5.1.0
   just_audio: ^0.9.42
   
   # الأدوات المساعدة
@@ -33,6 +33,11 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+
+dependency_overrides:
+  record: 5.1.0
+  record_platform_interface: 1.1.0
+  record_linux: 0.7.1
 
 flutter:
   uses-material-design: true
