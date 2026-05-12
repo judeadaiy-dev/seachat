@@ -3,6 +3,7 @@ name: SeaChat Build
 on:
   push:
     branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -24,30 +25,34 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Create Android Only
-        run: |
-          rm -rf android
-          flutter create --platforms android --org com.seachat --project-name sea_chat .
+      - name: Disable Flutter Analytics
+        run: flutter config --no-analytics
 
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Add Permissions & Fix SDK 35
+      - name: Force SDK 35
         run: |
-          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
-          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.CAMERA"/>' android/app/src/main/AndroidManifest.xml
-          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>' android/app/src/main/AndroidManifest.xml
-          chmod +x android/gradlew
+          if [ -f "android/app/build.gradle" ]; then
+            sed -i 's/compileSdkVersion [0-9]*/compileSdkVersion 35/g' android/app/build.gradle
+            sed -i 's/targetSdkVersion [0-9]*/targetSdkVersion 35/g' android/app/build.gradle
+            sed -i 's/minSdkVersion [0-9]*/minSdkVersion 21/g' android/app/build.gradle
+          fi
           
-          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/' android/app/build.gradle
-          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 35/' android/app/build.gradle
-          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/' android/app/build.gradle
-          
-          sed -i '/allprojects {/i \ext {\n    flutter = [\n        compileSdkVersion: 35\n    ]\n}\n' android/build.gradle
-          
-          echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+          if [ -f "android/build.gradle" ]; then
+            cat >> android/build.gradle << 'EOF'
 
-      # حذفت خطوة Generate App Icons
+          subprojects {
+              afterEvaluate { project ->
+                  if (project.hasProperty("android")) {
+                      android {
+                          compileSdkVersion 35
+                      }
+                  }
+              }
+          }
+          EOF
+          fi
           
       - name: Build Debug APK
         run: flutter build apk --debug
