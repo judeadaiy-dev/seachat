@@ -3,6 +3,7 @@ name: SeaChat Build
 on:
   push:
     branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -24,63 +25,22 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Create Android Only
-        run: |
-          rm -rf android
-          flutter create --platforms android --org com.seachat --project-name sea_chat .
+      - name: Disable Flutter Analytics
+        run: flutter config --no-analytics
 
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Force SDK 35 for All Plugins
+      - name: Force SDK 35
         run: |
-          # صلاحيات
-          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
-          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.CAMERA"/>' android/app/src/main/AndroidManifest.xml
-          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>' android/app/src/main/AndroidManifest.xml
-          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.RECORD_AUDIO"/>' android/app/src/main/AndroidManifest.xml
-          chmod +x android/gradlew
+          if [ -f "android/app/build.gradle" ]; then
+            sed -i 's/compileSdkVersion [0-9]*/compileSdkVersion 35/g' android/app/build.gradle
+            sed -i 's/targetSdkVersion [0-9]*/targetSdkVersion 35/g' android/app/build.gradle
+            sed -i 's/minSdkVersion [0-9]*/minSdkVersion 21/g' android/app/build.gradle
+          fi
           
-          # اجبار SDK 35 بكل مكان
-          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/' android/app/build.gradle
-          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 35/' android/app/build.gradle
-          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/' android/app/build.gradle
-          
-          # هذا السطر يحل مشكلة app_links + record_android + lifecycle
-          cat > android/app/build.gradle.tmp << 'EOF'
-          android {
-              namespace "com.seachat.sea_chat"
-              compileSdk 35
-              ndkVersion flutter.ndkVersion
-
-              compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_1_8
-                  targetCompatibility JavaVersion.VERSION_1_8
-              }
-
-              defaultConfig {
-                  applicationId "com.seachat.sea_chat"
-                  minSdkVersion 21
-                  targetSdkVersion 35
-                  versionCode flutterVersionCode.toInteger()
-                  versionName flutterVersionName
-              }
-
-              buildTypes {
-                  release {
-                      signingConfig signingConfigs.debug
-                  }
-              }
-          }
-          EOF
-          
-          # استبدل android block كامل
-          sed -i '/^android {/,/^}/c\ ' android/app/build.gradle
-          sed -i '/apply plugin: "com.android.application"/r android/app/build.gradle.tmp' android/app/build.gradle
-          rm android/app/build.gradle.tmp
-          
-          # اجبار كل المكتبات على SDK 35
-          cat >> android/build.gradle << 'EOF'
+          if [ -f "android/build.gradle" ]; then
+            cat >> android/build.gradle << 'EOF'
 
           subprojects {
               afterEvaluate { project ->
@@ -92,8 +52,7 @@ jobs:
               }
           }
           EOF
-          
-          echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+          fi
           
       - name: Build Debug APK
         run: flutter build apk --debug
