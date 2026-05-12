@@ -12,11 +12,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Java
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: '17'
+          java-version: '17'  # ← Java صح
           cache: 'gradle'
 
       - name: Setup Flutter
@@ -26,52 +26,48 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Create Android Only - بدون مسح كودك
+      - name: Create Android Only
         run: |
-          # 1. نمسح android فقط اذا موجود
           rm -rf android
-          
-          # 2. ننشئ android بدون ما نلمس lib او pubspec
           flutter create --platforms android --org com.seachat --project-name sea_chat .
-          
-          # 3. نتأكد lib ما تغير
-          echo "محتويات lib مالتك:"
+          echo "محتويات lib مالتك قبل البناء:"
           ls -la lib/
 
       - name: Install Dependencies
-        run: |
-          flutter pub get
+        run: flutter pub get
 
-      - name: Add Permissions
+      - name: Add Permissions & SDK 35
         run: |
-          # صلاحية النت
+          # صلاحيات
           sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
-          # الكاميرا اذا تحتاجها
           sed -i '/<manifest/a \    <uses-permission android:name="android.permission.CAMERA"/>' android/app/src/main/AndroidManifest.xml
-          # الصور اذا تحتاجها  
           sed -i '/<manifest/a \    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>' android/app/src/main/AndroidManifest.xml
-          
           chmod +x android/gradlew
-
-      - name: Fix SDK 35 for Plugins
-        run: |
+          
+          # SDK 35 علمود app_links + record_android
           sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/' android/app/build.gradle
           sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 35/' android/app/build.gradle
           sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/' android/app/build.gradle
           
+          # حل مشكلة app_links
           sed -i '/allprojects {/i \ext {\n    flutter = [\n        compileSdkVersion: 35\n    ]\n}\n' android/build.gradle
           
           echo "sdk.dir=$ANDROID_HOME" > android/local.properties
           echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
 
-      - name: Generate App Icons
+      - name: Verify Dart Code
         run: |
-          # اذا عندك assets/icon.png رح ينشئ الايقونات
-          flutter pub run flutter_launcher_icons
+          echo "نتأكد AuthScreen موجود:"
+          cat lib/auth_screens.dart | grep "class AuthScreen"
+          echo "نتأكد ProfileSettings موجود:"
+          cat lib/profile_settings.dart | grep "class ProfileSettings"
+          flutter analyze
 
+      - name: Generate App Icons
+        run: flutter pub run flutter_launcher_icons
+          
       - name: Build Debug APK
-        run: |
-          flutter build apk --debug
+        run: flutter build apk --debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
