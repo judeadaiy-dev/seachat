@@ -1,4 +1,4 @@
-name: SeaChat Build - Tank V4 (Direct Android Build)
+name: SeaChat Build - Clean Android Tank V6
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20 # تقليل الوقت لسرعة التنفيذ
+    timeout-minutes: 20
     
     steps:
       - name: 1. Checkout Code
@@ -27,71 +27,46 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: 4. Clean and Create Fresh Project
+      - name: 4. Nuke and Rebuild Android Project
         run: |
-          # حذف أي مجلدات منصات قديمة لضمان نظافة البيئة
-          rm -rf android ios linux macos windows web
-          # إنشاء مجلد أندرويد فقط من جديد
+          # مسح مجلد أندرويد القديم وأي ملفات بناء سابقة تماماً
+          rm -rf android build .dart_tool
+          
+          # إنشاء مجلد أندرويد جديد ونظيف يعتمد على ملف pubspec.yaml الخاص بك
           flutter create --platforms android --org com.seachat --project-name sea_chat .
-
-      - name: 5. Install Dependencies
-        run: |
+          
+          # جلب المكتبات
           flutter pub get
-          # تحديث المكتبات لتجنب تعارض record_linux الذي ظهر سابقاً
-          flutter pub upgrade record_platform_interface
 
-      - name: 6. Configure Android SDK and Permissions
+      - name: 5. Force Gradle to Use SDK 35 & Local Paths
         run: |
-          # ضبط ملف build.gradle الرئيسي
-          cat > android/build.gradle << 'EOF'
-          buildscript {
-              ext.kotlin_version = '1.9.0'
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-              dependencies {
-                  classpath 'com.android.tools.build:gradle:8.1.0'
-                  classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-              }
-          }
-          allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          rootProject.buildDir = '../build'
-          subprojects {
-              project.buildDir = "${rootProject.buildDir}/${project.name}"
-          }
-          subprojects {
-              project.evaluationDependsOn(':app')
-          }
-          tasks.register("clean", Delete) {
-              delete rootProject.buildDir
-          }
-          EOF
-
-          # ضبط ملف app/build.gradle ليدعم SDK 35 مباشرة
+          # تعريف مسارات Flutter SDK للسيرفر ليتعرف عليها Gradle والإضافات
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+          echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
+          
+          # تعديل ملف app/build.gradle ليستخدم SDK 35 مباشرة
+          # هذا يحل مشكلة app_links و record_android
           APP_GRADLE="android/app/build.gradle"
           sed -i 's/compileSdk = .*/compileSdk = 35/' $APP_GRADLE
           sed -i 's/targetSdk = .*/targetSdk = 35/' $APP_GRADLE
           sed -i 's/minSdk = .*/minSdk = 21/' $APP_GRADLE
 
-          # إضافة تصاريح الإنترنت والكاميرا والصوت في الـ Manifest
+      - name: 6. Add Essential Permissions
+        run: |
+          # إضافة تصاريح الإنترنت والكاميرا والصوت للملف الجديد
           MANIFEST="android/app/src/main/AndroidManifest.xml"
-          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' $MANIFEST
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.CAMERA" />' $MANIFEST
+          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.RECORD_AUDIO" />' $MANIFEST
 
       - name: 7. Build Debug APK
         run: |
-          # استخدام --no-pub لأننا قمنا بـ get بالفعل، و --debug للسرعة
+          # بناء التطبيق مع تجاهل فحص الأخطاء البرمجية (lint) للسرعة
           flutter build apk --debug --no-pub
 
-      - name: 8. Upload APK Result
+      - name: 8. Upload Result
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Fresh-Debug
+          name: SeaChat-New-Android-Build
           path: build/app/outputs/flutter-apk/app-debug.apk
-          retention-days: 7
-
+          retention-days: 5
