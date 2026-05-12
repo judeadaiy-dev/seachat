@@ -15,7 +15,7 @@ import 'models.dart';
 // ========== الألوان مدموجة هنا ==========
 class AppColors {
   // === Pinterest 2026 Palette ===
-  static const Color button = Color(0xFFE9F056);      // Wasabi فسفوري - للازرار فقط
+  static const Color button = Color(0xFF4B0082);      // Wasabi فسفوري - للازرار فقط
   static const Color primaryBlue = Color(0xFFD7EFFF); // Cool Blue - خلفية التطبيق الرئيسية
   static const Color background = Color(0xFFD7EFFF);  // Cool Blue - خلفية ثانوية
   
