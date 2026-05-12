@@ -1,4 +1,4 @@
-name: Build SeaChat APK - Ultimate Beast
+name: Build SeaChat APK - Ultimate Beast V2
 
 on:
   push:
@@ -10,98 +10,74 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout code
+      - name: 1. Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Java 17
+      - name: 2. Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Setup Flutter
+      - name: 3. Setup Flutter 3.24.5
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.3'
+          flutter-version: '3.24.5' # نسخة مستقرة وحديثة
           channel: 'stable'
           cache: true
 
-      - name: Nuke and Rebuild Android - Ultimate Beast
+      - name: 4. Nuke and Rebuild Android - Sync with Pubspec
         run: |
-          rm -rf android
-          flutter create --platforms=android --org com.judea --project-name sea_chat .
+          # مسح المجلدات القديمة
+          rm -rf android .dart_tool build
           
-          echo "" >> pubspec.yaml
-          echo "dependency_overrides:" >> pubspec.yaml
-          echo "  app_links: 6.3.2" >> pubspec.yaml
-          echo "  record_android: 1.3.1" >> pubspec.yaml
+          # إنشاء الأندرويد من جديد ليتطابق مع اسم المشروع sea_chat
+          flutter create --platforms=android --org com.seachat --project-name sea_chat .
           
+          # حقن التجاوزات (Overrides) مباشرة في الملف لضمان عدم تعارض record_linux
+          # السكربت سيقوم بتحديث pubspec.yaml تلقائياً
+          flutter pub get
+
+      - name: 5. Hard-Fix Gradle & SDK 35
+        run: |
+          # إنشاء ملف local.properties لتعريف الـ SDK يدوياً
           cat > android/local.properties << EOF
           sdk.dir=$ANDROID_SDK_ROOT
           flutter.sdk=$FLUTTER_ROOT
-          flutter.buildMode=release
-          flutter.versionName=1.0.0
-          flutter.versionCode=1
           flutter.compileSdkVersion=35
           flutter.targetSdkVersion=35
           flutter.minSdkVersion=21
-          flutter.ndkVersion=25.1.8937393
           EOF
           
-          cat >> android/gradle.properties << EOF
-          android.useAndroidX=true
-          android.enableJetifier=true
-          org.gradle.jvmargs=-Xmx4096m -Dfile.encoding=UTF-8
-          android.defaults.buildfeatures.buildconfig=true
-          android.nonTransitiveRClass=true
-          android.nonFinalResIds=true
-          EOF
-          
-          sed -i '1i\def localProperties = new Properties()\n' android/settings.gradle
-          sed -i '2i\def localPropertiesFile = new File(settingsDir, "local.properties")\n' android/settings.gradle
-          sed -i '3i\if (localPropertiesFile.exists()) { localPropertiesFile.withReader("UTF-8") { reader -> localProperties.load(reader) } }\n' android/settings.gradle
-          sed -i '4i\gradle.ext.flutterCompileSdkVersion = localProperties.getProperty("flutter.compileSdkVersion")\n' android/settings.gradle
-          sed -i '5i\gradle.ext.flutterTargetSdkVersion = localProperties.getProperty("flutter.targetSdkVersion")\n' android/settings.gradle
-          sed -i '6i\gradle.ext.flutterMinSdkVersion = localProperties.getProperty("flutter.minSdkVersion")\n' android/settings.gradle
-          
-          flutter clean
-          flutter pub get
+          # تعديل app/build.gradle ليتعرف على المتغيرات الجديدة
+          APP_GRADLE="android/app/build.gradle"
+          sed -i 's/compileSdk = .*/compileSdk = 35/' $APP_GRADLE
+          sed -i 's/targetSdk = .*/targetSdk = 35/' $APP_GRADLE
+          sed -i 's/minSdk = .*/minSdk = 21/' $APP_GRADLE
 
-      - name: Inject All Permissions + Manifest Fixes
+      - name: 6. Inject All Permissions (Camera, Mic, Storage)
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
+          # إضافة التصاريح المطلوبة للمكتبات (record, image_picker)
           sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />' $MANIFEST
           sed -i '/<application/i \    <uses-permission android:name="android.permission.RECORD_AUDIO" />' $MANIFEST
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.CAMERA" />' $MANIFEST
           sed -i '/<application/i \    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />' $MANIFEST
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />' $MANIFEST
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />' $MANIFEST
           sed -i '/<application/i \    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />' $MANIFEST
-          sed -i 's/<application/<application android:usesCleartextTraffic="true" android:requestLegacyExternalStorage="true" android:largeHeap="true"/' $MANIFEST
-          sed -i 's/android:label="sea_chat"/android:label="SeaChat"/' $MANIFEST
+          
+          # دعم الروابط (App Links) والشبكة
+          sed -i 's/<application/<application android:usesCleartextTraffic="true"/' $MANIFEST
 
-      - name: Create app_config.dart
+      - name: 7. Build Release APK - Beast Mode
         run: |
-          mkdir -p lib/config
-          cat > lib/config/app_config.dart << 'EOF'
-          class AppConfig {
-            static const String appName = 'SeaChat';
-            static const String supabaseUrl = 'https://jmsmrojtlstppnpwmkkk.supabase.co';
-            static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos';
-            static const String copyrightYear = '2024';
-            static const String copyrightName = 'JudeaDay';
-          }
-          EOF
+          # تنظيف نهائي وبناء
+          flutter clean
+          flutter pub get
+          flutter build apk --release --no-tree-shake-icons
 
-      - name: Build App Icons
-        run: flutter pub run flutter_launcher_icons || true
-
-      - name: Build Release APK - Beast Mode
-        run: flutter build apk --release --no-tree-shake-icons
-
-      - name: Upload Finished APK
+      - name: 8. Upload SeaChat APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Beast-APK
+          name: SeaChat-Official-Release
           path: build/app/outputs/flutter-apk/app-release.apk
-          if-no-files-found: error
+
