@@ -47,15 +47,13 @@ jobs:
           
           echo "sdk.dir=$ANDROID_HOME" > android/local.properties
 
-      - name: Generate App Icons
-        run: flutter pub run flutter_launcher_icons
+      # حذفت خطوة Generate App Icons
           
-      
       - name: Build Debug APK
         run: flutter build apk --debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Fresh-Debug-APK
+          name: SeaChat-Debug-APK
           path: build/app/outputs/flutter-apk/app-debug.apk
