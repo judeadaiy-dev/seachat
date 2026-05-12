@@ -134,8 +134,10 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
     } on AuthException catch (e) {
       _showSnackBar('فشل تسجيل الدخول: ${e.message}');
+      print('Login Error: ${e.message}');
     } catch (e) {
       _showSnackBar('حدث خطأ غير متوقع');
+      print('General Error: $e');
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
@@ -246,17 +248,26 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     setState(() => isLoading = true);
     try {
-      await Supabase.instance.client.auth.signUp(
+      final response = await Supabase.instance.client.auth.signUp(
         email: email, 
         password: password, 
         data: {'name': name}
       );
-      if (mounted) {
+      
+      print('SignUp Response: ${response.user?.id}');
+      
+      if (response.user != null) {
         _showSnackBar('تم إنشاء الحساب بنجاح');
-        Navigator.of(context).popUntil((route) => route.isFirst);
+        if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+      } else {
+        _showSnackBar('فشل التسجيل - تحقق من الايميل');
       }
     } on AuthException catch (e) {
-      _showSnackBar(e.message);
+      print('Auth Error: ${e.message}');
+      _showSnackBar('خطأ: ${e.message}');
+    } catch (e) {
+      print('General Error: $e');
+      _showSnackBar('حدث خطأ: $e');
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
