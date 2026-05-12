@@ -1,12 +1,9 @@
-name: Auto-Build SeaChat APK
+name: SeaChat Ultimate Auto-Build
 
-# هذا الجزء يضمن أن يبني السكربت نفسه تلقائياً عند كل "رفع" للكود
 on:
   push:
-    branches: [ main, master ] # سيبدأ العمل فوراً عند الرفع على هذه الفروع
-  pull_request:
     branches: [ main, master ]
-  workflow_dispatch: # يترك لك خيار التشغيل اليدوي أيضاً للطوارئ
+  workflow_dispatch:
 
 jobs:
   build:
@@ -29,44 +26,78 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: 4. Auto-Prepare Environment
+      - name: 4. Build Environment From Scratch
         run: |
-          # تنظيف وبناء بيئة الأندرويد من الصفر لضمان عدم وجود أخطاء سابقة
           rm -rf android .dart_tool build
           flutter create --platforms=android --org com.seachat --project-name sea_chat .
           flutter pub get
 
-      - name: 5. Forced SDK 35 & Permissions Injection
+      - name: 5. The Magic Fix (Injecting Flutter to Gradle)
         run: |
-          # إجبار السيرفر على استخدام SDK 35 ليتوافق مع مكاتب الروابط الحديثة
+          # إعداد ملف الخصائص
           echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
           echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
           echo "flutter.compileSdkVersion=35" >> android/local.properties
           echo "flutter.targetSdkVersion=35" >> android/local.properties
           echo "flutter.minSdkVersion=21" >> android/local.properties
 
-          # حقن تصاريح الإنترنت (مهم للـ Supabase والدردشة)
+          # تعديل ملف build.gradle الرئيسي لحل مشكلة 'unknown property flutter'
+          # هذا الكود يضمن أن كل مكتبة خارجية ترى إعدادات فلاتر رغماً عنها
+          cat > android/build.gradle << 'EOF'
+          buildscript {
+              ext.kotlin_version = '1.9.10'
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath 'com.android.tools.build:gradle:8.1.0'
+                  classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+              }
+          }
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              // حقن إجباري للـ compileSdkVersion لكل المشاريع الفرعية (المكتبات)
+              afterEvaluate { project ->
+                  if (project.hasProperty('android')) {
+                      project.android {
+                          if (it.hasProperty('compileSdkVersion')) {
+                              compileSdkVersion 35
+                          }
+                      }
+                  }
+              }
+          }
+          rootProject.buildDir = '../build'
+          subprojects {
+              project.buildDir = "${rootProject.buildDir}/${project.name}"
+          }
+          subprojects {
+              project.evaluationDependsOn(':app')
+          }
+          tasks.register("clean", Delete) {
+              delete rootProject.buildDir
+          }
+          EOF
+
+      - name: 6. Manifest & Network Patch
+        run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
+          # إضافة تصاريح الإنترنت والشبكة
           sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
           sed -i '/<application/i \    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />' $MANIFEST
-          
-          # تفعيل مرور البيانات لروابط الدردشة
+          # دعم الروابط والدردشة
           sed -i 's/<application/<application android:usesCleartextTraffic="true"/' $MANIFEST
 
-      - name: 6. Automated Gradle Patch
+      - name: 7. Execution of Auto-Build
         run: |
-          # تعديل ملف البناء الداخلي ليتطابق مع SDK 35
-          APP_GRADLE="android/app/build.gradle"
-          sed -i 's/compileSdk .*/compileSdk 35/' $APP_GRADLE
-          sed -i 's/targetSdk .*/targetSdk 35/' $APP_GRADLE
-
-      - name: 7. THE BUILD COMMAND (The Missing Link)
-        run: |
-          # هذا هو الأمر الذي كان يفتقده السكربت ليبني من تلقاء نفسه
           flutter build apk --release --no-tree-shake-icons
 
-      - name: 8. Deliver APK to User
+      - name: 8. Deliver APK
         uses: actions/upload-artifact@v4
         with:
-          name: SeaChat-Auto-Build
+          name: SeaChat-Final-APK
           path: build/app/outputs/flutter-apk/app-release.apk
