@@ -4,21 +4,21 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.5.0 # متوافق مع أحدث إصدارات Dart
+  sdk: ^3.5.0
 
 dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
   
-  # المكتبات الأساسية (تم تحديثها لضمان التوافق)
-  cached_network_image: ^3.4.1 # تحديث لدعم كاش أفضل
-  supabase_flutter: ^2.11.0    # نسخة أحدث لضمان استقرار الاتصال والـ Auth
-  app_links: ^6.4.1            # هذه المكتبة بالذات تطلب SDK 35
+  # المكتبات الأساسية
+  cached_network_image: ^3.4.1
+  supabase_flutter: ^2.11.0
+  app_links: ^6.4.1
   
-  # الوسائط المتعددة (تم ضبطها لتعمل معاً بدون تعارض)
+  # الوسائط المتعددة (إصدارات متوافقة تمنع تعارض الـ Interface)
   image_picker: ^1.1.2
-  record: ^6.1.1               # تحديث لإصلاح مشاكل التراخيص في أندرويد
+  record: ^5.1.0               # تم التثبيت على إصدار مستقر يحل مشكلة الصورة السابقة
   just_audio: ^0.9.42
   
   # الأدوات المساعدة
@@ -27,17 +27,11 @@ dependencies:
   path_provider: ^2.1.5
   timeago: ^3.7.0
   intl: ^0.19.0
-
-dependency_overrides:
-  # هذا التجاوز مهم جداً كما ذكرت أنت سابقاً لحل تعارض مكتبة التسجيل
-  record_linux: 1.0.0
-  # أضفنا هذا لضمان عدم حدوث تعارض في مكتبات الويب إذا تم استدعاؤها
-  web: ^1.0.0 
+  web: ^1.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  # أداة تساعدك في التأكد من الخطوط والأيقونات أثناء التطوير
   flutter_lints: ^4.0.0
 
 flutter:
@@ -45,8 +39,6 @@ flutter:
   
   assets:
     - assets/icon/
-    # تأكد من وجود مجلد الصور إذا كنت تستخدمه في التصميم الزجاجي
-    # - assets/images/ 
 
   fonts:
     - family: Cairo
