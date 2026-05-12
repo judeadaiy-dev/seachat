@@ -19,20 +19,17 @@ dependencies:
 
   # Chat Features
   image_picker: ^1.1.2
-  record: ^6.0.0
+  record: 5.1.2              # نزلنا من 6.0.0 عشان minSdk 21
   just_audio: ^0.9.42
   permission_handler: ^11.3.1
+  app_links: 3.4.0           # ضفناها عشان ما يطلب compileSdk 35
+  flutter_plugin_android_lifecycle: 2.0.17  # ضفناها عشان ما يطلب compileSdk 35
 
   # Utilities
   uuid: ^4.5.1
   path_provider: ^2.1.5
   timeago: ^3.7.0
   intl: ^0.19.0
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
