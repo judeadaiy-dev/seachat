@@ -1,4 +1,4 @@
-name: SeaChat Final Recovery Build
+name: SeaChat Clean Build
 
 on:
   push:
@@ -24,31 +24,25 @@ jobs:
         with:
           flutter-version: '3.24.0'
 
-      - name: Force Clean & Reconstruct
+      - name: Reconstruction & Zero-Trace Cleanup
         run: |
-          # 1. تنظيف شامل للملفات المؤقتة
+          # 1. تنظيف عميق وحذف ملفات القفل القديمة لضمان عدم استدعاء app_links
           flutter clean
           rm -rf pubspec.lock
           rm -rf android
           
-          # 2. إزالة app_links من pubspec.yaml إذا وجدت (للتأكد فقط)
-          sed -i '/app_links:/d' pubspec.yaml
-          
-          # 3. إعادة إنشاء مجلد أندرويد نظيف تماماً
+          # 2. إنشاء مجلد أندرويد متوافق مع اسم المشروع الجديد SeaChat
           flutter create . --platforms android --org com.seachat.app
           
-          # 4. حقن إعدادات الـ SDK مباشرة في ملفات أندرويد الناتجة
+          # 3. إعدادات المسارات والـ SDK الضرورية لمكتبات الصوت والصور
           echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
           echo "sdk.dir=$ANDROID_SDK_ROOT" >> android/local.properties
           
-          # ضبط compileSdkVersion و targetSdkVersion إلى 35 يدوياً
+          # ضبط الـ SDK على 35 لدعم مكتبات record و image_picker بشكل كامل
           sed -i 's/compileSdkVersion .*/compileSdkVersion 35/' android/app/build.gradle
           sed -i 's/targetSdkVersion .*/targetSdkVersion 35/' android/app/build.gradle
 
-      - name: Install Dependencies
-        run: flutter pub get
-
-      - name: Build Release APK
+      - name: Build APK
         run: |
-          # بناء الـ APK مع تجاهل أي تعارضات في أيقونات المشروع
+          flutter pub get
           flutter build apk --release --no-tree-shake-icons
