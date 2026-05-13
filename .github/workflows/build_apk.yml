@@ -22,19 +22,26 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          # نستخدم أحدث إصدار مستقر ليقوم بإنشاء ملفات أندرويد حديثة تلقائياً
           flutter-version: '3.24.0' 
 
       - name: Clean and Reconstruct
         run: |
-          # حذف المجلد القديم لضمان عدم وجود ملفات معطوبة
           rm -rf android
-          # إجبار فلاتر على إنشاء مجلد أندرويد جديد بأحدث الإعدادات
+          # إنشاء المجلد بالهوية الصحيحة لتوافق Supabase
           flutter create . --platforms android --org com.seachat.app
-          # تحديث المكتبات لضمان توافق الروابط (مثل Supabase و App Links)
           flutter pub get
 
+      # الخطوة الأولى: حقن إعدادات الـ SDK والمجلد المفقودة تلقائياً
+      - name: Auto-Configure Android SDK
+        run: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+          echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
+          # ضبط الإصدار 35 المطلوب من المكتبات الحديثة
+          sed -i 's/compileSdkVersion .*/compileSdkVersion 35/' android/app/build.gradle
+          sed -i 's/targetSdkVersion .*/targetSdkVersion 35/' android/app/build.gradle
+
+      # الخطوة الثانية: بناء التطبيق مع تحديث الروابط
       - name: Build APK
         run: |
-          # سنمرر إعدادات الـ SDK مباشرة للأمر دون لمس الملفات
-          flutter build apk --release --no-tree-shake-icons
+          flutter pub upgrade
+          flutter build apk --release --no-tree-shake-icons --build-name=1.0.0 --build-number=1
