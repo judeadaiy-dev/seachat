@@ -1,4 +1,3 @@
-// main.dart
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -9,82 +8,68 @@ import 'package:timeago/timeago.dart' as timeago;
 import 'package:intl/intl.dart';
 import 'dart:async';
 import 'dart:io';
-import 'widgets.dart'; // الشاشات اللي رسلتها
-import 'admin.dart';   // لوحة التحكم
+import 'widgets.dart';
+import 'admin.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
   await Supabase.initialize(
     url: 'YOUR_SUPABASE_URL',
     anonKey: 'YOUR_SUPABASE_ANON_KEY',
   );
-  
   timeago.setLocaleMessages('ar', timeago.ArMessages());
-  
   runApp(const MyApp());
 }
 
-// ============ 1. الثيم - تصميم بحري مائي ============
 class AppColors {
-  static const Color primaryBlue = Color(0xFF0A1929); // كحلي بحر عميق
-  static const Color card = Color(0xFF132F4C);        // كارد أزرق مائي
-  static const Color button = Color(0xFF007FFF);      // أزرق سماوي
-  static const Color textDark = Color(0xFFE3F2FD);    // أبيض مزرق
-  static const Color textLight = Color(0xFF90CAF9);   // أزرق فاتح
-  static const Color success = Color(0xFF00C853);     // أخضر مائي
-  static const Color error = Color(0xFFFF5252);       // أحمر مرجاني
-  static const Color online = Color(0xFF00E676);      // أخضر نشط
-  static const Color warning = Color(0xFFFFB74D);    // برتقالي غروب
+  static const Color primaryBlue = Color(0xFF0A1929);
+  static const Color card = Color(0xFF132F4C);
+  static const Color button = Color(0xFF007FFF);
+  static const Color textDark = Color(0xFFE3F2FD);
+  static const Color textLight = Color(0xFF90CAF9);
+  static const Color success = Color(0xFF00C853);
+  static const Color error = Color(0xFFFF5252);
+  static const Color online = Color(0xFF00E676);
+  static const Color warning = Color(0xFFFFB74D);
 }
 
-final chatTheme = ThemeData(
-  useMaterial3: true,
-  colorScheme: ColorScheme.fromSeed(
-    seedColor: AppColors.button,
-    brightness: Brightness.dark,
-    background: AppColors.primaryBlue,
-    surface: AppColors.card,
-  ),
-  scaffoldBackgroundColor: AppColors.primaryBlue,
-  fontFamily: 'Cairo', // خط عربي مريح
-  appBarTheme: const AppBarTheme(
-    backgroundColor: AppColors.card,
-    elevation: 0,
-    centerTitle: true,
-    titleTextStyle: TextStyle(
-      color: AppColors.textDark,
-      fontSize: 18,
-      fontWeight: FontWeight.bold,
-      fontFamily: 'Cairo',
-    ),
-  ),
-  cardTheme: CardThemeData(
-    color: AppColors.card,
-    elevation: 2,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-  ),
-  elevatedButtonTheme: ElevatedButtonThemeData(
-    style: ElevatedButton.styleFrom(
-      backgroundColor: AppColors.button,
-      foregroundColor: Colors.white,
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 0,
-    ),
-  ),
-  inputDecorationTheme: InputDecorationTheme(
-    filled: true,
-    fillColor: AppColors.card,
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: BorderSide.none,
-    ),
-    hintStyle: const TextStyle(color: AppColors.textLight),
-  ),
-);
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Sea Chat',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(seedColor: AppColors.button, brightness: Brightness.dark),
+        scaffoldBackgroundColor: AppColors.primaryBlue,
+        fontFamily: 'Cairo',
+        appBarTheme: const AppBarTheme(
+          backgroundColor: AppColors.card,
+          elevation: 0,
+          centerTitle: true,
+          titleTextStyle: TextStyle(color: AppColors.textDark, fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        cardTheme: CardThemeData(
+          color: AppColors.card,
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.button,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+      ),
+      home: const WelcomeScreen(),
+    );
+  }
+}
 
-// ============ 2. المودلز ============
 class UserModel {
   final String id;
   final String email;
@@ -120,10 +105,10 @@ class UserModel {
       username: map['username'],
       avatarUrl: map['avatar_url'],
       bio: map['bio'],
-      role: map['role'] ?? 'user',
-      isOnline: map['is_online'] ?? false,
-      isBanned: map['is_banned'] ?? false,
-      lastSeen: map['last_seen'] != null ? DateTime.parse(map['last_seen']) : null,
+      role: map['role']?? 'user',
+      isOnline: map['is_online']?? false,
+      isBanned: map['is_banned']?? false,
+      lastSeen: map['last_seen']!= null? DateTime.parse(map['last_seen']) : null,
       createdAt: DateTime.parse(map['created_at']),
     );
   }
@@ -135,7 +120,7 @@ class RoomModel {
   final String? description;
   final String? imageUrl;
   final String ownerId;
-  final String roomType; // 'public' or 'official'
+  final String roomType;
   final bool isApproved;
   final bool isPinned;
   final DateTime createdAt;
@@ -159,9 +144,9 @@ class RoomModel {
       description: map['description'],
       imageUrl: map['image_url'],
       ownerId: map['owner_id'],
-      roomType: map['room_type'] ?? 'public',
-      isApproved: map['is_approved'] ?? false,
-      isPinned: map['is_pinned'] ?? false,
+      roomType: map['room_type']?? 'public',
+      isApproved: map['is_approved']?? false,
+      isPinned: map['is_pinned']?? false,
       createdAt: DateTime.parse(map['created_at']),
     );
   }
@@ -173,7 +158,7 @@ class MessageModel {
   final String? roomId;
   final String? receiverId;
   final String text;
-  final String messageType; // 'text', 'image', 'audio'
+  final String messageType;
   final String? mediaUrl;
   final bool isDeleted;
   final bool isSeen;
@@ -201,43 +186,37 @@ class MessageModel {
       senderId: map['sender_id'],
       roomId: map['room_id'],
       receiverId: map['receiver_id'],
-      text: map['content'] ?? '',
-      messageType: map['message_type'] ?? 'text',
+      text: map['content']?? '',
+      messageType: map['message_type']?? 'text',
       mediaUrl: map['media_url'],
-      isDeleted: map['is_deleted'] ?? false,
-      isSeen: map['is_seen'] ?? false,
+      isDeleted: map['is_deleted']?? false,
+      isSeen: map['is_seen']?? false,
       createdAt: DateTime.parse(map['created_at']),
-      user: map['profiles'] != null ? UserModel.fromMap(map['profiles']) : null,
+      user: map['profiles']!= null? UserModel.fromMap(map['profiles']) : null,
     );
   }
 }
 
-// ============ 3. الباك اند - ChatRepository كامل ============
 class ChatRepository {
   final _supabase = Supabase.instance.client;
   final _record = AudioRecorder();
   String? _recordingPath;
 
-  // ========== Auth & Profile ==========
   Future<UserModel?> getCurrentUser() async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return null;
     final res = await _supabase.from('profiles').select().eq('id', userId).maybeSingle();
-    return res != null ? UserModel.fromMap(res) : null;
+    return res!= null? UserModel.fromMap(res) : null;
   }
 
   Future<UserModel?> getUserById(String userId) async {
     final res = await _supabase.from('profiles').select().eq('id', userId).maybeSingle();
-    return res != null ? UserModel.fromMap(res) : null;
+    return res!= null? UserModel.fromMap(res) : null;
   }
 
   Future<void> updateProfile({required String name, String? username, String? bio}) async {
     final userId = _supabase.auth.currentUser!.id;
-    await _supabase.from('profiles').update({
-      'name': name,
-      'username': username,
-      'bio': bio,
-    }).eq('id', userId);
+    await _supabase.from('profiles').update({'name': name, 'username': username, 'bio': bio}).eq('id', userId);
   }
 
   Future<String> uploadAvatar(String path) async {
@@ -269,7 +248,6 @@ class ChatRepository {
     }).eq('id', userId);
   }
 
-  // ========== Rooms ==========
   Future<List<RoomModel>> getMyRooms() async {
     final userId = _supabase.auth.currentUser!.id;
     final res = await _supabase.from('rooms').select().eq('owner_id', userId).order('created_at');
@@ -292,35 +270,28 @@ class ChatRepository {
     });
   }
 
-  // ========== Messages ==========
   Stream<List<MessageModel>> getRoomMessagesStream({required String roomId}) {
     return _supabase
-        .from('messages')
-        .stream(primaryKey: ['id'])
-        .eq('room_id', roomId)
-        .order('created_at', ascending: false)
-        .limit(100)
-        .map((data) => data.map((e) => MessageModel.fromMap(e)).toList());
+      .from('messages')
+      .stream(primaryKey: ['id'])
+      .eq('room_id', roomId)
+      .order('created_at', ascending: false)
+      .limit(100)
+      .map((data) => data.map((e) => MessageModel.fromMap(e)).toList());
   }
 
   Stream<List<MessageModel>> getPrivateMessagesStream({required String otherUserId}) {
     final myId = _supabase.auth.currentUser!.id;
     return _supabase
-        .from('messages')
-        .stream(primaryKey: ['id'])
-        .or('and(sender_id.eq.$myId,receiver_id.eq.$otherUserId),and(sender_id.eq.$otherUserId,receiver_id.eq.$myId)')
-        .order('created_at', ascending: false)
-        .limit(100)
-        .map((data) => data.map((e) => MessageModel.fromMap(e)).toList());
+      .from('messages')
+      .stream(primaryKey: ['id'])
+      .or('and(sender_id.eq.$myId,receiver_id.eq.$otherUserId),and(sender_id.eq.$otherUserId,receiver_id.eq.$myId)')
+      .order('created_at', ascending: false)
+      .limit(100)
+      .map((data) => data.map((e) => MessageModel.fromMap(e)).toList());
   }
 
-  Future<void> sendMessage({
-    String? roomId,
-    String? receiverId,
-    String? text,
-    String? mediaUrl,
-    required String messageType,
-  }) async {
+  Future<void> sendMessage({String? roomId, String? receiverId, String? text, String? mediaUrl, required String messageType}) async {
     final senderId = _supabase.auth.currentUser!.id;
     await _supabase.from('messages').insert({
       'sender_id': senderId,
@@ -334,7 +305,7 @@ class ChatRepository {
 
   Future<String> uploadChatMedia(String path, String type) async {
     final bytes = await File(path).readAsBytes();
-    final fileName = '${DateTime.now().millisecondsSinceEpoch}_${type == 'image' ? 'jpg' : 'm4a'}';
+    final fileName = '${DateTime.now().millisecondsSinceEpoch}_${type == 'image'? 'jpg' : 'm4a'}';
     await _supabase.storage.from('chat_media').uploadBinary(fileName, bytes);
     return _supabase.storage.from('chat_media').getPublicUrl(fileName);
   }
@@ -347,22 +318,12 @@ class ChatRepository {
     await _supabase.from('messages').update({'is_seen': true}).eq('id', messageId);
   }
 
-  // ========== Typing Status ==========
   Stream<bool> getTypingStream({String? roomId, String? otherUserId}) {
     final myId = _supabase.auth.currentUser!.id;
-    if (roomId != null) {
-      return _supabase
-          .from('typing_status')
-          .stream(primaryKey: ['id'])
-          .eq('room_id', roomId)
-          .map((data) => data.any((e) => e['user_id'] != myId && e['is_typing'] == true));
+    if (roomId!= null) {
+      return _supabase.from('typing_status').stream(primaryKey: ['id']).eq('room_id', roomId).map((data) => data.any((e) => e['user_id']!= myId && e['is_typing'] == true));
     } else {
-      return _supabase
-          .from('typing_status')
-          .stream(primaryKey: ['id'])
-          .eq('sender_id', otherUserId!)
-          .eq('receiver_id', myId)
-          .map((data) => data.any((e) => e['is_typing'] == true));
+      return _supabase.from('typing_status').stream(primaryKey: ['id']).eq('sender_id', otherUserId!).eq('receiver_id', myId).map((data) => data.any((e) => e['is_typing'] == true));
     }
   }
 
@@ -371,14 +332,13 @@ class ChatRepository {
     await _supabase.from('typing_status').upsert({
       'user_id': userId,
       'room_id': roomId,
-      'sender_id': receiverId != null ? userId : null,
+      'sender_id': receiverId!= null? userId : null,
       'receiver_id': receiverId,
       'is_typing': isTyping,
       'updated_at': DateTime.now().toIso8601String(),
     });
   }
 
-  // ========== Recording ==========
   Future<void> startRecording() async {
     if (await _record.hasPermission()) {
       final dir = await getTemporaryDirectory();
