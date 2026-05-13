@@ -26,28 +26,35 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: 4. انشاء مشروع Android جديد نظيف
+      - name: 4. انشاء مشروع Android جديد + نسخ ملفاتك
         run: |
+          # نحفظ ملفاتك مؤقت
+          mkdir -p ~/backup_lib
+          cp lib/main.dart ~/backup_lib/ || true
+          cp lib/widgets.dart ~/backup_lib/ || true
+          cp lib/admin.dart ~/backup_lib/ || true
+          cp pubspec.yaml ~/backup_lib/ || true
+          
+          # ننشئ مشروع نظيف
           flutter create --platforms=android --org com.seachat --project-name sea_chat temp_project
-          rm -rf android lib
+          
+          # نرجع ملفاتك
+          rm -rf android lib pubspec.yaml
           mv temp_project/android ./
-          mv temp_project/lib ./
-          rm -rf temp_project
+          mkdir lib
+          cp ~/backup_lib/main.dart lib/
+          cp ~/backup_lib/widgets.dart lib/
+          cp ~/backup_lib/admin.dart lib/
+          cp ~/backup_lib/pubspec.yaml ./
+          rm -rf temp_project ~/backup_lib
 
-      - name: 5. نسخ ملفاتك
-        run: |
-          rm -f lib/main.dart
-          # ملفاتك main.dart + widgets.dart + admin.dart + pubspec.yaml 
-          # لازم تكون موجودة بالمستودع
-
-      - name: 6. تثبيت الحزم
+      - name: 5. تثبيت الحزم
         run: flutter pub get
 
-      - name: 7. اضافة التصاريح AndroidManifest.xml
+      - name: 6. اضافة التصاريح
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
           sed -i '/<\/manifest>/d' $MANIFEST
-          
           cat >> $MANIFEST << 'PERMS'
               <uses-permission android:name="android.permission.INTERNET"/>
               <uses-permission android:name="android.permission.CAMERA"/>
@@ -61,14 +68,13 @@ jobs:
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
           </manifest>
           PERMS
-          
           sed -i 's/<application/<application android:usesCleartextTraffic="true"/' $MANIFEST
           sed -i '/defaultConfig {/a \        multiDexEnabled true' android/app/build.gradle
 
-      - name: 8. بناء APK نهائي
+      - name: 7. بناء APK نهائي
         run: flutter build apk --release --no-tree-shake-icons
 
-      - name: 9. رفع الـ APK
+      - name: 8. رفع الـ APK
         uses: actions/upload-artifact@v4
         with:
           name: SeaChat-Release
