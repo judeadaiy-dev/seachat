@@ -1,48 +1,65 @@
-name: SeaChat Clean Build
+name: Build Sea Chat APK
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: 1. سحب الكود
+        uses: actions/checkout@v4
 
-      - name: Setup Java
-        uses: actions/setup-java@v3
+      - name: 2. تثبيت Java 17
+        uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Setup Flutter
+      - name: 3. تثبيت Flutter 3.24
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.0'
+          channel: 'stable'
+          cache: true
 
-      - name: Reconstruction & Zero-Trace Cleanup
+      - name: 4. تجديد Android
         run: |
-          # 1. تنظيف عميق وحذف ملفات القفل القديمة لضمان عدم استدعاء app_links
-          flutter clean
-          rm -rf pubspec.lock
           rm -rf android
-          
-          # 2. إنشاء مجلد أندرويد متوافق مع اسم المشروع الجديد SeaChat
-          flutter create . --platforms android --org com.seachat.app
-          
-          # 3. إعدادات المسارات والـ SDK الضرورية لمكتبات الصوت والصور
-          echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
-          echo "sdk.dir=$ANDROID_SDK_ROOT" >> android/local.properties
-          
-          # ضبط الـ SDK على 35 لدعم مكتبات record و image_picker بشكل كامل
-          sed -i 's/compileSdkVersion .*/compileSdkVersion 35/' android/app/build.gradle
-          sed -i 's/targetSdkVersion .*/targetSdkVersion 35/' android/app/build.gradle
+          flutter create --platforms=android --org com.seachat .
+          sed -i '/defaultConfig {/a \        multiDexEnabled true' android/app/build.gradle
 
-      - name: Build APK
+      - name: 5. تثبيت الحزم
+        run: flutter pub get
+
+      - name: 6. اضافة التصاريح
         run: |
-          flutter pub get
-          flutter build apk --release --no-tree-shake-icons
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          sed -i '/<\/manifest>/d' $MANIFEST
+          cat >> $MANIFEST << 'PERMS'
+              <uses-permission android:name="android.permission.INTERNET"/>
+              <uses-permission android:name="android.permission.CAMERA"/>
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
+              <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+              <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
+              <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29"/>
+              <uses-permission android:name="android.permission.WAKE_LOCK"/>
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
+          </manifest>
+          PERMS
+          sed -i 's/<application/<application android:usesCleartextTraffic="true"/' $MANIFEST
+
+      - name: 7. بناء APK نهائي
+        run: flutter build apk --release --no-tree-shake-icons
+
+      - name: 8. رفع الـ APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SeaChat-Release
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
