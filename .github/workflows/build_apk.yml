@@ -26,10 +26,14 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: 4. تجديد مجلد Android فقط
+      - name: 4. تجديد Android + حل مشكلة compileSdk
         run: |
           rm -rf android
           flutter create --platforms=android --org com.seachat .
+          
+          # حل مشكلة compileSdkVersion للمكتبات
+          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 34/' android/app/build.gradle
+          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 34/' android/app/build.gradle
           sed -i '/defaultConfig {/a \        multiDexEnabled true' android/app/build.gradle
 
       - name: 5. تثبيت الحزم
