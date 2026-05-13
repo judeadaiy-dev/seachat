@@ -6,7 +6,6 @@ import 'dart:async';
 import 'dart:io';
 import 'app.dart';
 
-// ==================== بدء التطبيق ====================
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -20,7 +19,6 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
-// ==================== App Colors ====================
 class AppColors {
   static const Color button = Color(0xFF4B0082);
   static const Color primaryBlue = Color(0xFF0F172A);
@@ -32,7 +30,6 @@ class AppColors {
   static const Color online = Color(0xFF22C55E);
 }
 
-// ==================== Models ====================
 @immutable
 class UserModel {
   final String id, email, name;
@@ -143,7 +140,6 @@ class MessageModel {
   }
 }
 
-// ==================== Repository ====================
 class SupabaseRepository {
   final supabase = Supabase.instance.client;
   final _audioRecorder = AudioRecorder();
@@ -247,17 +243,26 @@ class SupabaseRepository {
   Stream<List<MessageModel>> getRoomMessagesStream({required String roomId}) {
     final currentUserId = supabase.auth.currentUser!.id;
     return supabase.from('messages').stream(primaryKey: ['id'])
-     .eq('room_id', roomId)
-     .order('created_at', ascending: false)
-     .map((list) => list.map((e) => MessageModel.fromMap(e, currentUserId)).toList());
+    .eq('room_id', roomId)
+    .order('created_at', ascending: false)
+    .map((list) => list.map((e) => MessageModel.fromMap(e, currentUserId)).toList());
   }
 
   Stream<List<MessageModel>> getPrivateMessagesStream({required String otherUserId}) {
     final currentUserId = supabase.auth.currentUser!.id;
-    return supabase.from('messages').stream(primaryKey: ['id'])
-     .or('and(user_id.eq.$currentUserId,receiver_id.eq.$otherUserId),and(user_id.eq.$otherUserId,receiver_id.eq.$currentUserId)')
-     .order('created_at', ascending: false)
-     .map((list) => list.map((e) => MessageModel.fromMap(e, currentUserId)).toList());
+    return supabase
+       .from('messages')
+       .stream(primaryKey: ['id'])
+       .order('created_at', ascending: false)
+       .map((list) {
+          final filtered = list.where((e) {
+            final uid = e['user_id']?.toString();
+            final rid = e['receiver_id']?.toString();
+            return (uid == currentUserId && rid == otherUserId) ||
+                   (uid == otherUserId && rid == currentUserId);
+          }).toList();
+          return filtered.map((e) => MessageModel.fromMap(e, currentUserId)).toList();
+        });
   }
 
   Future<void> sendMessage({String? roomId, String? receiverId, String? text, String? mediaUrl, required String messageType}) async {
@@ -293,15 +298,16 @@ class SupabaseRepository {
 
   Stream<bool> getTypingStream({String? roomId, String? otherUserId}) {
     final currentUserId = supabase.auth.currentUser!.id;
+    final query = supabase.from('typing_status').stream(primaryKey: ['id']);
+
     if (roomId!= null) {
-      return supabase.from('typing_status').stream(primaryKey: ['room_id', 'user_id'])
-       .eq('room_id', roomId)
-       .map((list) => list.any((e) => e['is_typing'] == true && e['user_id']!= currentUserId));
+      return query.eq('room_id', roomId).map((list) =>
+        list.any((e) => e['is_typing'] == true && e['user_id']!= currentUserId));
     } else {
-      return supabase.from('typing_status').stream(primaryKey: ['user_id', 'receiver_id'])
-       .eq('receiver_id', currentUserId)
-       .eq('user_id', otherUserId!)
-       .map((list) => list.any((e) => e['is_typing'] == true));
+      return query
+         .eq('receiver_id', currentUserId)
+         .eq('user_id', otherUserId!)
+         .map((list) => list.any((e) => e['is_typing'] == true));
     }
   }
 
