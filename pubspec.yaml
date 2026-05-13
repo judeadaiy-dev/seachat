@@ -1,5 +1,5 @@
 name: sea_chat
-description: "A modern chat application with glassmorphism design powered by Supabase."
+description: "Sea Chat - تطبيق دردشة حديث بتصميم عصري مدعوم بـ Supabase"
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -17,6 +17,7 @@ dependencies:
   uuid: ^4.5.1
   permission_handler: ^11.3.1
   cupertino_icons: ^1.0.8
+  record: ^5.1.2
 
 dev_dependencies:
   flutter_test:
