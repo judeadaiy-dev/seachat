@@ -1,10 +1,5 @@
-import 'widgets.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-// ربط مع ملفاتك الأساسية لضمان عمل الموديلات والتصميم
-import 'models.dart';
-import 'main.dart';
-import 'package:timeago/timeago.dart' as timeago;
+import 'app.dart';
 
 class PrivateChatScreen extends StatefulWidget {
   final UserModel receiver; // المستخدم المستهدف (المستلم)
