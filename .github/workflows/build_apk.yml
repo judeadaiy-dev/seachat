@@ -24,24 +24,27 @@ jobs:
         with:
           flutter-version: '3.24.0' 
 
-      - name: Clean and Reconstruct
+      - name: Recreate Android Folder
         run: |
           rm -rf android
-          # إنشاء المجلد بالهوية الصحيحة لتوافق Supabase
           flutter create . --platforms android --org com.seachat.app
           flutter pub get
 
-      # الخطوة الأولى: حقن إعدادات الـ SDK والمجلد المفقودة تلقائياً
-      - name: Auto-Configure Android SDK
+      - name: Fix app_links & SDK Binding
         run: |
-          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
-          echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
-          # ضبط الإصدار 35 المطلوب من المكتبات الحديثة
+          # 1. إنشاء ملف الخصائص وربط المسارات الأساسية
+          echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
+          echo "sdk.dir=$ANDROID_SDK_ROOT" >> android/local.properties
+          
+          # 2. حقن تعريف Flutter في ملف build.gradle الرئيسي ليتعرف عليه app_links
+          # سنضيف كود برمجياً يخبر Gradle بمكان وجود Flutter لجميع المشاريع الفرعية
+          sed -i "1i def flutterRoot = '$FLUTTER_ROOT'" android/build.gradle
+          
+          # 3. تحديث إصدار الـ SDK إلى 35 المطلوب للمكتبات الحديثة في SeaChat
           sed -i 's/compileSdkVersion .*/compileSdkVersion 35/' android/app/build.gradle
           sed -i 's/targetSdkVersion .*/targetSdkVersion 35/' android/app/build.gradle
 
-      # الخطوة الثانية: بناء التطبيق مع تحديث الروابط
       - name: Build APK
         run: |
           flutter pub upgrade
-          flutter build apk --release --no-tree-shake-icons --build-name=1.0.0 --build-number=1
+          flutter build apk --release --no-tree-shake-icons
