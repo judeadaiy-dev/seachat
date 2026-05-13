@@ -10,10 +10,9 @@ import 'app.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // حط بيانات مشروعك هنا
   await Supabase.initialize(
-    url: 'https://jmsmrojtlstppnpwmkkk.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos',
+    url: 'YOUR_SUPABASE_URL',
+    anonKey: 'YOUR_SUPABASE_ANON_KEY',
     authOptions: const FlutterAuthClientOptions(authFlowType: AuthFlowType.pkce),
     realtimeClientOptions: const RealtimeClientOptions(eventsPerSecond: 10),
   );
@@ -23,9 +22,9 @@ Future<void> main() async {
 
 // ==================== App Colors ====================
 class AppColors {
-  static const Color button = Color(0xFF4B0082); // بنفسجي غامق
-  static const Color primaryBlue = Color(0xFF0F172A); // خلفية
-  static const Color card = Color(0xFF1E293B); // كروت
+  static const Color button = Color(0xFF4B0082);
+  static const Color primaryBlue = Color(0xFF0F172A);
+  static const Color card = Color(0xFF1E293B);
   static const Color textDark = Color(0xFFF1F5F9);
   static const Color textLight = Color(0xFF94A3B8);
   static const Color error = Color(0xFFE53E3E);
@@ -110,7 +109,7 @@ class MessageModel {
   final DateTime createdAt;
   final UserModel? user;
   final bool isMe, isDeleted;
-  final String messageType; // text, image, audio
+  final String messageType;
 
   const MessageModel({
     required this.id,
@@ -144,12 +143,11 @@ class MessageModel {
   }
 }
 
-// ==================== Repository - كل المنطق هنا ====================
+// ==================== Repository ====================
 class SupabaseRepository {
   final supabase = Supabase.instance.client;
   final _audioRecorder = AudioRecorder();
 
-  // 1. تحديث حالة الأونلاين
   Future<void> updateOnlineStatus(bool isOnline) async {
     try {
       final userId = supabase.auth.currentUser?.id;
@@ -163,7 +161,6 @@ class SupabaseRepository {
     }
   }
 
-  // 2. جلب اليوزر الحالي
   Future<UserModel?> getCurrentUser() async {
     final user = supabase.auth.currentUser;
     if (user == null) return null;
@@ -176,7 +173,6 @@ class SupabaseRepository {
     return data!= null? UserModel.fromMap(data) : null;
   }
 
-  // 3. تحديث البروفايل - ستايل انستا
   Future<void> updateProfile({required String name, String? username, String? bio}) async {
     final userId = supabase.auth.currentUser!.id;
     await supabase.from('profiles').update({
@@ -187,7 +183,6 @@ class SupabaseRepository {
     }).eq('id', userId);
   }
 
-  // 4. رفع صورة البروفايل لحاوية avatars
   Future<String?> uploadAvatar(String path) async {
     final userId = supabase.auth.currentUser!.id;
     final fileExt = path.split('.').last;
@@ -199,7 +194,6 @@ class SupabaseRepository {
     return url;
   }
 
-  // 5. حذف صورة البروفايل
   Future<void> deleteAvatar() async {
     final user = await getCurrentUser();
     if (user?.avatarUrl!= null) {
@@ -209,7 +203,6 @@ class SupabaseRepository {
     await supabase.from('profiles').update({'avatar_url': null}).eq('id', supabase.auth.currentUser!.id);
   }
 
-  // 6. رفع ميديا للدردشة لحاوية chat-media
   Future<String> uploadChatMedia(String path, String type) async {
     final userId = supabase.auth.currentUser!.id;
     final fileExt = path.split('.').last;
@@ -219,7 +212,6 @@ class SupabaseRepository {
     return supabase.storage.from('chat-media').getPublicUrl(fileName);
   }
 
-  // 7. تسجيل صوت
   Future<void> startRecording() async {
     if (await _audioRecorder.hasPermission()) {
       await _audioRecorder.start(const RecordConfig(), path: '${Directory.systemTemp.path}/audio.m4a');
@@ -231,7 +223,6 @@ class SupabaseRepository {
     return path;
   }
 
-  // 8. الغرف
   Future<List<RoomModel>> getMyRooms() async {
     final userId = supabase.auth.currentUser!.id;
     final res = await supabase.from('rooms').select().eq('owner_id', userId).order('created_at', ascending: false);
@@ -253,21 +244,20 @@ class SupabaseRepository {
     });
   }
 
-  // 9. الرسائل
   Stream<List<MessageModel>> getRoomMessagesStream({required String roomId}) {
     final currentUserId = supabase.auth.currentUser!.id;
     return supabase.from('messages').stream(primaryKey: ['id'])
-      .eq('room_id', roomId)
-      .order('created_at', ascending: false)
-      .map((list) => list.map((e) => MessageModel.fromMap(e, currentUserId)).toList());
+     .eq('room_id', roomId)
+     .order('created_at', ascending: false)
+     .map((list) => list.map((e) => MessageModel.fromMap(e, currentUserId)).toList());
   }
 
   Stream<List<MessageModel>> getPrivateMessagesStream({required String otherUserId}) {
     final currentUserId = supabase.auth.currentUser!.id;
     return supabase.from('messages').stream(primaryKey: ['id'])
-      .or('and(user_id.eq.$currentUserId,receiver_id.eq.$otherUserId),and(user_id.eq.$otherUserId,receiver_id.eq.$currentUserId)')
-      .order('created_at', ascending: false)
-      .map((list) => list.map((e) => MessageModel.fromMap(e, currentUserId)).toList());
+     .or('and(user_id.eq.$currentUserId,receiver_id.eq.$otherUserId),and(user_id.eq.$otherUserId,receiver_id.eq.$currentUserId)')
+     .order('created_at', ascending: false)
+     .map((list) => list.map((e) => MessageModel.fromMap(e, currentUserId)).toList());
   }
 
   Future<void> sendMessage({String? roomId, String? receiverId, String? text, String? mediaUrl, required String messageType}) async {
@@ -286,7 +276,6 @@ class SupabaseRepository {
     await supabase.from('messages').update({'is_deleted': true, 'content': '', 'media_url': null}).eq('id', messageId);
   }
 
-  // 10. التايبنج
   Future<void> updateTypingStatus({String? roomId, String? receiverId, required bool isTyping}) async {
     try {
       final userId = supabase.auth.currentUser!.id;
@@ -306,13 +295,13 @@ class SupabaseRepository {
     final currentUserId = supabase.auth.currentUser!.id;
     if (roomId!= null) {
       return supabase.from('typing_status').stream(primaryKey: ['room_id', 'user_id'])
-        .eq('room_id', roomId)
-        .map((list) => list.any((e) => e['is_typing'] == true && e['user_id']!= currentUserId));
+       .eq('room_id', roomId)
+       .map((list) => list.any((e) => e['is_typing'] == true && e['user_id']!= currentUserId));
     } else {
       return supabase.from('typing_status').stream(primaryKey: ['user_id', 'receiver_id'])
-        .eq('receiver_id', currentUserId)
-        .eq('user_id', otherUserId!)
-        .map((list) => list.any((e) => e['is_typing'] == true));
+       .eq('receiver_id', currentUserId)
+       .eq('user_id', otherUserId!)
+       .map((list) => list.any((e) => e['is_typing'] == true));
     }
   }
 
