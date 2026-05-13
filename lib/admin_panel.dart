@@ -1,8 +1,5 @@
-import 'widgets.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'main.dart'; // لاستخدام AppColors
-
+import 'app.dart';
 class AdminPanel extends StatefulWidget {
   AdminPanel({super.key});
   @override
