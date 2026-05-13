@@ -1,1 +1,83 @@
+name: Build Sea Chat APK
 
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch: # يخليك تشغله يدوي من GitHub
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 1. سحب الكود
+        uses: actions/checkout@v4
+
+      - name: 2. تثبيت Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: 3. تثبيت Flutter 3.24
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+          cache: true
+
+      - name: 4. انشاء مشروع Android جديد نظيف
+        run: |
+          flutter create --platforms=android --org com.seachat --project-name sea_chat temp_project
+          rm -rf android lib
+          mv temp_project/android ./
+          mv temp_project/lib ./
+          rm -rf temp_project
+
+      - name: 5. نسخ ملفاتك الـ 4
+        run: |
+          rm -f lib/main.dart
+          # تأكد ان ملفاتك موجودة في المستودع
+          # main.dart + widgets.dart + admin.dart + pubspec.yaml
+          
+      - name: 6. تثبيت الحزم
+        run: flutter pub get
+
+      - name: 7. اضافة التصاريح للـ AndroidManifest.xml
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          sed -i '/<\/manifest>/d' $MANIFEST
+          
+          cat >> $MANIFEST << 'PERMS'
+              <!-- Supabase + انترنت -->
+              <uses-permission android:name="android.permission.INTERNET"/>
+              <!-- image_picker - صور -->
+              <uses-permission android:name="android.permission.CAMERA"/>
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
+              <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+              <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
+              <!-- record - تسجيل صوت -->
+              <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29"/>
+              <!-- just_audio - تشغيل صوت -->
+              <uses-permission android:name="android.permission.WAKE_LOCK"/>
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
+          </manifest>
+          PERMS
+          
+          sed -i 's/<application/<application android:usesCleartextTraffic="true"/' $MANIFEST
+          sed -i '/defaultConfig {/a \        multiDexEnabled true' android/app/build.gradle
+
+      - name: 8. توليد ايقونة التطبيق
+        run: flutter pub run flutter_launcher_icons
+
+      - name: 9. بناء APK نهائي
+        run: flutter build apk --release --no-tree-shake-icons
+
+      - name: 10. رفع الـ APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SeaChat-Release
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
