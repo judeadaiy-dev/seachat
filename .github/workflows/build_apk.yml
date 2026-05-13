@@ -26,15 +26,32 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: 4. تجديد Android + حل مشكلة compileSdk
+      - name: 4. تجديد Android + حل مشكلة app_links
         run: |
           rm -rf android
           flutter create --platforms=android --org com.seachat .
           
-          # حل مشكلة compileSdkVersion للمكتبات
-          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 34/' android/app/build.gradle
-          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 34/' android/app/build.gradle
+          # حل مشكلة compileSdk للمكتبات - الطريقة الصحيحة
+          echo "flutter.compileSdkVersion=34" >> android/local.properties
+          echo "flutter.targetSdkVersion=34" >> android/local.properties
+          echo "flutter.minSdkVersion=21" >> android/local.properties
+          
+          # تفعيل multiDex
           sed -i '/defaultConfig {/a \        multiDexEnabled true' android/app/build.gradle
+          
+          # حل مشكلة app_links نهائياً
+          cat >> android/settings.gradle << 'EOF'
+          subprojects {
+              afterEvaluate { project ->
+                  if (project.hasProperty("android")) {
+                      android {
+                          compileSdkVersion 34
+                          namespace = "dev.flutter.plugins." + project.name
+                      }
+                  }
+              }
+          }
+          EOF
 
       - name: 5. تثبيت الحزم
         run: flutter pub get
