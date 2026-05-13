@@ -1,4 +1,4 @@
-name: Flutter Clean Build (Go_router)
+name: Flutter Auto-Build SeaChat
 
 on:
   push:
@@ -22,25 +22,30 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0' 
+          flutter-version: '3.24.0'
 
-      - name: Reconstruct Android
+      - name: Repair Android Project
         run: |
-          # حذف المجلد القديم نهائياً
-          rm -rf android
-          # إنشاء مجلد جديد نظيف تماماً
+          # 1. تنظيف أي آثار قديمة لمكتبة app_links
+          flutter pub remove app_links || true
+          
+          # 2. إنشاء مجلد أندرويد فقط دون لمس ملف pubspec.yaml الأصلي
           flutter create . --platforms android --org com.seachat.app
           
-          # إعداد ملف الخصائص الأساسي فقط
+          # 3. ربط المسارات بشكل صحيح
           echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
           echo "sdk.dir=$ANDROID_SDK_ROOT" >> android/local.properties
           
-          # ضبط الـ SDK على 35 لضمان عمل Supabase (الصور والصوت)
+          # 4. تحديث الـ SDK ليتوافق مع مكتبات الصوت والصور في SeaChat
           sed -i 's/compileSdkVersion .*/compileSdkVersion 35/' android/app/build.gradle
           sed -i 's/targetSdkVersion .*/targetSdkVersion 35/' android/app/build.gradle
 
+      - name: Install Dependencies
+        run: |
+          # التأكد من تحميل كافة مكتباتك المذكورة في pubspec
+          flutter pub get
+
       - name: Build APK
         run: |
-          flutter pub get
-          # بناء التطبيق بدون الحاجة لتعقيدات الروابط العميقة
+          # بناء التطبيق النهائي
           flutter build apk --release --no-tree-shake-icons
