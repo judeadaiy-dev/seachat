@@ -1,9 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'models.dart';
-import 'main.dart';
-import 'package:timeago/timeago.dart' as timeago;
-
+import 'app.dart';
 // 1. شاشة قائمة المحادثات الخاصة - main.dart يستدعيها بهذا الاسم
 class PrivateChatsScreen extends StatelessWidget {
   const PrivateChatsScreen({super.key});
