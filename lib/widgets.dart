@@ -1,260 +1,13 @@
+// widgets.dart
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:intl/intl.dart';
 import 'dart:async';
-import 'dart:io';
 import 'main.dart';
-
-class ChatScreen extends StatefulWidget {
-  final RoomModel room;
-  const ChatScreen({required this.room});
-  @override
-  State<ChatScreen> createState() => _ChatScreenState();
-}
-
-class _ChatScreenState extends State<ChatScreen> {
-  final _msgController = TextEditingController();
-  final _picker = ImagePicker();
-  Timer? _typingTimer;
-  bool _isRecording = false;
-
-  void _onTyping() {
-    repo.updateTypingStatus(roomId: widget.room.id, isTyping: true);
-    _typingTimer?.cancel();
-    _typingTimer = Timer(const Duration(seconds: 2), () {
-      repo.updateTypingStatus(roomId: widget.room.id, isTyping: false);
-    });
-  }
-
-  Future<void> _sendText() async {
-    final text = _msgController.text.trim();
-    if (text.isEmpty) return;
-    _msgController.clear();
-    repo.updateTypingStatus(roomId: widget.room.id, isTyping: false);
-    try {
-      await repo.sendMessage(roomId: widget.room.id, text: text, messageType: 'text');
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('فشل الارسال'), backgroundColor: AppColors.error));
-    }
-  }
-
-  Future<void> _sendImage() async {
-    final picked = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
-    if (picked == null) return;
-    try {
-      final url = await repo.uploadChatMedia(picked.path, 'image');
-      await repo.sendMessage(roomId: widget.room.id, mediaUrl: url, messageType: 'image');
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('فشل رفع الصورة'), backgroundColor: AppColors.error));
-    }
-  }
-
-  Future<void> _toggleRecording() async {
-    if (_isRecording) {
-      final path = await repo.stopRecording();
-      setState(() => _isRecording = false);
-      if (path!= null) {
-        try {
-          final url = await repo.uploadChatMedia(path, 'audio');
-          await repo.sendMessage(roomId: widget.room.id, mediaUrl: url, messageType: 'audio');
-        } catch (e) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('فشل رفع الصوت'), backgroundColor: AppColors.error));
-        }
-      }
-    } else {
-      await repo.startRecording();
-      setState(() => _isRecording = true);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.primaryBlue,
-      appBar: AppBar(
-        backgroundColor: AppColors.card,
-        title: Row(children: [
-          CircleAvatar(backgroundImage: widget.room.imageUrl!= null? CachedNetworkImageProvider(widget.room.imageUrl!) : null, child: widget.room.imageUrl == null? const Icon(Icons.group) : null),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(widget.room.roomName, style: const TextStyle(color: AppColors.textDark, fontSize: 16, fontWeight: FontWeight.bold)),
-              StreamBuilder<bool>(
-                stream: repo.getTypingStream(roomId: widget.room.id),
-                builder: (context, snapshot) => snapshot.data == true? const Text('يكتب...', style: TextStyle(color: AppColors.success, fontSize: 12)) : const SizedBox(),
-              ),
-            ]),
-          ),
-        ]),
-      ),
-      body: Column(children: [
-        Expanded(
-          child: StreamBuilder<List<MessageModel>>(
-            stream: repo.getRoomMessagesStream(roomId: widget.room.id),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-              final msgs = snapshot.data!;
-              return ListView.builder(reverse: true, padding: const EdgeInsets.all(8), itemCount: msgs.length, itemBuilder: (context, i) => MessageBubble(msg: msgs[i]));
-            },
-          ),
-        ),
-        _buildInputBar(),
-      ]),
-    );
-  }
-
-  Widget _buildInputBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      color: AppColors.card,
-      child: SafeArea(
-        child: Row(children: [
-          IconButton(icon: Icon(_isRecording? Icons.stop_circle : Icons.mic, color: _isRecording? AppColors.error : AppColors.textLight), onPressed: _toggleRecording),
-          IconButton(icon: const Icon(Icons.image, color: AppColors.textLight), onPressed: _sendImage),
-          Expanded(
-            child: TextField(
-              controller: _msgController,
-              onChanged: (_) => _onTyping(),
-              style: const TextStyle(color: AppColors.textDark),
-              decoration: InputDecoration(
-                hintText: 'اكتب رسالتك...',
-                hintStyle: const TextStyle(color: AppColors.textLight),
-                filled: true,
-                fillColor: AppColors.primaryBlue,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          CircleAvatar(backgroundColor: AppColors.button, child: IconButton(icon: const Icon(Icons.send, color: Colors.white, size: 20), onPressed: _sendText)),
-        ]),
-      ),
-    );
-  }
-}
-
-class MessageBubble extends StatelessWidget {
-  final MessageModel msg;
-  const MessageBubble({required this.msg});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onLongPress: msg.isMe &&!msg.isDeleted? () => _showDeleteDialog(context) : null,
-      child: Align(
-        alignment: msg.isMe? Alignment.centerRight : Alignment.centerLeft,
-        child: Container(
-          margin: EdgeInsets.only(top: 4, bottom: 4, left: msg.isMe? 60 : 12, right: msg.isMe? 12 : 60),
-          child: Column(crossAxisAlignment: msg.isMe? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
-            if (!msg.isMe && msg.user!= null) Padding(padding: const EdgeInsets.only(bottom: 4, right: 4), child: Text(msg.user!.name, style: const TextStyle(color: AppColors.textLight, fontSize: 12))),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: msg.isMe? AppColors.button : AppColors.card, borderRadius: BorderRadius.circular(16)),
-              child: _buildMessageContent(),
-            ),
-            Padding(padding: const EdgeInsets.only(top: 4, right: 4), child: Text(DateFormat('HH:mm').format(msg.createdAt), style: const TextStyle(color: AppColors.textLight, fontSize: 10))),
-          ]),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMessageContent() {
-    if (msg.isDeleted) {
-      return Text(msg.text, style: const TextStyle(color: AppColors.textLight, fontStyle: FontStyle.italic));
-    }
-
-    switch (msg.messageType) {
-      case 'image':
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: CachedNetworkImage(
-            imageUrl: msg.mediaUrl!,
-            width: 200,
-            placeholder: (context, url) => Container(width: 200, height: 200, color: AppColors.primaryBlue, child: const Center(child: CircularProgressIndicator())),
-            errorWidget: (context, url, error) => Container(
-              width: 200,
-              height: 150,
-              color: AppColors.primaryBlue,
-              child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Icon(Icons.error_outline, color: AppColors.textLight),
-                SizedBox(height: 8),
-                Text('فشل تحميل الصورة', style: TextStyle(color: AppColors.textLight, fontSize: 12)),
-              ])
-            ),
-          ),
-        );
-      case 'audio':
-        return _AudioMessageBubble(audioUrl: msg.mediaUrl!);
-      default:
-        return Text(msg.text, style: const TextStyle(color: Colors.white));
-    }
-  }
-
-  void _showDeleteDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppColors.card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('حذف الرسالة', style: TextStyle(color: AppColors.textDark)),
-        content: const Text('هل تريد حذف هذه الرسالة؟', style: TextStyle(color: AppColors.textLight)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('الغاء')),
-          TextButton(
-            onPressed: () {
-              repo.deleteMessage(msg.id);
-              Navigator.pop(context);
-            },
-            child: const Text('حذف', style: TextStyle(color: AppColors.error)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AudioMessageBubble extends StatefulWidget {
-  final String audioUrl;
-  const _AudioMessageBubble({required this.audioUrl});
-
-  @override
-  State<_AudioMessageBubble> createState() => _AudioMessageBubbleState();
-}
-
-class _AudioMessageBubbleState extends State<_AudioMessageBubble> {
-  bool _isPlaying = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        setState(() => _isPlaying =!_isPlaying);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_isPlaying? 'جاري التشغيل...' : 'تم الإيقاف'),
-            backgroundColor: AppColors.button,
-            duration: const Duration(seconds: 1),
-          ),
-        );
-      },
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(_isPlaying? Icons.pause_circle_filled : Icons.play_circle_fill, color: Colors.white, size: 32),
-          const SizedBox(width: 8),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('رسالة صوتية', style: TextStyle(color: Colors.white, fontSize: 14)),
-            Text(_isPlaying? 'جاري التشغيل' : 'اضغط للتشغيل', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11)),
-          ]),
-        ],
-      ),
-    );
-  }
-}
+import 'admin.dart';
 
 class PrivateChatScreen extends StatefulWidget {
   final UserModel otherUser;
@@ -272,9 +25,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   void _onTyping() {
     repo.updateTypingStatus(receiverId: widget.otherUser.id, isTyping: true);
     _typingTimer?.cancel();
-    _typingTimer = Timer(const Duration(seconds: 2), () {
-      repo.updateTypingStatus(receiverId: widget.otherUser.id, isTyping: false);
-    });
+    _typingTimer = Timer(const Duration(seconds: 2), () => repo.updateTypingStatus(receiverId: widget.otherUser.id, isTyping: false));
   }
 
   Future<void> _sendText() async {
@@ -353,7 +104,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             builder: (context, snapshot) {
               if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
               final msgs = snapshot.data!;
-              return ListView.builder(reverse: true, padding: const EdgeInsets.all(8), itemCount: msgs.length, itemBuilder: (context, i) => MessageBubble(msg: msgs[i]));
+              return ListView.builder(reverse: true, padding: const EdgeInsets.all(8), itemCount: msgs.length, itemBuilder: (context, i) {
+                final msg = msgs[i];
+                if (!msg.isMe &&!msg.isSeen) repo.markMessageAsSeen(msg.id);
+                return MessageBubble(msg: msg);
+              });
             },
           ),
         ),
@@ -387,6 +142,293 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       ]),
     );
   }
+
+  @override
+  void dispose() {
+    _msgController.dispose();
+    _typingTimer?.cancel();
+    super.dispose();
+  }
+}
+
+class ChatScreen extends StatefulWidget {
+  final RoomModel room;
+  const ChatScreen({required this.room});
+  @override
+  State<ChatScreen> createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends State<ChatScreen> {
+  final _msgController = TextEditingController();
+  final _picker = ImagePicker();
+  Timer? _typingTimer;
+  bool _isRecording = false;
+
+  void _onTyping() {
+    repo.updateTypingStatus(roomId: widget.room.id, isTyping: true);
+    _typingTimer?.cancel();
+    _typingTimer = Timer(const Duration(seconds: 2), () => repo.updateTypingStatus(roomId: widget.room.id, isTyping: false));
+  }
+
+  Future<void> _sendText() async {
+    final text = _msgController.text.trim();
+    if (text.isEmpty) return;
+    _msgController.clear();
+    repo.updateTypingStatus(roomId: widget.room.id, isTyping: false);
+    try {
+      await repo.sendMessage(roomId: widget.room.id, text: text, messageType: 'text');
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('فشل الارسال'), backgroundColor: AppColors.error));
+    }
+  }
+
+  Future<void> _sendImage() async {
+    final picked = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    if (picked == null) return;
+    try {
+      final url = await repo.uploadChatMedia(picked.path, 'image');
+      await repo.sendMessage(roomId: widget.room.id, mediaUrl: url, messageType: 'image');
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('فشل رفع الصورة'), backgroundColor: AppColors.error));
+    }
+  }
+
+  Future<void> _toggleRecording() async {
+    if (_isRecording) {
+      final path = await repo.stopRecording();
+      setState(() => _isRecording = false);
+      if (path!= null) {
+        try {
+          final url = await repo.uploadChatMedia(path, 'audio');
+          await repo.sendMessage(roomId: widget.room.id, mediaUrl: url, messageType: 'audio');
+        } catch (e) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('فشل رفع الصوت'), backgroundColor: AppColors.error));
+        }
+      }
+    } else {
+      await repo.startRecording();
+      setState(() => _isRecording = true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.primaryBlue,
+      appBar: AppBar(
+        backgroundColor: AppColors.card,
+        title: Row(children: [
+          CircleAvatar(backgroundImage: widget.room.imageUrl!= null? CachedNetworkImageProvider(widget.room.imageUrl!) : null, child: widget.room.imageUrl == null? const Icon(Icons.group) : null),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(widget.room.roomName, style: const TextStyle(color: AppColors.textDark, fontSize: 16, fontWeight: FontWeight.bold)),
+              StreamBuilder<bool>(
+                stream: repo.getTypingStream(roomId: widget.room.id),
+                builder: (context, snapshot) => snapshot.data == true? const Text('يكتب...', style: TextStyle(color: AppColors.success, fontSize: 12)) : const SizedBox(),
+              ),
+            ]),
+          ),
+        ]),
+      ),
+      body: Column(children: [
+        Expanded(
+          child: StreamBuilder<List<MessageModel>>(
+            stream: repo.getRoomMessagesStream(roomId: widget.room.id),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+              final msgs = snapshot.data!;
+              return ListView.builder(reverse: true, padding: const EdgeInsets.all(8), itemCount: msgs.length, itemBuilder: (context, i) {
+                final msg = msgs[i];
+                if (!msg.isMe &&!msg.isSeen) repo.markMessageAsSeen(msg.id);
+                return MessageBubble(msg: msg);
+              });
+            },
+          ),
+        ),
+        _buildInputBar(),
+      ]),
+    );
+  }
+
+  Widget _buildInputBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      color: AppColors.card,
+      child: SafeArea(
+        child: Row(children: [
+          IconButton(icon: Icon(_isRecording? Icons.stop_circle : Icons.mic, color: _isRecording? AppColors.error : AppColors.textLight), onPressed: _toggleRecording),
+          IconButton(icon: const Icon(Icons.image, color: AppColors.textLight), onPressed: _sendImage),
+          Expanded(
+            child: TextField(
+              controller: _msgController,
+              onChanged: (_) => _onTyping(),
+              style: const TextStyle(color: AppColors.textDark),
+              decoration: InputDecoration(
+                hintText: 'اكتب رسالتك...',
+                hintStyle: const TextStyle(color: AppColors.textLight),
+                filled: true,
+                fillColor: AppColors.primaryBlue,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          CircleAvatar(backgroundColor: AppColors.button, child: IconButton(icon: const Icon(Icons.send, color: Colors.white, size: 20), onPressed: _sendText)),
+        ]),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _msgController.dispose();
+    _typingTimer?.cancel();
+    super.dispose();
+  }
+}
+
+class MessageBubble extends StatelessWidget {
+  final MessageModel msg;
+  const MessageBubble({required this.msg});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onLongPress: msg.isMe &&!msg.isDeleted? () => _showDeleteDialog(context) : null,
+      child: Align(
+        alignment: msg.isMe? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          margin: EdgeInsets.only(top: 4, bottom: 4, left: msg.isMe? 60 : 12, right: msg.isMe? 12 : 60),
+          child: Column(crossAxisAlignment: msg.isMe? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
+            if (!msg.isMe && msg.user!= null) Padding(padding: const EdgeInsets.only(bottom: 4, right: 4), child: Text(msg.user!.name, style: const TextStyle(color: AppColors.textLight, fontSize: 12))),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: msg.isMe? AppColors.button : AppColors.card, borderRadius: BorderRadius.circular(16)),
+              child: _buildMessageContent(),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 4, right: 4),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Text(DateFormat('HH:mm').format(msg.createdAt), style: const TextStyle(color: AppColors.textLight, fontSize: 10)),
+                if (msg.isMe) const SizedBox(width: 4),
+                if (msg.isMe) Icon(msg.isSeen? Icons.done_all : Icons.done, size: 14, color: msg.isSeen? AppColors.success : AppColors.textLight),
+              ]),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMessageContent() {
+    if (msg.isDeleted) return Text(msg.text, style: const TextStyle(color: AppColors.textLight, fontStyle: FontStyle.italic));
+    switch (msg.messageType) {
+      case 'image':
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: CachedNetworkImage(
+            imageUrl: msg.mediaUrl!,
+            width: 200,
+            placeholder: (context, url) => Container(width: 200, height: 200, color: AppColors.primaryBlue, child: const Center(child: CircularProgressIndicator())),
+            errorWidget: (context, url, error) => Container(width: 200, height: 150, color: AppColors.primaryBlue, child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.error_outline, color: AppColors.textLight), SizedBox(height: 8), Text('فشل تحميل الصورة', style: TextStyle(color: AppColors.textLight, fontSize: 12))])),
+          ),
+        );
+      case 'audio':
+        return _AudioMessageBubble(audioUrl: msg.mediaUrl!);
+      default:
+        return Text(msg.text, style: const TextStyle(color: Colors.white));
+    }
+  }
+
+  void _showDeleteDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('حذف الرسالة', style: TextStyle(color: AppColors.textDark)),
+        content: const Text('هل تريد حذف هذه الرسالة؟', style: TextStyle(color: AppColors.textLight)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('الغاء')),
+          TextButton(onPressed: () { repo.deleteMessage(msg.id); Navigator.pop(context); }, child: const Text('حذف', style: TextStyle(color: AppColors.error))),
+        ],
+      ),
+    );
+  }
+}
+
+class _AudioMessageBubble extends StatefulWidget {
+  final String audioUrl;
+  const _AudioMessageBubble({required this.audioUrl});
+  @override
+  State<_AudioMessageBubble> createState() => _AudioMessageBubbleState();
+}
+
+class _AudioMessageBubbleState extends State<_AudioMessageBubble> {
+  final _player = AudioPlayer();
+  bool _isPlaying = false;
+  Duration _duration = Duration.zero;
+  Duration _position = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _initAudio();
+  }
+
+  Future<void> _initAudio() async {
+    await _player.setUrl(widget.audioUrl);
+    _duration = _player.duration?? Duration.zero;
+    _player.positionStream.listen((pos) => setState(() => _position = pos));
+    _player.playerStateStream.listen((state) {
+      setState(() => _isPlaying = state.playing);
+      if (state.processingState == ProcessingState.completed) {
+        _player.seek(Duration.zero);
+        _player.pause();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _isPlaying? _player.pause() : _player.play(),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(_isPlaying? Icons.pause_circle_filled : Icons.play_circle_fill, color: Colors.white, size: 32),
+          const SizedBox(width: 8),
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('${_formatDuration(_position)} / ${_formatDuration(_duration)}', style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 12)),
+            Container(
+              width: 150,
+              height: 3,
+              margin: const EdgeInsets.only(top: 4),
+              child: LinearProgressIndicator(
+                value: _duration.inMilliseconds > 0? _position.inMilliseconds / _duration.inMilliseconds : 0,
+                backgroundColor: Colors.white24,
+                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+          ]),
+        ],
+      ),
+    );
+  }
+
+  String _formatDuration(Duration d) {
+    final min = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final sec = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$min:$sec';
+  }
+
+  @override
+  void dispose() {
+    _player.dispose();
+    super.dispose();
+  }
 }
 
 class ProfileScreen extends StatefulWidget {
@@ -409,10 +451,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadUser() async {
     final u = await repo.getUserById(widget.userId);
-    if (mounted) setState(() {
-      user = u;
-      _loading = false;
-    });
+    if (mounted) setState(() { user = u; _loading = false; });
   }
 
   @override
@@ -434,12 +473,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(children: [
           const SizedBox(height: 20),
           Stack(children: [
-            CircleAvatar(
-              radius: 50,
-              backgroundColor: AppColors.button,
-              backgroundImage: user!.avatarUrl!= null? CachedNetworkImageProvider(user!.avatarUrl!) : null,
-              child: user!.avatarUrl == null? const Icon(Icons.person, size: 50, color: Colors.white) : null,
-            ),
+            CircleAvatar(radius: 50, backgroundColor: AppColors.button, backgroundImage: user!.avatarUrl!= null? CachedNetworkImageProvider(user!.avatarUrl!) : null, child: user!.avatarUrl == null? const Icon(Icons.person, size: 50, color: Colors.white) : null),
             if (user!.isOnline) Positioned(bottom: 5, right: 5, child: Container(width: 16, height: 16, decoration: BoxDecoration(color: AppColors.online, shape: BoxShape.circle, border: Border.all(color: AppColors.primaryBlue, width: 3)))),
           ]),
           const SizedBox(height: 16),
@@ -448,17 +482,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 8),
           Text(user!.isOnline? 'نشط الآن' : user!.lastSeen!= null? 'آخر ظهور ${timeago.format(user!.lastSeen!, locale: 'ar')}' : 'غير متصل', style: TextStyle(color: user!.isOnline? AppColors.online : AppColors.textLight, fontSize: 13)),
           const SizedBox(height: 20),
-
-          if (user!.bio!= null && user!.bio!.isNotEmpty)
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: AppColors.card, borderRadius: BorderRadius.circular(16)),
-              child: Text(user!.bio!, style: const TextStyle(color: AppColors.textDark, fontSize: 14), textAlign: TextAlign.center),
-            ),
-
+          if (user!.bio!= null && user!.bio!.isNotEmpty) Container(margin: const EdgeInsets.symmetric(horizontal: 24), padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: AppColors.card, borderRadius: BorderRadius.circular(16)), child: Text(user!.bio!, style: const TextStyle(color: AppColors.textDark, fontSize: 14), textAlign: TextAlign.center)),
           const SizedBox(height: 24),
-
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Row(children: [
@@ -467,12 +492,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PrivateChatScreen(otherUser: user!))),
                   icon: const Icon(Icons.message, size: 18),
                   label: const Text('مراسلة'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.button,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.button, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                 ),
               ),
             ]),
@@ -497,7 +517,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _bioController = TextEditingController();
   String? _avatarUrl;
   bool _loading = false;
-  UserModel? _currentUser;
 
   @override
   void initState() {
@@ -509,7 +528,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final user = await repo.getCurrentUser();
     if (user!= null && mounted) {
       setState(() {
-        _currentUser = user;
         _nameController.text = user.name;
         _usernameController.text = user.username?? '';
         _bioController.text = user.bio?? '';
@@ -551,14 +569,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
     setState(() => _loading = true);
     try {
-      await repo.updateProfile(
-        name: _nameController.text.trim(),
-        username: _usernameController.text.trim().isEmpty? null : _usernameController.text.trim(),
-        bio: _bioController.text.trim().isEmpty? null : _bioController.text.trim(),
-      );
-      if (mounted) {
-        Navigator.pop(context);
-      }
+      await repo.updateProfile(name: _nameController.text.trim(), username: _usernameController.text.trim().isEmpty? null : _usernameController.text.trim(), bio: _bioController.text.trim().isEmpty? null : _bioController.text.trim());
+      if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('فشل الحفظ'), backgroundColor: AppColors.error));
     }
@@ -569,26 +581,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.primaryBlue,
-      appBar: AppBar(
-        backgroundColor: AppColors.card,
-        title: Text(widget.isFirstTime? 'اكمل ملفك' : 'تعديل البروفايل', style: const TextStyle(color: AppColors.textDark, fontWeight: FontWeight.bold)),
-        actions: [TextButton(onPressed: _loading? null : _save, child: const Text('حفظ', style: TextStyle(color: AppColors.button, fontSize: 16, fontWeight: FontWeight.bold)))],
-      ),
+      appBar: AppBar(backgroundColor: AppColors.card, title: Text(widget.isFirstTime? 'اكمل ملفك' : 'تعديل البروفايل', style: const TextStyle(color: AppColors.textDark, fontWeight: FontWeight.bold)), actions: [TextButton(onPressed: _loading? null : _save, child: const Text('حفظ', style: TextStyle(color: AppColors.button, fontSize: 16, fontWeight: FontWeight.bold)))]),
       body: _loading? const Center(child: CircularProgressIndicator()) : SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(children: [
           Stack(alignment: Alignment.bottomRight, children: [
-            CircleAvatar(
-              radius: 55,
-              backgroundColor: AppColors.button,
-              backgroundImage: _avatarUrl!= null? CachedNetworkImageProvider(_avatarUrl!) : null,
-              child: _avatarUrl == null? const Icon(Icons.person, size: 55, color: Colors.white) : null,
-            ),
-            CircleAvatar(
-              radius: 18,
-              backgroundColor: AppColors.button,
-              child: IconButton(padding: EdgeInsets.zero, icon: const Icon(Icons.camera_alt, color: Colors.white, size: 18), onPressed: _pickImage),
-            ),
+            CircleAvatar(radius: 55, backgroundColor: AppColors.button, backgroundImage: _avatarUrl!= null? CachedNetworkImageProvider(_avatarUrl!) : null, child: _avatarUrl == null? const Icon(Icons.person, size: 55, color: Colors.white) : null),
+            CircleAvatar(radius: 18, backgroundColor: AppColors.button, child: IconButton(padding: EdgeInsets.zero, icon: const Icon(Icons.camera_alt, color: Colors.white, size: 18), onPressed: _pickImage)),
           ]),
           if (_avatarUrl!= null) TextButton(onPressed: _deleteImage, child: const Text('حذف الصورة', style: TextStyle(color: AppColors.error, fontSize: 13))),
           const SizedBox(height: 32),
@@ -621,6 +620,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
       ),
     ]);
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _usernameController.dispose();
+    _bioController.dispose();
+    super.dispose();
   }
 }
 
@@ -662,15 +669,7 @@ class _CreateRoomScreenState extends State<CreateRoomScreen> {
           const SizedBox(height: 16),
           _buildField('وصف الغرفة', _descController, Icons.description_outlined, maxLines: 3),
           const SizedBox(height: 32),
-          SizedBox(
-            width: double.infinity,
-            height: 54,
-            child: ElevatedButton(
-              onPressed: _loading? null : _create,
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.button, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-              child: _loading? const CircularProgressIndicator(color: Colors.white) : const Text('ارسال طلب', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-            ),
-          ),
+          SizedBox(width: double.infinity, height: 54, child: ElevatedButton(onPressed: _loading? null : _create, child: _loading? const CircularProgressIndicator(color: Colors.white) : const Text('ارسال طلب', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)))),
         ]),
       ),
     );
@@ -688,6 +687,37 @@ class _CreateRoomScreenState extends State<CreateRoomScreen> {
         filled: true,
         fillColor: AppColors.card,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descController.dispose();
+    super.dispose();
+  }
+}
+
+class BannedScreen extends StatelessWidget {
+  const BannedScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.primaryBlue,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            const Icon(Icons.block, size: 100, color: AppColors.error),
+            const SizedBox(height: 24),
+            const Text('تم حظر حسابك', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textDark)),
+            const SizedBox(height: 8),
+            const Text('تواصل مع الادارة لمعرفة السبب', style: TextStyle(color: AppColors.textLight)),
+            const SizedBox(height: 32),
+            ElevatedButton(onPressed: () => repo.signOut(), child: const Text('تسجيل خروج', style: TextStyle(color: Colors.white, fontSize: 16))),
+          ]),
+        ),
       ),
     );
   }
