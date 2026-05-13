@@ -29,9 +29,6 @@ dependencies:
   audio_waveforms: ^1.2.0
   path_provider: ^2.1.4
 
-dependency_overrides:
-  record_platform_interface: ^1.6.0
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
