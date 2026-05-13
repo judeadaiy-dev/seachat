@@ -1,4 +1,4 @@
-name: Flutter Auto-Build SeaChat
+name: SeaChat Build
 
 on:
   push:
@@ -24,30 +24,23 @@ jobs:
         with:
           flutter-version: '3.24.0'
 
-      - name: Repair and Reconstruct Android
+      - name: Build Android Parts Only
         run: |
-          # 1. إزالة أي مكتبات مسببة للمشاكل برمجياً لضمان نظافة المشروع
-          flutter pub remove app_links || true
+          # تأكد من حذف أي ملفات أندرويد قديمة قد تسبب تعارضاً
+          rm -rf android
           
-          # 2. إصلاح مجلد أندرويد فقط دون التأثير على ملف pubspec.yaml الأصلي
-          # نستخدم أمر التحديث لضمان عدم حذف بياناتك
+          # أمر الإصلاح الذكي (يضيف مجلد أندرويد دون تغيير pubspec)
           flutter create . --platforms android --org com.seachat.app
           
-          # 3. إنشاء ملف الخصائص لربط المسارات (ضروري لنجاح البناء)
+          # ربط المسارات للـ SDK
           echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
           echo "sdk.dir=$ANDROID_SDK_ROOT" >> android/local.properties
           
-          # 4. ضبط إصدار الـ SDK على 35 لدعم مكتبات الصوت والصور في SeaChat
-          # استخدمنا مسارات دقيقة لضمان وصول الأمر للملفات المطلوبة
+          # تحديث إعدادات الـ SDK لـ 35
           sed -i 's/compileSdkVersion .*/compileSdkVersion 35/' android/app/build.gradle
           sed -i 's/targetSdkVersion .*/targetSdkVersion 35/' android/app/build.gradle
 
-      - name: Install Dependencies
+      - name: Install and Build
         run: |
-          # تأكد أن ملف pubspec.yaml يحتوي على sdk: '>=3.5.0' في جهازك
           flutter pub get
-
-      - name: Build APK
-        run: |
-          # بناء التطبيق النهائي مع تجاهل تحذيرات الأيقونات
           flutter build apk --release --no-tree-shake-icons
