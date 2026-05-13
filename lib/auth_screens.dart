@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'main.dart';
+import 'main.dart'; // عشان AppColors
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -21,10 +21,18 @@ class _AuthScreenState extends State<AuthScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), backgroundColor: Colors.red),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('خطأ: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ غير متوقع'), backgroundColor: Colors.red),
+        );
+      }
     }
     if (mounted) setState(() => _loading = false);
   }
@@ -36,12 +44,27 @@ class _AuthScreenState extends State<AuthScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), backgroundColor: Colors.red),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('خطأ: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ غير متوقع'), backgroundColor: Colors.red),
+        );
+      }
     }
     if (mounted) setState(() => _loading = false);
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -53,24 +76,48 @@ class _AuthScreenState extends State<AuthScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            Icon(Icons.lock_outline, size: 80, color: AppColors.button),
+            SizedBox(height: 32),
             TextField(
               controller: _emailController,
-              decoration: InputDecoration(labelText: 'الايميل'),
+              decoration: InputDecoration(
+                labelText: 'الايميل',
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              keyboardType: TextInputType.emailAddress,
             ),
             SizedBox(height: 16),
             TextField(
               controller: _passwordController,
-              decoration: InputDecoration(labelText: 'كلمة السر'),
+              decoration: InputDecoration(
+                labelText: 'كلمة السر',
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
               obscureText: true,
             ),
             SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: _loading ? null : _signIn,
-              child: Text('تسجيل دخول'),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _loading ? null : _signIn,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.button,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: _loading
+                    ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : Text('تسجيل دخول', style: TextStyle(color: Colors.white, fontSize: 16)),
+              ),
             ),
+            SizedBox(height: 12),
             TextButton(
               onPressed: _loading ? null : _signUp,
-              child: Text('حساب جديد'),
+              child: Text('حساب جديد', style: TextStyle(color: AppColors.button)),
             ),
           ],
         ),
