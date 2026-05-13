@@ -9,23 +9,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.8
-  
-  # اساسي
   supabase_flutter: ^2.11.0
   cached_network_image: ^3.4.1
+  image_picker: ^1.1.2
   timeago: ^3.7.0
   intl: ^0.19.0
   uuid: ^4.5.1
-
-  # للصور والاعدادات
-  image_picker: ^1.1.2
   permission_handler: ^11.3.1
-  path_provider: ^2.1.5
-  
-  # روابط وويب
-  app_links: ^6.4.1
-  web: ^1.0.0
+  cupertino_icons: ^1.0.8
 
 dev_dependencies:
   flutter_test:
@@ -34,10 +25,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  
   assets:
     - assets/icon/
-
   fonts:
     - family: Cairo
       fonts:
