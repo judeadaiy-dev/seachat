@@ -1,5 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models.dart';  // ← غيرت هذا السطر بس: ضفت ../ علمود يصعد مجلد
+import '../models.dart';
 
 class SupabaseRepository {
   final supabase = Supabase.instance.client;
@@ -9,27 +9,69 @@ class SupabaseRepository {
     final user = supabase.auth.currentUser;
     if (user == null) return null;
     try {
-      final data = await supabase.from('profiles').select().eq('id', user.id).maybeSingle();
+      final data = await supabase
+          .from('profiles')
+          .select()
+          .eq('id', user.id)
+          .maybeSingle();
       if (data == null) return null;
       return UserModel.fromMap(data);
     } catch (e) {
+      print('getCurrentUser error: $e');
       return null;
     }
   }
 
-  // تسجيل الدخول بجوجل (تم تعطيله مؤقتاً لتسريع التطوير)
   Future<void> signInWithGoogle() async {
     throw Exception('ميزة تسجيل جوجل ستتوفر في التحديثات القادمة');
   }
 
+  Future<void> signOut() async {
+    await supabase.auth.signOut();
+  }
+
   // ==================== Rooms (الغرف) ====================
+  // هاي الدالة كانت ناقصة - ضفتها الك
+  Future<List<RoomModel>> getRooms() async {
+    try {
+      final res = await supabase
+          .from('rooms')
+          .select()
+          .order('is_pinned', ascending: false)
+          .order('created_at', ascending: false);
+      
+      return (res as List).map((e) => RoomModel.fromMap(e)).toList();
+    } catch (e) {
+      print('getRooms error: $e');
+      return [];
+    }
+  }
+
   Stream<List<RoomModel>> getRoomsStream() {
     return supabase
         .from('rooms')
         .stream(primaryKey: ['id'])
-        .order('is_pinned', ascending: false) 
+        .order('is_pinned', ascending: false)
         .order('created_at', ascending: true)
         .map((list) => list.map((e) => RoomModel.fromMap(e)).toList());
+  }
+
+  Future<void> createRoom({
+    required String roomName,
+    String? description,
+    String? imageUrl,
+    bool isPrivate = false,
+  }) async {
+    final userId = supabase.auth.currentUser!.id;
+    await supabase.from('rooms').insert({
+      'room_name': roomName,
+      'description': description,
+      'image_url': imageUrl,
+      'owner_id': userId,
+      'is_private': isPrivate,
+      'room_type': 'user',
+      'is_pinned': false,
+    });
   }
 
   Future<void> deleteRoom(String roomId) async {
@@ -54,7 +96,7 @@ class SupabaseRepository {
     await supabase.from('messages').insert({
       'room_id': roomId,
       'user_id': userId,
-      'message': message, 
+      'message': message,
     });
   }
 
@@ -62,7 +104,11 @@ class SupabaseRepository {
   Future<bool> isCurrentUserAdmin() async {
     final user = supabase.auth.currentUser;
     if (user == null) return false;
-    final res = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+    final res = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle();
     return res?['role'] == 'admin';
   }
 
@@ -89,11 +135,4 @@ class SupabaseRepository {
   }
 
   Future<List<RoomMemberModel>> getRoomMembers(String roomId) async {
-    final res = await supabase
-        .from('room_members')
-        .select('*, profiles(*)') 
-        .eq('room_id', roomId)
-        .order('points', ascending: false);
-    return (res as List).map((m) => RoomMemberModel.fromMap(m)).toList();
-  }
-}
+   
