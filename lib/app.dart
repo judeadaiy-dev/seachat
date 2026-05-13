@@ -378,7 +378,6 @@ class RoomTile extends StatelessWidget {
     );
   }
 }
-
 // ==================== ChatScreen مع إرسال صور وصوت ====================
 class ChatScreen extends StatefulWidget {
   final RoomModel room;
@@ -754,7 +753,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
                   ),
                 ),
-              ),
               const SizedBox(width: 8),
               CircleAvatar(backgroundColor: AppColors.button, child: IconButton(icon: const Icon(Icons.send, color: Colors.white, size: 20), onPressed: _sendText)),
             ]),
@@ -764,8 +762,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
   }
 }
-
-// ==================== صفحة البروفايل ستايل انستغرام ====================
 class ProfileScreen extends StatefulWidget {
   final String userId;
   final bool isMe;
@@ -843,7 +839,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: ElevatedButton.icon(
                   onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PrivateChatScreen(otherUser: user!))),
                   icon: const Icon(Icons.message, size: 18),
-                  label: const Text('مراسلة'),
+                  label:
+                 label: const Text('مراسلة'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.button,
                     foregroundColor: Colors.white,
@@ -851,3 +848,254 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 40),
+        ]),
+      ),
+    );
+  }
+}
+
+// ==================== تعديل البروفايل ستايل انستا ====================
+class EditProfileScreen extends StatefulWidget {
+  final bool isFirstTime;
+  const EditProfileScreen({this.isFirstTime = false});
+  @override
+  State<EditProfileScreen> createState() => _EditProfileScreenState();
+}
+
+class _EditProfileScreenState extends State<EditProfileScreen> {
+  final _nameController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _bioController = TextEditingController();
+  String? _avatarUrl;
+  bool _loading = false;
+  UserModel? _currentUser;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    final user = await repo.getCurrentUser();
+    if (user!= null && mounted) {
+      setState(() {
+        _currentUser = user;
+        _nameController.text = user.name;
+        _usernameController.text = user.username?? '';
+        _bioController.text = user.bio?? '';
+        _avatarUrl = user.avatarUrl;
+      });
+    }
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (picked!= null) {
+      setState(() => _loading = true);
+      try {
+        final url = await repo.uploadAvatar(picked.path);
+        setState(() => _avatarUrl = url);
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('فشل رفع الصورة'), backgroundColor: AppColors.error));
+      }
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _deleteImage() async {
+    setState(() => _loading = true);
+    try {
+      await repo.deleteAvatar();
+      setState(() => _avatarUrl = null);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('فشل حذف الصورة'), backgroundColor: AppColors.error));
+    }
+    setState(() => _loading = false);
+  }
+
+  Future<void> _save() async {
+    if (_nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الاسم مطلوب'), backgroundColor: AppColors.error));
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      await repo.updateProfile(
+        name: _nameController.text.trim(),
+        username: _usernameController.text.trim().isEmpty? null : _usernameController.text.trim(),
+        bio: _bioController.text.trim().isEmpty? null : _bioController.text.trim(),
+      );
+      if (mounted) {
+        Navigator.pop(context);
+        if (widget.isFirstTime) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AuthGate()));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('فشل الحفظ'), backgroundColor: AppColors.error));
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.primaryBlue,
+      appBar: AppBar(
+        backgroundColor: AppColors.card,
+        title: Text(widget.isFirstTime? 'اكمل ملفك' : 'تعديل البروفايل', style: const TextStyle(color: AppColors.textDark, fontWeight: FontWeight.bold)),
+        actions: [TextButton(onPressed: _loading? null : _save, child: const Text('حفظ', style: TextStyle(color: AppColors.button, fontSize: 16, fontWeight: FontWeight.bold)))],
+      ),
+      body: _loading? const Center(child: CircularProgressIndicator()) : SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(children: [
+          Stack(alignment: Alignment.bottomRight, children: [
+            CircleAvatar(
+              radius: 55,
+              backgroundColor: AppColors.button,
+              backgroundImage: _avatarUrl!= null? CachedNetworkImageProvider(_avatarUrl!) : null,
+              child: _avatarUrl == null? const Icon(Icons.person, size: 55, color: Colors.white) : null,
+            ),
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: AppColors.button,
+              child: IconButton(padding: EdgeInsets.zero, icon: const Icon(Icons.camera_alt, color: Colors.white, size: 18), onPressed: _pickImage),
+            ),
+          ]),
+          if (_avatarUrl!= null) TextButton(onPressed: _deleteImage, child: const Text('حذف الصورة', style: TextStyle(color: AppColors.error, fontSize: 13))),
+          const SizedBox(height: 32),
+          _buildField('الاسم', _nameController, Icons.person_outline),
+          const SizedBox(height: 16),
+          _buildField('اسم المستخدم', _usernameController, Icons.alternate_email, hint: 'بدون @'),
+          const SizedBox(height: 16),
+          _buildField('النبذة التعريفية', _bioController, Icons.info_outline, maxLines: 3),
+        ]),
+      ),
+    );
+  }
+
+  Widget _buildField(String label, TextEditingController controller, IconData icon, {int maxLines = 1, String? hint}) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label, style: const TextStyle(color: AppColors.textLight, fontSize: 13)),
+      const SizedBox(height: 8),
+      TextField(
+        controller: controller,
+        maxLines: maxLines,
+        style: const TextStyle(color: AppColors.textDark, fontSize: 15),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(color: AppColors.textLight.withOpacity(0.5)),
+          prefixIcon: Icon(icon, color: AppColors.textLight, size: 20),
+          filled: true,
+          fillColor: AppColors.card,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        ),
+      ),
+    ]);
+  }
+}
+
+// ==================== إنشاء غرفة ====================
+class CreateRoomScreen extends StatefulWidget {
+  const CreateRoomScreen({super.key});
+  @override
+  State<CreateRoomScreen> createState() => _CreateRoomScreenState();
+}
+
+class _CreateRoomScreenState extends State<CreateRoomScreen> {
+  final _nameController = TextEditingController();
+  final _descController = TextEditingController();
+  bool _loading = false;
+
+  Future<void> _create() async {
+    if (_nameController.text.trim().isEmpty) return;
+    setState(() => _loading = true);
+    try {
+      await repo.createRoom(roomName: _nameController.text.trim(), description: _descController.text.trim());
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم ارسال الطلب. بانتظار موافقة الادمن'), backgroundColor: AppColors.success));
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('فشل انشاء الغرفة'), backgroundColor: AppColors.error));
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.primaryBlue,
+      appBar: AppBar(backgroundColor: AppColors.card, title: const Text('انشاء غرفة', style: TextStyle(color: AppColors.textDark, fontWeight: FontWeight.bold))),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(children: [
+          _buildField('اسم الغرفة *', _nameController, Icons.meeting_room_outlined),
+          const SizedBox(height: 16),
+          _buildField('وصف الغرفة', _descController, Icons.description_outlined, maxLines: 3),
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            height: 54,
+            child: ElevatedButton(
+              onPressed: _loading? null : _create,
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.button, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+              child: _loading? const CircularProgressIndicator(color: Colors.white) : const Text('ارسال طلب', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _buildField(String label, TextEditingController controller, IconData icon, {int maxLines = 1}) {
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      style: const TextStyle(color: AppColors.textDark),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: AppColors.textLight),
+        prefixIcon: Icon(icon, color: AppColors.textLight),
+        filled: true,
+        fillColor: AppColors.card,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+      ),
+    );
+  }
+}
+
+// ==================== شاشة الحظر ====================
+class BannedScreen extends StatelessWidget {
+  const BannedScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.primaryBlue,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            const Icon(Icons.block, size: 100, color: AppColors.error),
+            const SizedBox(height: 24),
+            const Text('تم حظر حسابك', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textDark)),
+            const SizedBox(height: 8),
+            const Text('تواصل مع الادارة لمعرفة السبب', style: TextStyle(color: AppColors.textLight)),
+            const SizedBox(height: 32),
+            ElevatedButton(
+              onPressed: () => repo.signOut(),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.button, padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              child: const Text('تسجيل خروج', style: TextStyle(color: Colors.white, fontSize: 16)),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+          
