@@ -9,9 +9,10 @@ import 'app.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // هذا هو الربط بـ Supabase
   await Supabase.initialize(
-    url: 'YOUR_SUPABASE_URL',
-    anonKey: 'YOUR_SUPABASE_ANON_KEY',
+    url: 'https://jmsmrojtlstppnpwmkkk.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos',
     authOptions: const FlutterAuthClientOptions(authFlowType: AuthFlowType.pkce),
     realtimeClientOptions: const RealtimeClientOptions(eventsPerSecond: 10),
   );
@@ -243,18 +244,18 @@ class SupabaseRepository {
   Stream<List<MessageModel>> getRoomMessagesStream({required String roomId}) {
     final currentUserId = supabase.auth.currentUser!.id;
     return supabase.from('messages').stream(primaryKey: ['id'])
-    .eq('room_id', roomId)
-    .order('created_at', ascending: false)
-    .map((list) => list.map((e) => MessageModel.fromMap(e, currentUserId)).toList());
+  .eq('room_id', roomId)
+  .order('created_at', ascending: false)
+  .map((list) => list.map((e) => MessageModel.fromMap(e, currentUserId)).toList());
   }
 
   Stream<List<MessageModel>> getPrivateMessagesStream({required String otherUserId}) {
     final currentUserId = supabase.auth.currentUser!.id;
     return supabase
-       .from('messages')
-       .stream(primaryKey: ['id'])
-       .order('created_at', ascending: false)
-       .map((list) {
+     .from('messages')
+     .stream(primaryKey: ['id'])
+     .order('created_at', ascending: false)
+     .map((list) {
           final filtered = list.where((e) {
             final uid = e['user_id']?.toString();
             final rid = e['receiver_id']?.toString();
@@ -305,9 +306,9 @@ class SupabaseRepository {
         list.any((e) => e['is_typing'] == true && e['user_id']!= currentUserId));
     } else {
       return query
-         .eq('receiver_id', currentUserId)
-         .eq('user_id', otherUserId!)
-         .map((list) => list.any((e) => e['is_typing'] == true));
+       .eq('receiver_id', currentUserId)
+       .eq('user_id', otherUserId!)
+       .map((list) => list.any((e) => e['is_typing'] == true));
     }
   }
 
