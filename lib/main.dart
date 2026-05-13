@@ -12,26 +12,25 @@ import 'privacy_policy_screen.dart';
 import 'dart:ui';
 import 'models.dart';
 
-// ========== الألوان مدموجة هنا ==========
+// ========== الألوان ==========
 class AppColors {
-  // === Pinterest 2026 Palette ===
-  static const Color button = Color(0xFF4B0082);      // Wasabi فسفوري - للازرار فقط
-  static const Color primaryBlue = Color(0xFFD7EFFF); // Cool Blue - خلفية التطبيق الرئيسية
-  static const Color background = Color(0xFFD7EFFF);  // Cool Blue - خلفية ثانوية
+  static const Color button = Color(0xFF4B0082);      
+  static const Color primaryBlue = Color(0xFFD7EFFF); 
+  static const Color background = Color(0xFFD7EFFF);  
   
-  static const Color icon = Color(0xFFAEB8A0);        // Vert Sauge - للايقونات اخضر فاتح
-  static const Color success = Color(0xFFAEB8A0);     // Vert Sauge - للنجاح
+  static const Color icon = Color(0xFFAEB8A0);        
+  static const Color success = Color(0xFFAEB8A0);     
   
-  static const Color cardGlass = Color(0xFFFFFFFF);   // ابيض - للكروت
-  static const Color card = Color(0xFFFFFFFF);        // ابيض - للكروت
+  static const Color cardGlass = Color(0xFFFFFFFF);   
+  static const Color card = Color(0xFFFFFFFF);        
   
-  static const Color textDark = Color(0xFF2D3748);    // رمادي غامق - للنصوص الرئيسية
-  static const Color text = Color(0xFF2D3748);        // رمادي غامق - نص افتراضي
-  static const Color textLight = Color(0xFF718096);   // رمادي متوسط - للنصوص الثانوية
+  static const Color textDark = Color(0xFF2D3748);    
+  static const Color text = Color(0xFF2D3748);        
+  static const Color textLight = Color(0xFF718096);   
   
-  static const Color error = Color(0xFFE53E3E);       // احمر - للاخطاء
-  static const Color delete = Color(0xFFE53E3E);      // احمر - للحذف
-  static const Color border = Color(0xFFCBD5E0);      // رمادي فاتح - للحدود
+  static const Color error = Color(0xFFE53E3E);       
+  static const Color delete = Color(0xFFE53E3E);      
+  static const Color border = Color(0xFFCBD5E0);      
 }
 
 void main() async {
@@ -100,15 +99,28 @@ class AuthGate extends StatelessWidget {
 
             final user = userSnapshot.data;
             
-            if (user?.isBanned == true) {
+            // اذا ما لقى يوزر بالـ profiles رجعه لتسجيل الدخول
+            if (user == null) {
+              return AuthScreen();
+            }
+            
+            // اذا محظور
+            if (user.isBanned == true) {
               return BannedScreen();
             }
             
-            if (user?.role == 'admin') {
+            // اذا ادمن
+            if (user.isAdmin == true) {
               return AdminPanel();
             }
             
-            return ProfileSettings();
+            // اذا اول مرة يدخل وما مكمل اسمه، وديه للاعدادات
+            if (user.name == null || user.name!.isEmpty) {
+              return ProfileSettings();
+            }
+            
+            // والا روح للشات الرئيسي
+            return ChatScreen();
           },
         );
       },
@@ -137,7 +149,7 @@ class BannedScreen extends StatelessWidget {
             ElevatedButton(
               onPressed: () => repo.supabase.auth.signOut(),
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.button),
-              child: Text('تسجيل الخروج'),
+              child: Text('تسجيل الخروج', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
