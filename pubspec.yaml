@@ -1,46 +1,51 @@
-name: sea_chat
-description: تطبيق دردشة بحري متكامل
-version: 1.0.0+1
-publish_to: 'none'
+name: Flutter Auto-Build SeaChat
 
-environment:
-  sdk: '>=3.5.0 <4.0.0'
-  flutter: '>=3.24.0'
+on:
+  push:
+    branches:
+      - main
 
-dependencies:
-  flutter:
-    sdk: flutter
-  supabase_flutter: ^2.8.0
-  cached_network_image: ^3.4.1
-  image_picker: ^1.1.2
-  record: ^5.2.0
-  just_audio: ^0.9.40
-  path_provider: ^2.1.4
-  timeago: ^3.7.0
-  intl: ^0.19.0
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_lints: ^4.0.0
-  flutter_launcher_icons: ^0.13.1
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-flutter:
-  uses-material-design: true
-  
-  assets:
-    - assets/icon.png
-  
-  fonts:
-    - family: Cairo
-      fonts:
-        - asset: assets/fonts/Cairo-Regular.ttf
-          weight: 400
-        - asset: assets/fonts/Cairo-Bold.ttf
-          weight: 700
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
 
-flutter_launcher_icons:
-  android: "launcher_icon"
-  ios: false
-  image_path: "assets/icon.png"
-  min_sdk_android: 21
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0' # متوافق مع متطلبات مشروعك
+
+      - name: Reconstruct Android Environment
+        run: |
+          # 1. تنظيف وإضافة Go_router برمجياً لضمان استبدال app_links
+          flutter pub remove app_links || true
+          flutter pub add go_router
+          
+          # 2. حذف وإعادة إنشاء مجلد أندرويد ليكون حديثاً ومتوافقاً
+          rm -rf android
+          flutter create . --platforms android --org com.seachat.app
+          
+          # 3. ربط المسارات في الخادم
+          echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
+          echo "sdk.dir=$ANDROID_SDK_ROOT" >> android/local.properties
+          
+          # 4. ضبط الـ SDK على 35 لدعم مكتبات record و just_audio و image_picker
+          sed -i 's/compileSdkVersion .*/compileSdkVersion 35/' android/app/build.gradle
+          sed -i 's/targetSdkVersion .*/targetSdkVersion 35/' android/app/build.gradle
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build APK
+        run: |
+          # بناء نسخة الإصدار مع تخطي تحذيرات الأيقونات إذا لم تكن موجودة بعد
+          flutter build apk --release --no-tree-shake-icons
