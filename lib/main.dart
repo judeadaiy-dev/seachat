@@ -1,256 +1,396 @@
+// main.dart
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:timeago/timeago.dart' as timeago;
+import 'package:intl/intl.dart';
 import 'dart:async';
 import 'dart:io';
-import 'app.dart';
+import 'widgets.dart'; // الشاشات اللي رسلتها
+import 'admin.dart';   // لوحة التحكم
 
-Future<void> main() async {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
   await Supabase.initialize(
-    url: 'https://jmsmrojtlstppnpwmkkk.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc21yb2p0bHN0cHBucHdta2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MTg2NDAsImV4cCI6MjA4ODM5NDY0MH0.j7gxr5CvrfvbJJzK_pMwVHiCE2AqpXUTThpeLEBmsos',
-    authOptions: const FlutterAuthClientOptions(authFlowType: AuthFlowType.pkce),
-    realtimeClientOptions: const RealtimeClientOptions(eventsPerSecond: 10),
+    url: 'YOUR_SUPABASE_URL',
+    anonKey: 'YOUR_SUPABASE_ANON_KEY',
   );
+  
+  timeago.setLocaleMessages('ar', timeago.ArMessages());
+  
   runApp(const MyApp());
 }
 
-// ألوان مائية ساحلية
-class SeaColors {
-  static const Color deepOcean = Color(0xFF0A2342);
-  static const Color oceanBlue = Color(0xFF1B4D7A);
-  static const Color aqua = Color(0xFF2E8BC0);
-  static const Color seaFoam = Color(0xFF6FB1D3);
-  static const Color sand = Color(0xFFF5E6C8);
-  static const Color coral = Color(0xFFFF7F50);
-  static const Color glass = Color(0x33FFFFFF);
-  static const Color glassBorder = Color(0x4DFFFFFF);
-  static const Color textLight = Color(0xFFE8F4F8);
-  static const Color textDark = Color(0xFF0A2342);
-  static const Color online = Color(0xFF4ADE80);
-  static const Color error = Color(0xFFEF4444);
+// ============ 1. الثيم - تصميم بحري مائي ============
+class AppColors {
+  static const Color primaryBlue = Color(0xFF0A1929); // كحلي بحر عميق
+  static const Color card = Color(0xFF132F4C);        // كارد أزرق مائي
+  static const Color button = Color(0xFF007FFF);      // أزرق سماوي
+  static const Color textDark = Color(0xFFE3F2FD);    // أبيض مزرق
+  static const Color textLight = Color(0xFF90CAF9);   // أزرق فاتح
+  static const Color success = Color(0xFF00C853);     // أخضر مائي
+  static const Color error = Color(0xFFFF5252);       // أحمر مرجاني
+  static const Color online = Color(0xFF00E676);      // أخضر نشط
+  static const Color warning = Color(0xFFFFB74D);    // برتقالي غروب
 }
 
-@immutable
+final chatTheme = ThemeData(
+  useMaterial3: true,
+  colorScheme: ColorScheme.fromSeed(
+    seedColor: AppColors.button,
+    brightness: Brightness.dark,
+    background: AppColors.primaryBlue,
+    surface: AppColors.card,
+  ),
+  scaffoldBackgroundColor: AppColors.primaryBlue,
+  fontFamily: 'Cairo', // خط عربي مريح
+  appBarTheme: const AppBarTheme(
+    backgroundColor: AppColors.card,
+    elevation: 0,
+    centerTitle: true,
+    titleTextStyle: TextStyle(
+      color: AppColors.textDark,
+      fontSize: 18,
+      fontWeight: FontWeight.bold,
+      fontFamily: 'Cairo',
+    ),
+  ),
+  cardTheme: CardThemeData(
+    color: AppColors.card,
+    elevation: 2,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+  ),
+  elevatedButtonTheme: ElevatedButtonThemeData(
+    style: ElevatedButton.styleFrom(
+      backgroundColor: AppColors.button,
+      foregroundColor: Colors.white,
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 0,
+    ),
+  ),
+  inputDecorationTheme: InputDecorationTheme(
+    filled: true,
+    fillColor: AppColors.card,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide.none,
+    ),
+    hintStyle: const TextStyle(color: AppColors.textLight),
+  ),
+);
+
+// ============ 2. المودلز ============
 class UserModel {
-  final String id, email, name;
-  final String? username, avatarUrl, bio;
+  final String id;
+  final String email;
+  final String name;
+  final String? username;
+  final String? avatarUrl;
+  final String? bio;
   final String role;
-  final bool isBanned, isOnline;
+  final bool isOnline;
+  final bool isBanned;
   final DateTime? lastSeen;
-
-  const UserModel({
-    required this.id, required this.email, required this.name,
-    this.username, this.avatarUrl, this.bio,
-    this.role = 'user', this.isBanned = false, this.isOnline = false, this.lastSeen,
-  });
-
-  factory UserModel.fromMap(Map<String, dynamic> map) => UserModel(
-    id: map['id']?.toString()?? '',
-    email: map['email']?.toString()?? '',
-    name: map['name']?.toString()?? 'مستخدم',
-    username: map['username']?.toString(),
-    avatarUrl: map['avatar_url']?.toString(),
-    bio: map['bio']?.toString(),
-    role: map['role']?.toString()?? 'user',
-    isBanned: map['is_banned'] == true,
-    isOnline: map['is_online'] == true,
-    lastSeen: map['last_seen']!= null? DateTime.tryParse(map['last_seen']) : null,
-  );
-
-  bool get isAdmin => role == 'admin' || role == 'owner';
-}
-
-@immutable
-class RoomModel {
-  final String id, roomName, ownerId;
-  final String? description, imageUrl;
-  final bool isPrivate, isApproved;
   final DateTime createdAt;
 
-  const RoomModel({
-    required this.id, required this.roomName, required this.ownerId,
-    this.description, this.imageUrl,
-    this.isPrivate = false, this.isApproved = true, required this.createdAt,
+  UserModel({
+    required this.id,
+    required this.email,
+    required this.name,
+    this.username,
+    this.avatarUrl,
+    this.bio,
+    required this.role,
+    required this.isOnline,
+    required this.isBanned,
+    this.lastSeen,
+    required this.createdAt,
   });
 
-  factory RoomModel.fromMap(Map<String, dynamic> map) => RoomModel(
-    id: map['id']?.toString()?? '',
-    roomName: map['room_name']?.toString()?? 'غرفة',
-    description: map['description']?.toString(),
-    imageUrl: map['image_url']?.toString(),
-    ownerId: map['owner_id']?.toString()?? '',
-    isPrivate: map['is_private'] == true,
-    isApproved: map['is_approved'] == true,
-    createdAt: DateTime.tryParse(map['created_at']?.toString()?? '')?? DateTime.now(),
-  );
-}
-
-@immutable
-class MessageModel {
-  final String id, userId, text;
-  final String? roomId, receiverId, mediaUrl;
-  final DateTime createdAt;
-  final UserModel? user;
-  final bool isMe, isDeleted;
-  final String messageType;
-
-  const MessageModel({
-    required this.id, required this.userId, required this.text,
-    this.roomId, this.receiverId, this.mediaUrl,
-    required this.createdAt, this.user, required this.isMe,
-    this.isDeleted = false, this.messageType = 'text',
-  });
-
-  factory MessageModel.fromMap(Map<String, dynamic> map, String currentUserId) {
-    final profiles = map['profiles'] as Map<String, dynamic>?;
-    return MessageModel(
-      id: map['id']?.toString()?? '',
-      userId: map['user_id']?.toString()?? '',
-      roomId: map['room_id']?.toString(),
-      receiverId: map['receiver_id']?.toString(),
-      mediaUrl: map['media_url']?.toString(),
-      text: map['is_deleted'] == true? 'تم حذف هذه الرسالة' : map['content']?.toString()?? '',
-      createdAt: DateTime.tryParse(map['created_at']?.toString()?? '')?? DateTime.now(),
-      user: profiles!= null? UserModel.fromMap(profiles) : null,
-      isMe: map['user_id']?.toString() == currentUserId,
-      isDeleted: map['is_deleted'] == true,
-      messageType: map['message_type']?.toString()?? 'text',
+  factory UserModel.fromMap(Map<String, dynamic> map) {
+    return UserModel(
+      id: map['id'],
+      email: map['email'],
+      name: map['name'],
+      username: map['username'],
+      avatarUrl: map['avatar_url'],
+      bio: map['bio'],
+      role: map['role'] ?? 'user',
+      isOnline: map['is_online'] ?? false,
+      isBanned: map['is_banned'] ?? false,
+      lastSeen: map['last_seen'] != null ? DateTime.parse(map['last_seen']) : null,
+      createdAt: DateTime.parse(map['created_at']),
     );
   }
 }
 
-class SupabaseRepository {
-  final supabase = Supabase.instance.client;
-  final _audioRecorder = AudioRecorder();
+class RoomModel {
+  final String id;
+  final String roomName;
+  final String? description;
+  final String? imageUrl;
+  final String ownerId;
+  final String roomType; // 'public' or 'official'
+  final bool isApproved;
+  final bool isPinned;
+  final DateTime createdAt;
 
+  RoomModel({
+    required this.id,
+    required this.roomName,
+    this.description,
+    this.imageUrl,
+    required this.ownerId,
+    required this.roomType,
+    required this.isApproved,
+    required this.isPinned,
+    required this.createdAt,
+  });
+
+  factory RoomModel.fromMap(Map<String, dynamic> map) {
+    return RoomModel(
+      id: map['id'],
+      roomName: map['room_name'],
+      description: map['description'],
+      imageUrl: map['image_url'],
+      ownerId: map['owner_id'],
+      roomType: map['room_type'] ?? 'public',
+      isApproved: map['is_approved'] ?? false,
+      isPinned: map['is_pinned'] ?? false,
+      createdAt: DateTime.parse(map['created_at']),
+    );
+  }
+}
+
+class MessageModel {
+  final String id;
+  final String senderId;
+  final String? roomId;
+  final String? receiverId;
+  final String text;
+  final String messageType; // 'text', 'image', 'audio'
+  final String? mediaUrl;
+  final bool isDeleted;
+  final bool isSeen;
+  final DateTime createdAt;
+  final UserModel? user;
+  bool get isMe => senderId == Supabase.instance.client.auth.currentUser?.id;
+
+  MessageModel({
+    required this.id,
+    required this.senderId,
+    this.roomId,
+    this.receiverId,
+    required this.text,
+    required this.messageType,
+    this.mediaUrl,
+    required this.isDeleted,
+    required this.isSeen,
+    required this.createdAt,
+    this.user,
+  });
+
+  factory MessageModel.fromMap(Map<String, dynamic> map) {
+    return MessageModel(
+      id: map['id'],
+      senderId: map['sender_id'],
+      roomId: map['room_id'],
+      receiverId: map['receiver_id'],
+      text: map['content'] ?? '',
+      messageType: map['message_type'] ?? 'text',
+      mediaUrl: map['media_url'],
+      isDeleted: map['is_deleted'] ?? false,
+      isSeen: map['is_seen'] ?? false,
+      createdAt: DateTime.parse(map['created_at']),
+      user: map['profiles'] != null ? UserModel.fromMap(map['profiles']) : null,
+    );
+  }
+}
+
+// ============ 3. الباك اند - ChatRepository كامل ============
+class ChatRepository {
+  final _supabase = Supabase.instance.client;
+  final _record = AudioRecorder();
+  String? _recordingPath;
+
+  // ========== Auth & Profile ==========
   Future<UserModel?> getCurrentUser() async {
-    final user = supabase.auth.currentUser;
-    if (user == null) return null;
-    final data = await supabase.from('profiles').select().eq('id', user.id).maybeSingle();
-    return data!= null? UserModel.fromMap(data) : null;
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return null;
+    final res = await _supabase.from('profiles').select().eq('id', userId).maybeSingle();
+    return res != null ? UserModel.fromMap(res) : null;
+  }
+
+  Future<UserModel?> getUserById(String userId) async {
+    final res = await _supabase.from('profiles').select().eq('id', userId).maybeSingle();
+    return res != null ? UserModel.fromMap(res) : null;
+  }
+
+  Future<void> updateProfile({required String name, String? username, String? bio}) async {
+    final userId = _supabase.auth.currentUser!.id;
+    await _supabase.from('profiles').update({
+      'name': name,
+      'username': username,
+      'bio': bio,
+    }).eq('id', userId);
+  }
+
+  Future<String> uploadAvatar(String path) async {
+    final userId = _supabase.auth.currentUser!.id;
+    final bytes = await File(path).readAsBytes();
+    final fileName = 'avatar_$userId.jpg';
+    await _supabase.storage.from('avatars').uploadBinary(fileName, bytes, fileOptions: const FileOptions(upsert: true));
+    final url = _supabase.storage.from('avatars').getPublicUrl(fileName);
+    await _supabase.from('profiles').update({'avatar_url': url}).eq('id', userId);
+    return url;
+  }
+
+  Future<void> deleteAvatar() async {
+    final userId = _supabase.auth.currentUser!.id;
+    await _supabase.from('profiles').update({'avatar_url': null}).eq('id', userId);
+  }
+
+  Future<void> signOut() async {
+    await updateOnlineStatus(false);
+    await _supabase.auth.signOut();
   }
 
   Future<void> updateOnlineStatus(bool isOnline) async {
-    final userId = supabase.auth.currentUser?.id;
+    final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return;
-    await supabase.from('profiles').update({
+    await _supabase.from('profiles').update({
       'is_online': isOnline,
       'last_seen': DateTime.now().toIso8601String(),
     }).eq('id', userId);
   }
 
-  Future<void> updateProfile({required String name, String? username, String? bio}) async {
-    final userId = supabase.auth.currentUser!.id;
-    await supabase.from('profiles').update({'name': name, 'username': username, 'bio': bio}).eq('id', userId);
+  // ========== Rooms ==========
+  Future<List<RoomModel>> getMyRooms() async {
+    final userId = _supabase.auth.currentUser!.id;
+    final res = await _supabase.from('rooms').select().eq('owner_id', userId).order('created_at');
+    return (res as List).map((e) => RoomModel.fromMap(e)).toList();
   }
-
-  Future<String?> uploadAvatar(String path) async {
-    final userId = supabase.auth.currentUser!.id;
-    final fileName = '$userId-${DateTime.now().millisecondsSinceEpoch}.jpg';
-    final fileBytes = await XFile(path).readAsBytes();
-    await supabase.storage.from('avatars').uploadBinary(fileName, fileBytes, fileOptions: const FileOptions(upsert: true));
-    final url = supabase.storage.from('avatars').getPublicUrl(fileName);
-    await supabase.from('profiles').update({'avatar_url': url}).eq('id', userId);
-    return url;
-  }
-
-  Future<String> uploadChatMedia(String path, String type) async {
-    final userId = supabase.auth.currentUser!.id;
-    final fileName = '$type/$userId-${DateTime.now().millisecondsSinceEpoch}.jpg';
-    final fileBytes = await File(path).readAsBytes();
-    await supabase.storage.from('chat-media').uploadBinary(fileName, fileBytes);
-    return supabase.storage.from('chat-media').getPublicUrl(fileName);
-  }
-
-  Future<void> startRecording() async {
-    if (await _audioRecorder.hasPermission()) {
-      await _audioRecorder.start(
-        const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 128000, sampleRate: 44100),
-        path: '${Directory.systemTemp.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a',
-      );
-    }
-  }
-
-  Future<String?> stopRecording() async => await _audioRecorder.stop();
-  Future<bool> isRecording() async => await _audioRecorder.isRecording();
 
   Future<List<RoomModel>> getPublicRooms() async {
-    final res = await supabase.from('rooms').select().eq('is_approved', true).order('created_at');
+    final res = await _supabase.from('rooms').select().eq('is_approved', true).eq('room_type', 'public').order('is_pinned', ascending: false);
     return (res as List).map((e) => RoomModel.fromMap(e)).toList();
   }
 
   Future<void> createRoom({required String roomName, String? description}) async {
-    final userId = supabase.auth.currentUser!.id;
-    await supabase.from('rooms').insert({
-      'room_name': roomName, 'description': description, 'owner_id': userId, 'is_approved': true,
+    final userId = _supabase.auth.currentUser!.id;
+    await _supabase.from('rooms').insert({
+      'room_name': roomName,
+      'description': description,
+      'owner_id': userId,
+      'room_type': 'public',
+      'is_approved': false,
     });
   }
 
+  // ========== Messages ==========
   Stream<List<MessageModel>> getRoomMessagesStream({required String roomId}) {
-    final currentUserId = supabase.auth.currentUser!.id;
-    return supabase.from('messages').stream(primaryKey: ['id']).eq('room_id', roomId).order('created_at', ascending: true)
-       .map((list) => list.map((e) => MessageModel.fromMap(e, currentUserId)).toList());
+    return _supabase
+        .from('messages')
+        .stream(primaryKey: ['id'])
+        .eq('room_id', roomId)
+        .order('created_at', ascending: false)
+        .limit(100)
+        .map((data) => data.map((e) => MessageModel.fromMap(e)).toList());
   }
 
   Stream<List<MessageModel>> getPrivateMessagesStream({required String otherUserId}) {
-    final currentUserId = supabase.auth.currentUser!.id;
-    return supabase.from('messages').stream(primaryKey: ['id']).order('created_at', ascending: true).map((list) {
-      final filtered = list.where((e) {
-        final uid = e['user_id']?.toString();
-        final rid = e['receiver_id']?.toString();
-        return (uid == currentUserId && rid == otherUserId) || (uid == otherUserId && rid == currentUserId);
-      }).toList();
-      return filtered.map((e) => MessageModel.fromMap(e, currentUserId)).toList();
+    final myId = _supabase.auth.currentUser!.id;
+    return _supabase
+        .from('messages')
+        .stream(primaryKey: ['id'])
+        .or('and(sender_id.eq.$myId,receiver_id.eq.$otherUserId),and(sender_id.eq.$otherUserId,receiver_id.eq.$myId)')
+        .order('created_at', ascending: false)
+        .limit(100)
+        .map((data) => data.map((e) => MessageModel.fromMap(e)).toList());
+  }
+
+  Future<void> sendMessage({
+    String? roomId,
+    String? receiverId,
+    String? text,
+    String? mediaUrl,
+    required String messageType,
+  }) async {
+    final senderId = _supabase.auth.currentUser!.id;
+    await _supabase.from('messages').insert({
+      'sender_id': senderId,
+      'room_id': roomId,
+      'receiver_id': receiverId,
+      'content': text,
+      'media_url': mediaUrl,
+      'message_type': messageType,
     });
   }
 
-  Future<void> sendMessage({String? roomId, String? receiverId, String? text, String? mediaUrl, required String messageType}) async {
-    final userId = supabase.auth.currentUser!.id;
-    await supabase.from('messages').insert({
-      'room_id': roomId, 'receiver_id': receiverId, 'user_id': userId,
-      'content': text?? '', 'media_url': mediaUrl, 'message_type': messageType,
-    });
+  Future<String> uploadChatMedia(String path, String type) async {
+    final bytes = await File(path).readAsBytes();
+    final fileName = '${DateTime.now().millisecondsSinceEpoch}_${type == 'image' ? 'jpg' : 'm4a'}';
+    await _supabase.storage.from('chat_media').uploadBinary(fileName, bytes);
+    return _supabase.storage.from('chat_media').getPublicUrl(fileName);
   }
 
   Future<void> deleteMessage(String messageId) async {
-    await supabase.from('messages').update({'is_deleted': true, 'content': ''}).eq('id', messageId);
+    await _supabase.from('messages').update({'is_deleted': true, 'content': 'تم حذف هذه الرسالة'}).eq('id', messageId);
   }
 
-  Future<void> banUser(String userId) async {
-    await supabase.from('profiles').update({'is_banned': true}).eq('id', userId);
+  Future<void> markMessageAsSeen(String messageId) async {
+    await _supabase.from('messages').update({'is_seen': true}).eq('id', messageId);
   }
 
-  Future<List<UserModel>> getAllUsers() async {
-    final res = await supabase.from('profiles').select().neq('id', supabase.auth.currentUser!.id);
-    return (res as List).map((e) => UserModel.fromMap(e)).toList();
-  }
-
+  // ========== Typing Status ==========
   Stream<bool> getTypingStream({String? roomId, String? otherUserId}) {
-    final currentUserId = supabase.auth.currentUser!.id;
-    if (roomId!= null) {
-      return supabase.from('typing_status').stream(primaryKey: ['id']).eq('room_id', roomId)
-         .map((list) => list.any((e) => e['is_typing'] == true && e['user_id']!= currentUserId));
+    final myId = _supabase.auth.currentUser!.id;
+    if (roomId != null) {
+      return _supabase
+          .from('typing_status')
+          .stream(primaryKey: ['id'])
+          .eq('room_id', roomId)
+          .map((data) => data.any((e) => e['user_id'] != myId && e['is_typing'] == true));
     } else {
-      return supabase.from('typing_status').stream(primaryKey: ['id']).eq('receiver_id', currentUserId).eq('user_id', otherUserId!)
-         .map((list) => list.any((e) => e['is_typing'] == true));
+      return _supabase
+          .from('typing_status')
+          .stream(primaryKey: ['id'])
+          .eq('sender_id', otherUserId!)
+          .eq('receiver_id', myId)
+          .map((data) => data.any((e) => e['is_typing'] == true));
     }
   }
 
   Future<void> updateTypingStatus({String? roomId, String? receiverId, required bool isTyping}) async {
-    final userId = supabase.auth.currentUser!.id;
-    await supabase.from('typing_status').upsert({
-      'room_id': roomId, 'user_id': userId, 'receiver_id': receiverId,
-      'is_typing': isTyping, 'updated_at': DateTime.now().toIso8601String(),
-    }, onConflict: 'user_id,room_id,receiver_id');
+    final userId = _supabase.auth.currentUser!.id;
+    await _supabase.from('typing_status').upsert({
+      'user_id': userId,
+      'room_id': roomId,
+      'sender_id': receiverId != null ? userId : null,
+      'receiver_id': receiverId,
+      'is_typing': isTyping,
+      'updated_at': DateTime.now().toIso8601String(),
+    });
   }
 
-  Future<void> signOut() async {
-    await updateOnlineStatus(false);
-    await supabase.auth.signOut();
+  // ========== Recording ==========
+  Future<void> startRecording() async {
+    if (await _record.hasPermission()) {
+      final dir = await getTemporaryDirectory();
+      _recordingPath = '${dir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      await _record.start(const RecordConfig(), path: _recordingPath!);
+    }
+  }
+
+  Future<String?> stopRecording() async {
+    await _record.stop();
+    return _recordingPath;
   }
 }
 
-final repo = SupabaseRepository();
+final repo = ChatRepository();
