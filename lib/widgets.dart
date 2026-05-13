@@ -558,7 +558,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       );
       if (mounted) {
         Navigator.pop(context);
-        if (widget.isFirstTime) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AuthGate()));
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('فشل الحفظ'), backgroundColor: AppColors.error));
