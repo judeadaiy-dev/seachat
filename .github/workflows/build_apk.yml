@@ -26,33 +26,31 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: 4. تجديد Android + حل مشكلة المكتبات
+      - name: 4. تجديد Android + حل جذري للمكتبات
         run: |
           rm -rf android
           flutter create --platforms=android --org com.seachat .
           
-          # حل مشكلة app_links + كل المكتبات
-          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 34/' android/app/build.gradle
+          # حل 1: نثبت الاصدارات في local.properties
+          sed -i '/^flutter.minSdkVersion/d' android/local.properties
+          sed -i '/^flutter.targetSdkVersion/d' android/local.properties
+          sed -i '/^flutter.compileSdkVersion/d' android/local.properties
+          echo "flutter.compileSdkVersion=34" >> android/local.properties
+          echo "flutter.targetSdkVersion=34" >> android/local.properties
+          echo "flutter.minSdkVersion=21" >> android/local.properties
+          
+          # حل 2: تفعيل multiDex + نثبت compileSdk في build.gradle مباشرة
+          sed -i 's/compileSdk flutter.compileSdkVersion/compileSdk 34/' android/app/build.gradle
           sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 34/' android/app/build.gradle
           sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/' android/app/build.gradle
           sed -i '/defaultConfig {/a \        multiDexEnabled true' android/app/build.gradle
-          
-          # هذا هو الحل الصح - ينضاف في build.gradle مو settings.gradle
-          cat >> android/app/build.gradle << 'EOF'
-          
-          subprojects {
-              afterEvaluate { project ->
-                  if (project.hasProperty("android")) {
-                      android {
-                          compileSdkVersion 34
-                      }
-                  }
-              }
-          }
-          EOF
 
-      - name: 5. تثبيت الحزم
-        run: flutter pub get
+      - name: 5. تثبيت الحزم + حل app_links
+        run: |
+          # نجبر app_links على اصدار 6.3.2 ما فيه المشكلة
+          echo "dependency_overrides:" >> pubspec.yaml
+          echo "  app_links: 6.3.2" >> pubspec.yaml
+          flutter pub get
 
       - name: 6. اضافة التصاريح
         run: |
