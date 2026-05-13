@@ -1,35 +1,46 @@
 name: sea_chat
-description: "Sea Chat - دردشة بتصميم مائي ساحلي"
-publish_to: 'none'
+description: تطبيق دردشة بحري متكامل
 version: 1.0.0+1
+publish_to: 'none'
 
 environment:
-  sdk: ^3.5.0
+  sdk: '>=3.5.0 <4.0.0'
+  flutter: '>=3.24.0'
 
 dependencies:
   flutter:
     sdk: flutter
-  supabase_flutter: ^2.11.0
+  supabase_flutter: ^2.8.0
   cached_network_image: ^3.4.1
   image_picker: ^1.1.2
+  record: ^5.2.0
+  just_audio: ^0.9.40
+  path_provider: ^2.1.4
   timeago: ^3.7.0
   intl: ^0.19.0
-  uuid: ^4.5.1
-  permission_handler: ^11.3.1
-  cupertino_icons: ^1.0.8
-  record: ^6.0.0
-  google_fonts: ^6.2.1
-  shimmer: ^3.0.0
-  flutter_animate: ^4.5.0
-  photo_view: ^0.15.0
-  just_audio: ^0.9.42
-  path_provider: ^2.1.4
-  glassmorphism: ^3.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
+  
+  assets:
+    - assets/icon.png
+  
+  fonts:
+    - family: Cairo
+      fonts:
+        - asset: assets/fonts/Cairo-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Cairo-Bold.ttf
+          weight: 700
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icon.png"
+  min_sdk_android: 21
