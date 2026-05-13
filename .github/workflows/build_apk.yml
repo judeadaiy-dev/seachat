@@ -1,82 +1,43 @@
-name: Build Sea Chat APK
+name: Rebuild and Build APK
 
 on:
   push:
-    branches: [ main, master ]
-  workflow_dispatch:
+    branches:
+      - main  # أو اسم الفرع الذي تستخدمه في مستودع dood
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
-    steps:
-      - name: 1. سحب الكود
-        uses: actions/checkout@v4
 
-      - name: 2. تثبيت Java 17
-        uses: actions/setup-java@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: 3. تثبيت Flutter 3.24
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
-          channel: 'stable'
-          cache: true
+          flutter-version: '3.24.0' # إصدار حديث يتوافق مع متطلبات مشروعك
 
-      - name: 4. تجديد Android + حل جذري للمكتبات
+      - name: Recreate Android Folder
         run: |
           rm -rf android
-          flutter create --platforms=android --org com.seachat .
-          
-          # حل 1: نثبت الاصدارات في local.properties
-          sed -i '/^flutter.minSdkVersion/d' android/local.properties
-          sed -i '/^flutter.targetSdkVersion/d' android/local.properties
-          sed -i '/^flutter.compileSdkVersion/d' android/local.properties
-          echo "flutter.compileSdkVersion=34" >> android/local.properties
-          echo "flutter.targetSdkVersion=34" >> android/local.properties
-          echo "flutter.minSdkVersion=21" >> android/local.properties
-          
-          # حل 2: تفعيل multiDex + نثبت compileSdk في build.gradle مباشرة
-          sed -i 's/compileSdk flutter.compileSdkVersion/compileSdk 34/' android/app/build.gradle
-          sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 34/' android/app/build.gradle
-          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/' android/app/build.gradle
-          sed -i '/defaultConfig {/a \        multiDexEnabled true' android/app/build.gradle
+          flutter create . --platforms android
+          # هذا الأمر يضمن إعادة إنشاء الملفات مع الهوية الصحيحة لمشروع SeaChat
 
-      - name: 5. تثبيت الحزم + حل app_links
+      - name: Add Internet Permissions
         run: |
-          # نجبر app_links على اصدار 6.3.2 ما فيه المشكلة
-          echo "dependency_overrides:" >> pubspec.yaml
-          echo "  app_links: 6.3.2" >> pubspec.yaml
-          flutter pub get
+          # إضافة تصريح الإنترنت لضمان عمل Supabase (الصور، الصوت، الرسائل)
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.RECORD_AUDIO" />' android/app/src/main/AndroidManifest.xml
 
-      - name: 6. اضافة التصاريح
-        run: |
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          sed -i '/<\/manifest>/d' $MANIFEST
-          cat >> $MANIFEST << 'PERMS'
-              <uses-permission android:name="android.permission.INTERNET"/>
-              <uses-permission android:name="android.permission.CAMERA"/>
-              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
-              <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
-              <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
-              <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29"/>
-              <uses-permission android:name="android.permission.WAKE_LOCK"/>
-              <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
-              <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
-          </manifest>
-          PERMS
-          sed -i 's/<application/<application android:usesCleartextTraffic="true"/' $MANIFEST
+      - name: Install dependencies
+        run: flutter pub get
 
-      - name: 7. بناء APK نهائي
+      - name: Build APK
         run: flutter build apk --release --no-tree-shake-icons
-
-      - name: 8. رفع الـ APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: SeaChat-Release
-          path: build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 30
