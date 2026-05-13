@@ -1,4 +1,4 @@
-name: Flutter Auto-Android Build
+name: Flutter Clean Build (Go_router)
 
 on:
   push:
@@ -24,27 +24,23 @@ jobs:
         with:
           flutter-version: '3.24.0' 
 
-      - name: Recreate Android Folder
+      - name: Reconstruct Android
         run: |
+          # حذف المجلد القديم نهائياً
           rm -rf android
+          # إنشاء مجلد جديد نظيف تماماً
           flutter create . --platforms android --org com.seachat.app
-          flutter pub get
-
-      - name: Fix app_links & SDK Binding
-        run: |
-          # 1. إنشاء ملف الخصائص وربط المسارات الأساسية
+          
+          # إعداد ملف الخصائص الأساسي فقط
           echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
           echo "sdk.dir=$ANDROID_SDK_ROOT" >> android/local.properties
           
-          # 2. حقن تعريف Flutter في ملف build.gradle الرئيسي ليتعرف عليه app_links
-          # سنضيف كود برمجياً يخبر Gradle بمكان وجود Flutter لجميع المشاريع الفرعية
-          sed -i "1i def flutterRoot = '$FLUTTER_ROOT'" android/build.gradle
-          
-          # 3. تحديث إصدار الـ SDK إلى 35 المطلوب للمكتبات الحديثة في SeaChat
+          # ضبط الـ SDK على 35 لضمان عمل Supabase (الصور والصوت)
           sed -i 's/compileSdkVersion .*/compileSdkVersion 35/' android/app/build.gradle
           sed -i 's/targetSdkVersion .*/targetSdkVersion 35/' android/app/build.gradle
 
       - name: Build APK
         run: |
-          flutter pub upgrade
+          flutter pub get
+          # بناء التطبيق بدون الحاجة لتعقيدات الروابط العميقة
           flutter build apk --release --no-tree-shake-icons
