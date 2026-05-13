@@ -26,27 +26,11 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: 4. انشاء مشروع Android جديد + نسخ ملفاتك
+      - name: 4. تجديد مجلد Android فقط
         run: |
-          # نحفظ ملفاتك مؤقت
-          mkdir -p ~/backup_lib
-          cp lib/main.dart ~/backup_lib/ || true
-          cp lib/widgets.dart ~/backup_lib/ || true
-          cp lib/admin.dart ~/backup_lib/ || true
-          cp pubspec.yaml ~/backup_lib/ || true
-          
-          # ننشئ مشروع نظيف
-          flutter create --platforms=android --org com.seachat --project-name sea_chat temp_project
-          
-          # نرجع ملفاتك
-          rm -rf android lib pubspec.yaml
-          mv temp_project/android ./
-          mkdir lib
-          cp ~/backup_lib/main.dart lib/
-          cp ~/backup_lib/widgets.dart lib/
-          cp ~/backup_lib/admin.dart lib/
-          cp ~/backup_lib/pubspec.yaml ./
-          rm -rf temp_project ~/backup_lib
+          rm -rf android
+          flutter create --platforms=android --org com.seachat .
+          sed -i '/defaultConfig {/a \        multiDexEnabled true' android/app/build.gradle
 
       - name: 5. تثبيت الحزم
         run: flutter pub get
@@ -69,7 +53,6 @@ jobs:
           </manifest>
           PERMS
           sed -i 's/<application/<application android:usesCleartextTraffic="true"/' $MANIFEST
-          sed -i '/defaultConfig {/a \        multiDexEnabled true' android/app/build.gradle
 
       - name: 7. بناء APK نهائي
         run: flutter build apk --release --no-tree-shake-icons
