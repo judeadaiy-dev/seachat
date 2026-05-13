@@ -1,4 +1,11 @@
-// ==================== Screens ====================
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:timeago/timeago.dart' as timeago;
+import 'package:intl/intl.dart';
+import 'dart:async';
+
 
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
