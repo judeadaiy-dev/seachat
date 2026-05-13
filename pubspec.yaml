@@ -17,6 +17,48 @@ dependencies:
   uuid: ^4.5.1
   permission_handler: ^11.3.1
   cupertino_icons: ^1.0.8
+  record: ^6.0.0
+  
+  # UI
+  google_fonts: ^6.2.1
+  shimmer: ^3.0.0
+  lottie: ^3.1.2
+  glassmorphism: ^3.0.0
+  flutter_animate: ^4.5.0
+  photo_view: ^0.15.0
+  image_cropper: ^8.0.2
+  just_audio: ^0.9.42
+  audio_waveforms: ^1.2.0
+  path_provider: ^2.1.4
+
+# هذا أهم شي: يجبره يستخدم نسخ متوافقة
+dependency_overrides:
+  record_platform_interface: ^1.6.0
+  supabase: ^2.11.0
+  supabase_flutter: ^2.11.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  supabase_flutter: ^2.11.0
+  cached_network_image: ^3.4.1
+  image_picker: ^1.1.2
+  timeago: ^3.7.0
+  intl: ^0.19.0
+  uuid: ^4.5.1
+  permission_handler: ^11.3.1
+  cupertino_icons: ^1.0.8
   record: ^5.2.1
   
   # UI
