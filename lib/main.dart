@@ -192,7 +192,7 @@ class SupabaseRepository {
   Stream<List<MessageModel>> getRoomMessagesStream({required String roomId}) {
     final currentUserId = supabase.auth.currentUser!.id;
     return supabase.from('messages').stream(primaryKey: ['id']).eq('room_id', roomId).order('created_at', ascending: true)
-        .map((list) => list.map((e) => MessageModel.fromMap(e, currentUserId)).toList());
+       .map((list) => list.map((e) => MessageModel.fromMap(e, currentUserId)).toList());
   }
 
   Stream<List<MessageModel>> getPrivateMessagesStream({required String otherUserId}) {
@@ -232,10 +232,10 @@ class SupabaseRepository {
     final currentUserId = supabase.auth.currentUser!.id;
     if (roomId!= null) {
       return supabase.from('typing_status').stream(primaryKey: ['id']).eq('room_id', roomId)
-          .map((list) => list.any((e) => e['is_typing'] == true && e['user_id']!= currentUserId));
+         .map((list) => list.any((e) => e['is_typing'] == true && e['user_id']!= currentUserId));
     } else {
       return supabase.from('typing_status').stream(primaryKey: ['id']).eq('receiver_id', currentUserId).eq('user_id', otherUserId!)
-          .map((list) => list.any((e) => e['is_typing'] == true));
+         .map((list) => list.any((e) => e['is_typing'] == true));
     }
   }
 
