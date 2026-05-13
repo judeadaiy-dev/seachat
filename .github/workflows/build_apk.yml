@@ -1,4 +1,4 @@
-name: SeaChat Build
+name: SeaChat Final Build
 
 on:
   push:
@@ -24,19 +24,20 @@ jobs:
         with:
           flutter-version: '3.24.0'
 
-      - name: Build Android Parts Only
+      - name: Strict Project Cleanup
         run: |
-          # تأكد من حذف أي ملفات أندرويد قديمة قد تسبب تعارضاً
-          rm -rf android
+          # حذف أي إشارة لمكتبة app_links من ملف pubspec.yaml برمجياً
+          sed -i '/app_links:/d' pubspec.yaml
           
-          # أمر الإصلاح الذكي (يضيف مجلد أندرويد دون تغيير pubspec)
+          # حذف مجلد أندرويد المعطوب وإعادة بنائه
+          rm -rf android
           flutter create . --platforms android --org com.seachat.app
           
-          # ربط المسارات للـ SDK
+          # ربط المسارات بشكل صحيح لضمان عمل الحزم الأخرى
           echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
           echo "sdk.dir=$ANDROID_SDK_ROOT" >> android/local.properties
           
-          # تحديث إعدادات الـ SDK لـ 35
+          # ضبط الـ SDK على 35 ليتوافق مع مكتبات الصوت والصور في SeaChat
           sed -i 's/compileSdkVersion .*/compileSdkVersion 35/' android/app/build.gradle
           sed -i 's/targetSdkVersion .*/targetSdkVersion 35/' android/app/build.gradle
 
