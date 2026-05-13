@@ -3,7 +3,7 @@ name: Build Sea Chat APK
 on:
   push:
     branches: [ main, master ]
-  workflow_dispatch: # يخليك تشغله يدوي من GitHub
+  workflow_dispatch:
 
 jobs:
   build:
@@ -34,32 +34,28 @@ jobs:
           mv temp_project/lib ./
           rm -rf temp_project
 
-      - name: 5. نسخ ملفاتك الـ 4
+      - name: 5. نسخ ملفاتك
         run: |
           rm -f lib/main.dart
-          # تأكد ان ملفاتك موجودة في المستودع
-          # main.dart + widgets.dart + admin.dart + pubspec.yaml
-          
+          # ملفاتك main.dart + widgets.dart + admin.dart + pubspec.yaml 
+          # لازم تكون موجودة بالمستودع
+
       - name: 6. تثبيت الحزم
         run: flutter pub get
 
-      - name: 7. اضافة التصاريح للـ AndroidManifest.xml
+      - name: 7. اضافة التصاريح AndroidManifest.xml
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
           sed -i '/<\/manifest>/d' $MANIFEST
           
           cat >> $MANIFEST << 'PERMS'
-              <!-- Supabase + انترنت -->
               <uses-permission android:name="android.permission.INTERNET"/>
-              <!-- image_picker - صور -->
               <uses-permission android:name="android.permission.CAMERA"/>
               <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
               <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
               <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
-              <!-- record - تسجيل صوت -->
               <uses-permission android:name="android.permission.RECORD_AUDIO"/>
               <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29"/>
-              <!-- just_audio - تشغيل صوت -->
               <uses-permission android:name="android.permission.WAKE_LOCK"/>
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
@@ -69,13 +65,10 @@ jobs:
           sed -i 's/<application/<application android:usesCleartextTraffic="true"/' $MANIFEST
           sed -i '/defaultConfig {/a \        multiDexEnabled true' android/app/build.gradle
 
-      - name: 8. توليد ايقونة التطبيق
-        run: flutter pub run flutter_launcher_icons
-
-      - name: 9. بناء APK نهائي
+      - name: 8. بناء APK نهائي
         run: flutter build apk --release --no-tree-shake-icons
 
-      - name: 10. رفع الـ APK
+      - name: 9. رفع الـ APK
         uses: actions/upload-artifact@v4
         with:
           name: SeaChat-Release
