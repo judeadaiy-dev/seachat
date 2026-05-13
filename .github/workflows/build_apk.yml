@@ -1,9 +1,9 @@
-name: Rebuild and Build APK
+name: Flutter Auto-Android Build
 
 on:
   push:
     branches:
-      - main  # أو اسم الفرع الذي تستخدمه في مستودع dood
+      - main
 
 jobs:
   build:
@@ -22,22 +22,19 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0' # إصدار حديث يتوافق مع متطلبات مشروعك
+          # نستخدم أحدث إصدار مستقر ليقوم بإنشاء ملفات أندرويد حديثة تلقائياً
+          flutter-version: '3.24.0' 
 
-      - name: Recreate Android Folder
+      - name: Clean and Reconstruct
         run: |
+          # حذف المجلد القديم لضمان عدم وجود ملفات معطوبة
           rm -rf android
-          flutter create . --platforms android
-          # هذا الأمر يضمن إعادة إنشاء الملفات مع الهوية الصحيحة لمشروع SeaChat
-
-      - name: Add Internet Permissions
-        run: |
-          # إضافة تصريح الإنترنت لضمان عمل Supabase (الصور، الصوت، الرسائل)
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.RECORD_AUDIO" />' android/app/src/main/AndroidManifest.xml
-
-      - name: Install dependencies
-        run: flutter pub get
+          # إجبار فلاتر على إنشاء مجلد أندرويد جديد بأحدث الإعدادات
+          flutter create . --platforms android --org com.seachat.app
+          # تحديث المكتبات لضمان توافق الروابط (مثل Supabase و App Links)
+          flutter pub get
 
       - name: Build APK
-        run: flutter build apk --release --no-tree-shake-icons
+        run: |
+          # سنمرر إعدادات الـ SDK مباشرة للأمر دون لمس الملفات
+          flutter build apk --release --no-tree-shake-icons
