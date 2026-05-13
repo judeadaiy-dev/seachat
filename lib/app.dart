@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 import 'dart:async';
 import 'dart:io';
 import 'main.dart';
-
+import 'package:supabase_flutter/supabase_flutter.dart';
 // ==================== MyApp ====================
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
