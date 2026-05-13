@@ -3,11 +3,11 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
 import 'dart:io';
 import 'main.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-// ==================== MyApp ====================
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
   @override
@@ -17,7 +17,6 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        fontFamily: 'Cairo',
         colorScheme: ColorScheme.fromSeed(seedColor: AppColors.button, brightness: Brightness.dark),
         scaffoldBackgroundColor: AppColors.primaryBlue,
       ),
@@ -26,7 +25,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// ==================== صفحة ترحيبية خورافية ====================
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
   @override
@@ -120,7 +118,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
   }
 }
 
-// ==================== AuthGate ====================
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
   @override
@@ -175,7 +172,6 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   }
 }
 
-// ==================== تسجيل إيميل وباسورد فقط ====================
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
   @override
@@ -280,7 +276,6 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 }
 
-// ==================== HomeScreen ====================
 class HomeScreen extends StatefulWidget {
   final UserModel currentUser;
   const HomeScreen({super.key, required this.currentUser});
@@ -378,7 +373,7 @@ class RoomTile extends StatelessWidget {
     );
   }
 }
-// ==================== ChatScreen مع إرسال صور وصوت ====================
+
 class ChatScreen extends StatefulWidget {
   final RoomModel room;
   const ChatScreen({required this.room});
@@ -508,7 +503,6 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
-// ==================== MessageBubble يدعم صور وصوت ====================
 class MessageBubble extends StatelessWidget {
   final MessageModel msg;
   const MessageBubble({required this.msg});
@@ -545,8 +539,7 @@ class MessageBubble extends StatelessWidget {
         return ClipRRect(
           borderRadius: BorderRadius.circular(12),
           child: CachedNetworkImage(
-            imageUrl: msg.mediaUrl!,
-            width: 200,
+            imageUrl: msg.mediaUrl!,            width: 200,
             placeholder: (context, url) => Container(width: 200, height: 200, color: AppColors.primaryBlue, child: const Center(child: CircularProgressIndicator())),
             errorWidget: (context, url, error) => Container(
               width: 200,
@@ -590,7 +583,6 @@ class MessageBubble extends StatelessWidget {
   }
 }
 
-// ==================== مشغل الصوت ====================
 class _AudioMessageBubble extends StatefulWidget {
   final String audioUrl;
   const _AudioMessageBubble({required this.audioUrl});
@@ -630,7 +622,6 @@ class _AudioMessageBubbleState extends State<_AudioMessageBubble> {
   }
 }
 
-// ==================== دردشة خاصة مع صور وصوت ====================
 class PrivateChatScreen extends StatefulWidget {
   final UserModel otherUser;
   const PrivateChatScreen({required this.otherUser});
@@ -753,6 +744,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
                   ),
                 ),
+              ),
               const SizedBox(width: 8),
               CircleAvatar(backgroundColor: AppColors.button, child: IconButton(icon: const Icon(Icons.send, color: Colors.white, size: 20), onPressed: _sendText)),
             ]),
@@ -762,6 +754,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     );
   }
 }
+
 class ProfileScreen extends StatefulWidget {
   final String userId;
   final bool isMe;
@@ -839,8 +832,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: ElevatedButton.icon(
                   onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PrivateChatScreen(otherUser: user!))),
                   icon: const Icon(Icons.message, size: 18),
-                  label:
-                 label: const Text('مراسلة'),
+                  label: const Text('مراسلة'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.button,
                     foregroundColor: Colors.white,
@@ -858,7 +850,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-// ==================== تعديل البروفايل ستايل انستا ====================
 class EditProfileScreen extends StatefulWidget {
   final bool isFirstTime;
   const EditProfileScreen({this.isFirstTime = false});
@@ -1000,7 +991,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 }
 
-// ==================== إنشاء غرفة ====================
 class CreateRoomScreen extends StatefulWidget {
   const CreateRoomScreen({super.key});
   @override
@@ -1070,7 +1060,6 @@ class _CreateRoomScreenState extends State<CreateRoomScreen> {
   }
 }
 
-// ==================== شاشة الحظر ====================
 class BannedScreen extends StatelessWidget {
   const BannedScreen({super.key});
   @override
@@ -1098,4 +1087,3 @@ class BannedScreen extends StatelessWidget {
     );
   }
 }
-          
