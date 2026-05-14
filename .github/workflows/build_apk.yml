@@ -1,4 +1,4 @@
-name: SeaChat Ultimate Build
+name: SeaChat Clean Build
 
 on:
   push:
@@ -24,33 +24,29 @@ jobs:
         with:
           flutter-version: '3.24.0'
 
-      - name: Nuclear Cleanup & Reconstruct
+      - name: Force Clean and Reconstruction
         run: |
-          # 1. حذف شامل للملفات المؤقتة والاعتمادات المحبوسة
+          # 1. حذف شامل لملفات القفل والكاش لضمان عدم استدعاء app_links نهائياً
           flutter clean
-          rm -rf pubspec.lock
+          rm -f pubspec.lock
           rm -rf .dart_tool
           
-          # 2. التأكد برمجياً من خلو ملف pubspec من app_links
-          sed -i '/app_links:/d' pubspec.yaml
-          
-          # 3. إعادة بناء مجلد أندرويد من الصفر لضمان الهوية الجديدة
+          # 2. إعادة إنشاء مجلد أندرويد ليكون متوافقاً مع الهوية الجديدة com.seachat.app
           rm -rf android
           flutter create . --platforms android --org com.seachat.app
           
-          # 4. إصلاح مشاكل الربط في المكتبات الأخرى (مثل record_android)
+          # 3. إعداد ملف local.properties لربط مسارات Flutter و Android
           echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
           echo "sdk.dir=$ANDROID_SDK_ROOT" >> android/local.properties
           
-          # 5. حقن تعريف Flutter في ملف build.gradle الرئيسي لتعرفه المكتبات الفرعية
+          # 4. حقن تعريف Flutter في ملف build.gradle الرئيسي لحل مشكلة 'unknown property flutter'
           sed -i "1i def flutterRoot = '$FLUTTER_ROOT'" android/build.gradle
           
-          # 6. تحديث إصدارات الـ SDK إلى 35 المطلوبة لمكتباتك الحديثة
+          # 5. تحديث إصدارات الـ SDK إلى 35 المطلوبة لمكتبات الصوت والصور
           sed -i 's/compileSdkVersion .*/compileSdkVersion 35/' android/app/build.gradle
           sed -i 's/targetSdkVersion .*/targetSdkVersion 35/' android/app/build.gradle
 
-      - name: Final Build
+      - name: Build APK
         run: |
           flutter pub get
-          # بناء الـ APK وتجاوز مشاكل الأيقونات غير الموجودة
           flutter build apk --release --no-tree-shake-icons
