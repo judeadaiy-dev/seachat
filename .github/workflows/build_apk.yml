@@ -1,4 +1,4 @@
-name: SeaChat Ultimate Build Fix
+name: SeaChat Ultimate Build
 
 on:
   push:
@@ -24,34 +24,33 @@ jobs:
         with:
           flutter-version: '3.24.0'
 
-      - name: Hard Cleanup & SDK Injection
+      - name: Nuclear Cleanup & Reconstruct
         run: |
-          # 1. حذف شامل لأي ملفات قفل أو كاش قديمة
+          # 1. حذف شامل للملفات المؤقتة والاعتمادات المحبوسة
           flutter clean
           rm -rf pubspec.lock
           rm -rf .dart_tool
           
-          # 2. إزالة مكتبة app_links من ملف pubspec برمجياً لقطع علاقتها بالمشروع
+          # 2. التأكد برمجياً من خلو ملف pubspec من app_links
           sed -i '/app_links:/d' pubspec.yaml
           
-          # 3. إعادة إنشاء مجلد أندرويد ليكون نظيفاً تماماً
+          # 3. إعادة بناء مجلد أندرويد من الصفر لضمان الهوية الجديدة
           rm -rf android
           flutter create . --platforms android --org com.seachat.app
           
-          # 4. إعداد ملف local.properties لربط مسارات Flutter و Android
+          # 4. إصلاح مشاكل الربط في المكتبات الأخرى (مثل record_android)
           echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
           echo "sdk.dir=$ANDROID_SDK_ROOT" >> android/local.properties
           
-          # 5. حقن إصدار SDK 35 (وإصلاح مشكلة record_android)
-          # سنقوم بتحديث ملف build.gradle الرئيسي لتعريف مسار flutter لكل المكتبات الفرعية
+          # 5. حقن تعريف Flutter في ملف build.gradle الرئيسي لتعرفه المكتبات الفرعية
           sed -i "1i def flutterRoot = '$FLUTTER_ROOT'" android/build.gradle
           
-          # تحديث إصدارات الـ SDK في ملف التطبيق
+          # 6. تحديث إصدارات الـ SDK إلى 35 المطلوبة لمكتباتك الحديثة
           sed -i 's/compileSdkVersion .*/compileSdkVersion 35/' android/app/build.gradle
           sed -i 's/targetSdkVersion .*/targetSdkVersion 35/' android/app/build.gradle
 
-      - name: Build APK
+      - name: Final Build
         run: |
           flutter pub get
-          # بناء التطبيق مع تجاهل أيقونات iOS
+          # بناء الـ APK وتجاوز مشاكل الأيقونات غير الموجودة
           flutter build apk --release --no-tree-shake-icons
