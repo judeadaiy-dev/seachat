@@ -1,4 +1,4 @@
-name: SeaChat Ultimate Force Build
+name: SeaChat Force Build APK
 
 on:
   push:
@@ -24,33 +24,27 @@ jobs:
         with:
           flutter-version: '3.24.0'
 
-      - name: The Nuclear Option (Cleanup & Force Build)
+      - name: Hard Cleanup & Path Injection
         run: |
-          # 1. مسح شامل لكل الكاش وملفات القفل لقطع الطريق على app_links
+          # 1. تنظيف شامل وإزالة ملفات القفل التي قد تحتوي على app_links
           flutter clean
           rm -f pubspec.lock
-          rm -rf .dart_tool
           
-          # 2. حذف مجلد أندرويد بالكامل لإزالة أي إعدادات قديمة مرتبطة بالمكتبة
-          rm -rf android
-          
-          # 3. إعادة إنشاء مجلد أندرويد نظيف ومعرف بـ SeaChat
-          flutter create . --platforms android --org com.seachat.app
-          
-          # 4. حقن مسار Flutter يدوياً في ملفات Gradle لحل مشكلة unknown property flutter
+          # 2. حقن مسار Flutter و SDK مباشرة لحل مشكلة 'unknown property flutter'
+          mkdir -p android
           echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
           echo "sdk.dir=$ANDROID_SDK_ROOT" >> android/local.properties
           
-          # 5. إجبار نظام أندرويد على استخدام SDK 35 لدعم مكتبات الصوت والصور
-          sed -i 's/compileSdkVersion .*/compileSdkVersion 35/' android/app/build.gradle
-          sed -i 's/targetSdkVersion .*/targetSdkVersion 35/' android/app/build.gradle
+          # 3. تعديل ملفات build.gradle برمجياً لكل المكتبات في الـ cache 
+          # لإجبارها على استخدام SDK 35 بدلاً من طلب 36
+          find /home/runner/.pub-cache -name "build.gradle" -exec sed -i 's/compileSdkVersion .*/compileSdkVersion 35/g' {} +
+          find /home/runner/.pub-cache -name "build.gradle" -exec sed -i 's/targetSdkVersion .*/targetSdkVersion 35/g' {} +
           
-          # 6. حقن تعريف flutterRoot في ملف build.gradle الرئيسي لضمان رؤية جميع المكتبات له
-          sed -i "1i def flutterRoot = '$FLUTTER_ROOT'" android/build.gradle
+          # 4. إصلاح ملف الأندرويد الرئيسي لمشروع SeaChat
+          sed -i "1i def flutterRoot = '$FLUTTER_ROOT'" android/build.gradle || true
 
-      - name: Final Execution
+      - name: Build APK
         run: |
-          # تحميل المكتبات الجديدة فقط (بدون app_links)
           flutter pub get
-          # بناء APK النسخة النهائية وتجاهل مشاكل الأيقونات
+          # بناء التطبيق وتجاهل الأيقونات المفقودة
           flutter build apk --release --no-tree-shake-icons
