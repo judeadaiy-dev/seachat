@@ -1,9 +1,8 @@
-name: SeaChat Supabase & Permissions Build
+name: SeaChat Full Reconstruction
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
   build:
@@ -24,32 +23,34 @@ jobs:
         with:
           flutter-version: '3.24.0'
 
-      - name: Reconstruct & Inject Permissions
+      - name: Force Reconstruction & Permission Injection
         run: |
-          # 1. إعادة إنشاء مجلد أندرويد
+          # 1. حذف أي بقايا قديمة وإنشاء مجلد أندرويد جديد ونظيف
           rm -rf android
           flutter create . --platforms android --org com.seachat.app
           
-          # 2. حقن تصاريح (الإنترنت، المايكروفون، التخزين) في AndroidManifest.xml
-          # هذه الخطوة ضرورية لعمل Supabase ومكتبات الصوت
+          # 2. حقن التصاريح في AndroidManifest.xml (الإنترنت والمايكروفون)
           MANIFEST="android/app/src/main/AndroidManifest.xml"
+          # إضافة تصريح الإنترنت (إلزامي لـ Supabase)
           sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
+          # إضافة تصاريح المايكروفون (إلزامي لـ record_android)
           sed -i '/<application/i \    <uses-permission android:name="android.permission.RECORD_AUDIO" />' $MANIFEST
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />' $MANIFEST
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />' $MANIFEST
           sed -i '/<application/i \    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' $MANIFEST
 
-          # 3. إعداد ملفات Gradle لحل مشكلة مكتبة record_android
+          # 3. حل مشكلة "unknown property flutter" و compileSdkVersion في record_android
+          # نكتب المسارات يدوياً لضمان رؤية Gradle لها
           echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
           echo "sdk.dir=$ANDROID_SDK_ROOT" >> android/local.properties
+          
+          # حقن تعريف flutterRoot في ملف build.gradle الأساسي
           sed -i "1i def flutterRoot = '$FLUTTER_ROOT'" android/build.gradle
           
-          # 4. رفع إصدار الـ SDK إلى 35 لضمان عمل Supabase Authentication
+          # 4. إجبار المشروع على استخدام SDK 35 (لدعم Supabase وتفادي طلب SDK 36 من app_links)
           sed -i 's/compileSdkVersion .*/compileSdkVersion 35/' android/app/build.gradle
           sed -i 's/targetSdkVersion .*/targetSdkVersion 35/' android/app/build.gradle
 
       - name: Build APK
         run: |
           flutter pub get
-          # بناء التطبيق مع ربط مكاتب Supabase وتجاهل أيقونات Launcher المؤقتة
+          # بناء APK النسخة النهائية وتخطي فحص الأيقونات لتسريع العملية
           flutter build apk --release --no-tree-shake-icons
