@@ -1,65 +1,57 @@
-name: Build Sea Chat APK
+name: SeaChat Ultimate Build Fix
 
 on:
   push:
-    branches: [ main, master ]
-  workflow_dispatch:
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
-    steps:
-      - name: 1. سحب الكود
-        uses: actions/checkout@v4
 
-      - name: 2. تثبيت Java 17
-        uses: actions/setup-java@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: 3. تثبيت Flutter 3.24
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.0'
-          channel: 'stable'
-          cache: true
 
-      - name: 4. تجديد Android
+      - name: Hard Cleanup & SDK Injection
         run: |
+          # 1. حذف شامل لأي ملفات قفل أو كاش قديمة
+          flutter clean
+          rm -rf pubspec.lock
+          rm -rf .dart_tool
+          
+          # 2. إزالة مكتبة app_links من ملف pubspec برمجياً لقطع علاقتها بالمشروع
+          sed -i '/app_links:/d' pubspec.yaml
+          
+          # 3. إعادة إنشاء مجلد أندرويد ليكون نظيفاً تماماً
           rm -rf android
-          flutter create --platforms=android --org com.seachat .
-          sed -i '/defaultConfig {/a \        multiDexEnabled true' android/app/build.gradle
+          flutter create . --platforms android --org com.seachat.app
+          
+          # 4. إعداد ملف local.properties لربط مسارات Flutter و Android
+          echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
+          echo "sdk.dir=$ANDROID_SDK_ROOT" >> android/local.properties
+          
+          # 5. حقن إصدار SDK 35 (وإصلاح مشكلة record_android)
+          # سنقوم بتحديث ملف build.gradle الرئيسي لتعريف مسار flutter لكل المكتبات الفرعية
+          sed -i "1i def flutterRoot = '$FLUTTER_ROOT'" android/build.gradle
+          
+          # تحديث إصدارات الـ SDK في ملف التطبيق
+          sed -i 's/compileSdkVersion .*/compileSdkVersion 35/' android/app/build.gradle
+          sed -i 's/targetSdkVersion .*/targetSdkVersion 35/' android/app/build.gradle
 
-      - name: 5. تثبيت الحزم
-        run: flutter pub get
-
-      - name: 6. اضافة التصاريح
+      - name: Build APK
         run: |
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          sed -i '/<\/manifest>/d' $MANIFEST
-          cat >> $MANIFEST << 'PERMS'
-              <uses-permission android:name="android.permission.INTERNET"/>
-              <uses-permission android:name="android.permission.CAMERA"/>
-              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
-              <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
-              <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
-              <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29"/>
-              <uses-permission android:name="android.permission.WAKE_LOCK"/>
-              <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
-              <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
-          </manifest>
-          PERMS
-          sed -i 's/<application/<application android:usesCleartextTraffic="true"/' $MANIFEST
-
-      - name: 7. بناء APK نهائي
-        run: flutter build apk --release --no-tree-shake-icons
-
-      - name: 8. رفع الـ APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: SeaChat-Release
-          path: build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 30
+          flutter pub get
+          # بناء التطبيق مع تجاهل أيقونات iOS
+          flutter build apk --release --no-tree-shake-icons
