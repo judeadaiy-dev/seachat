@@ -1,4 +1,4 @@
-name: SeaChat Force Build APK
+name: SeaChat Total Reconstruction Build
 
 on:
   push:
@@ -11,12 +11,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
+          distribution: 'temurin'
           java-version: '17'
 
       - name: Setup Flutter
@@ -24,27 +24,32 @@ jobs:
         with:
           flutter-version: '3.24.0'
 
-      - name: Hard Cleanup & Path Injection
+      - name: Reconstruct Android Folder from Scratch
         run: |
-          # 1. تنظيف شامل وإزالة ملفات القفل التي قد تحتوي على app_links
-          flutter clean
+          # 1. تنظيف أي ملفات قفل قديمة
           rm -f pubspec.lock
           
-          # 2. حقن مسار Flutter و SDK مباشرة لحل مشكلة 'unknown property flutter'
-          mkdir -p android
+          # 2. الأمر السحري لإعادة إنشاء مجلد أندرويد متوافق مع نسخة فلاتر الحالية
+          # سيتم استخدام الهوية com.seachat.app التي حددتها سابقاً
+          flutter create . --platforms android --org com.seachat.app
+          
+          # 3. إعداد ملف local.properties لتعريف المسارات للسيرفر
           echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
           echo "sdk.dir=$ANDROID_SDK_ROOT" >> android/local.properties
           
-          # 3. تعديل ملفات build.gradle برمجياً لكل المكتبات في الـ cache 
-          # لإجبارها على استخدام SDK 35 بدلاً من طلب 36
-          find /home/runner/.pub-cache -name "build.gradle" -exec sed -i 's/compileSdkVersion .*/compileSdkVersion 35/g' {} +
-          find /home/runner/.pub-cache -name "build.gradle" -exec sed -i 's/targetSdkVersion .*/targetSdkVersion 35/g' {} +
+          # 4. حقن تعريف flutterRoot في build.gradle الرئيسي (لحل مشكلة مكتبة record_android)
+          sed -i "1i def flutterRoot = '$FLUTTER_ROOT'" android/build.gradle
           
-          # 4. إصلاح ملف الأندرويد الرئيسي لمشروع SeaChat
-          sed -i "1i def flutterRoot = '$FLUTTER_ROOT'" android/build.gradle || true
+          # 5. رفع إصدار الـ SDK إلى 35 لضمان توافق مكتبات الصور والوسائط الحديثة
+          sed -i 's/compileSdkVersion .*/compileSdkVersion 35/' android/app/build.gradle
+          sed -i 's/targetSdkVersion .*/targetSdkVersion 35/' android/app/build.gradle
+          
+          # 6. تحديث إصدار Gradle Wrapper لضمان استقرار البناء
+          cd android && ./gradlew wrapper --gradle-version 8.7 && cd ..
 
       - name: Build APK
         run: |
           flutter pub get
-          # بناء التطبيق وتجاهل الأيقونات المفقودة
+          # بناء نسخة الإصدار النهائية مع تجاهل أي نقص في الأيقونات
           flutter build apk --release --no-tree-shake-icons
+
