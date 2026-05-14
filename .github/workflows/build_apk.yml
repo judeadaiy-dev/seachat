@@ -1,4 +1,4 @@
-name: SeaChat Clean Build
+name: SeaChat Ultimate Force Build
 
 on:
   push:
@@ -24,29 +24,33 @@ jobs:
         with:
           flutter-version: '3.24.0'
 
-      - name: Force Clean and Reconstruction
+      - name: The Nuclear Option (Cleanup & Force Build)
         run: |
-          # 1. حذف شامل لملفات القفل والكاش لضمان عدم استدعاء app_links نهائياً
+          # 1. مسح شامل لكل الكاش وملفات القفل لقطع الطريق على app_links
           flutter clean
           rm -f pubspec.lock
           rm -rf .dart_tool
           
-          # 2. إعادة إنشاء مجلد أندرويد ليكون متوافقاً مع الهوية الجديدة com.seachat.app
+          # 2. حذف مجلد أندرويد بالكامل لإزالة أي إعدادات قديمة مرتبطة بالمكتبة
           rm -rf android
+          
+          # 3. إعادة إنشاء مجلد أندرويد نظيف ومعرف بـ SeaChat
           flutter create . --platforms android --org com.seachat.app
           
-          # 3. إعداد ملف local.properties لربط مسارات Flutter و Android
+          # 4. حقن مسار Flutter يدوياً في ملفات Gradle لحل مشكلة unknown property flutter
           echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
           echo "sdk.dir=$ANDROID_SDK_ROOT" >> android/local.properties
           
-          # 4. حقن تعريف Flutter في ملف build.gradle الرئيسي لحل مشكلة 'unknown property flutter'
-          sed -i "1i def flutterRoot = '$FLUTTER_ROOT'" android/build.gradle
-          
-          # 5. تحديث إصدارات الـ SDK إلى 35 المطلوبة لمكتبات الصوت والصور
+          # 5. إجبار نظام أندرويد على استخدام SDK 35 لدعم مكتبات الصوت والصور
           sed -i 's/compileSdkVersion .*/compileSdkVersion 35/' android/app/build.gradle
           sed -i 's/targetSdkVersion .*/targetSdkVersion 35/' android/app/build.gradle
+          
+          # 6. حقن تعريف flutterRoot في ملف build.gradle الرئيسي لضمان رؤية جميع المكتبات له
+          sed -i "1i def flutterRoot = '$FLUTTER_ROOT'" android/build.gradle
 
-      - name: Build APK
+      - name: Final Execution
         run: |
+          # تحميل المكتبات الجديدة فقط (بدون app_links)
           flutter pub get
+          # بناء APK النسخة النهائية وتجاهل مشاكل الأيقونات
           flutter build apk --release --no-tree-shake-icons
