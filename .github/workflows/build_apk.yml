@@ -1,4 +1,4 @@
-name: SeaChat Total Reconstruction Build
+name: SeaChat Supabase & Permissions Build
 
 on:
   push:
@@ -24,32 +24,32 @@ jobs:
         with:
           flutter-version: '3.24.0'
 
-      - name: Reconstruct Android Folder from Scratch
+      - name: Reconstruct & Inject Permissions
         run: |
-          # 1. تنظيف أي ملفات قفل قديمة
-          rm -f pubspec.lock
-          
-          # 2. الأمر السحري لإعادة إنشاء مجلد أندرويد متوافق مع نسخة فلاتر الحالية
-          # سيتم استخدام الهوية com.seachat.app التي حددتها سابقاً
+          # 1. إعادة إنشاء مجلد أندرويد
+          rm -rf android
           flutter create . --platforms android --org com.seachat.app
           
-          # 3. إعداد ملف local.properties لتعريف المسارات للسيرفر
+          # 2. حقن تصاريح (الإنترنت، المايكروفون، التخزين) في AndroidManifest.xml
+          # هذه الخطوة ضرورية لعمل Supabase ومكتبات الصوت
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.RECORD_AUDIO" />' $MANIFEST
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />' $MANIFEST
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />' $MANIFEST
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' $MANIFEST
+
+          # 3. إعداد ملفات Gradle لحل مشكلة مكتبة record_android
           echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
           echo "sdk.dir=$ANDROID_SDK_ROOT" >> android/local.properties
-          
-          # 4. حقن تعريف flutterRoot في build.gradle الرئيسي (لحل مشكلة مكتبة record_android)
           sed -i "1i def flutterRoot = '$FLUTTER_ROOT'" android/build.gradle
           
-          # 5. رفع إصدار الـ SDK إلى 35 لضمان توافق مكتبات الصور والوسائط الحديثة
+          # 4. رفع إصدار الـ SDK إلى 35 لضمان عمل Supabase Authentication
           sed -i 's/compileSdkVersion .*/compileSdkVersion 35/' android/app/build.gradle
           sed -i 's/targetSdkVersion .*/targetSdkVersion 35/' android/app/build.gradle
-          
-          # 6. تحديث إصدار Gradle Wrapper لضمان استقرار البناء
-          cd android && ./gradlew wrapper --gradle-version 8.7 && cd ..
 
       - name: Build APK
         run: |
           flutter pub get
-          # بناء نسخة الإصدار النهائية مع تجاهل أي نقص في الأيقونات
+          # بناء التطبيق مع ربط مكاتب Supabase وتجاهل أيقونات Launcher المؤقتة
           flutter build apk --release --no-tree-shake-icons
-
